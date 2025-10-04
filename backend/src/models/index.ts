@@ -1,6 +1,17 @@
-// Здесь объединяем все базы данных
-import sequelize from '../config/database.ts';
-import {Product} from '../models/product.ts'
-// import {Category} from '../models/category.ts'
+// models/index.ts
+import { User } from './user.ts';
+import { Product } from './product.ts';
+import { Category } from './category.ts';
+import { Order } from './order.ts';
+import { OrderItem } from './OrderItem.ts';
 
-export {Product}
+// Импортируем ассоциации
+import './associations.ts';
+
+export {
+  User,
+  Product,
+  Category,
+  Order,
+  OrderItem,
+}
