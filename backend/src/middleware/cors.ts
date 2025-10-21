@@ -2,7 +2,8 @@ import cors from 'cors';
 
 const corsOptions = {
   origin: [
-    'http://localhost:3000', // React dev server
+    'http://localhost:3001',
+    'http://localhost:5173'
     //'http://admin.yourdomain.com', // Production admin
     //'https://admin.yourdomain.com'
   ],

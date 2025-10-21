@@ -1,5 +1,6 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database.js';
+import { DataTypes, Model } from 'sequelize';
+import type {Optional } from 'sequelize';
+import sequelize from '../config/database.ts';
 
 interface ProductAttribute{
   id: number;

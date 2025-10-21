@@ -1,13 +1,29 @@
 import {productService} from '../services/ProductService.ts'
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 
 
 class ProductController{
 
+  async getAllProducts(req: Request, res: Response){
+    try{
+      const products = await productService.findAll();
+      res.json({
+        success: true,
+        data: products,
+      });
+    } catch(error){
+      console.error('Get all products error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch products',
+      });
+    }
+  }
+
   // Получить все товары категории
   async getByCategory(req: Request, res: Response) {
     try {
-      const categoryId = parseInt(req.params.categoryId || '');
+      const categoryId = parseInt(req.params.catId || '');
       const language = (req.query.lang as string) || 'ru';
 
       const products = await productService.findByCategory(categoryId, language);
@@ -85,7 +101,7 @@ class ProductController{
   async create(req: Request, res: Response) {
     try {
       const productData = req.body;
-
+      console.log('productData', productData);
       const product = await productService.create(productData);
 
       res.status(201).json({

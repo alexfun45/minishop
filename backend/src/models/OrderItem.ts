@@ -1,6 +1,6 @@
-// models/OrderItem.ts
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database.js';
+import type {Optional } from 'sequelize';
+import {DataTypes, Model} from 'sequelize'
+import sequelize from '../config/database.ts';
 
 interface OrderItemAttribute{
   id: number;

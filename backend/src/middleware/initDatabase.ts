@@ -1,5 +1,6 @@
 import sequelize from '../config/database.ts';
-import { Product } from '../models/index.ts'
+import { Product, Category, User } from '../models/index.ts'
+import { createHmac } from 'node:crypto';
 
 export async function initializeDatabase() {
   try {
@@ -29,16 +30,25 @@ async function seedInitialData() {
     //const { Category, Product } = await import('./models/index.js');
     //const { Product } = await import('../models/index.ts');
     // Проверяем, есть ли уже данные
-    //const categoryCount = await Category.count();
-    /*if (categoryCount === 0) {
+    const categoryCount = await Category.count();
+    if (categoryCount === 0) {
       // Создаем тестовые категории
       const bakeryCategory = await Category.create({
         name_ru: 'Выпечка',
         name_tj: 'Хобизӣ',
         name_uz: 'Nonvoylik',
         is_active: true
-      });*/
-      
+      });
+    };
+    const secret = 'gfrvwf23f';
+    const passHash = createHmac('sha256', secret)
+    .update('admin465')
+    .digest('hex');
+      await User.create({
+        username: 'admin',
+        role: 'admin',
+        password: passHash
+      })
       // Создаем тестовые товары
       await Product.create({
         name_ru: 'White bread',

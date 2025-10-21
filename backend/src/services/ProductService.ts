@@ -26,10 +26,15 @@ export class ProductService {
     return product[fieldName] || product.description_ru || '';
   }
 
+  async findAll(){
+    const products = await Product.findAll();
+    return products;
+  }
+
   // Получить товары по категории
   async findByCategory(categoryId: number, language: string = 'ru') {
-    const products = await Product.findAll();
-    /*const products = await Product.findAll({
+    //const products = await Product.findAll();
+    const products = await Product.findAll({
       where: {
         category_id: categoryId,
         available: true,
@@ -40,7 +45,7 @@ export class ProductService {
         attributes: ['id', 'name_ru', 'name_tj', 'name_uz'],
       }],
       order: [['name_ru', 'ASC']],
-    });*/
+    });
     console.log('products', products);
     return products;
 
