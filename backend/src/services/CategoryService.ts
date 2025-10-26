@@ -28,9 +28,9 @@ export class CategoryService {
   async findAllActive(language: string = 'ru') {
     const categories = await Category.findAll({
       where: { is_active: true },
-      order: [['sort_order', 'ASC'], ['name_ru', 'ASC']],
+      //order: [['sort_order', 'ASC'], ['name_ru', 'ASC']],
     });
-
+    return categories;
     return categories.map(async (category: any) => ({
       id: category.id,
       name: this.getName(category, language),

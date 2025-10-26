@@ -18,6 +18,13 @@ export const QuickActions: React.FC = () => {
       color: 'bg-green-50 text-green-700 hover:bg-green-100'
     },
     {
+      title: 'Товары',
+      description: 'Просмотр товаров',
+      icon: '🏬',
+      href: '/products',
+      color: 'bg-orange-50 text-black-700 hover:bg-green-100'
+    },
+    {
       title: 'Управление заказами',
       description: 'Просмотр и обработка заказов',
       icon: '📦',

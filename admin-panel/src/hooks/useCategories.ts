@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
 
 export interface Category {
-  id: string;
+  id?: string;
   name_ru: string;
   name_tj: string;
   name_uz: string;
@@ -25,51 +25,7 @@ export const useCategories = () => {
     const fetchCategories = async () => {
       try {
         const _categories = await apiClient.get('/categories/');
-        /*
-        const mockCategories: Category[] = [
-          {
-            id: '1',
-            name_ru: 'Хлеб',
-            name_tj: 'Нон',
-            name_uz: 'Non',
-            description_ru: 'Свежий хлеб различных сортов',
-            description_tj: 'Нони тоза аз навъҳои гуногун',
-            description_uz: 'Turli xil yangi nonlar',
-            sort_order: 1,
-            is_active: true,
-            product_count: 12,
-            created_at: '2024-01-15'
-          },
-          {
-            id: '2',
-            name_ru: 'Выпечка',
-            name_tj: 'Кандолӣ',
-            name_uz: 'Shirinliklar',
-            description_ru: 'Сладкая выпечка и десерты',
-            description_tj: 'Кандолиҳо ва ширинӣ',
-            description_uz: 'Shirin pishiriqlar va desertlar',
-            sort_order: 2,
-            is_active: true,
-            product_count: 8,
-            created_at: '2024-01-15'
-          },
-          {
-            id: '3',
-            name_ru: 'Торты',
-            name_tj: 'Тортҳо',
-            name_uz: 'Tortlar',
-            description_ru: 'Праздничные и обычные торты',
-            description_tj: 'Тортҳои тӯйӣ ва оддӣ',
-            description_uz: 'Bayram va oddiy tortlar',
-            sort_order: 3,
-            is_active: true,
-            product_count: 6,
-            created_at: '2024-01-15'
-          }
-        ];
-        
-        setCategories(mockCategories);*/
-        setCategories(_categories);
+        setCategories(_categories.data);
         setLoading(false);
       } catch (err) {
         setError('Ошибка загрузки категорий');
@@ -84,7 +40,7 @@ export const useCategories = () => {
     // Логика создания категории
     const newCategory: Category = {
       ...categoryData,
-      id: Date.now().toString(),
+      //id: Date.now().toString(),
       product_count: 0,
       created_at: new Date().toISOString()
     };

@@ -14,7 +14,8 @@ router.use(AuthRoute);
 router.get('/products', productController.getAllProducts);
 router.get('/products/:catId', productController.getByCategory);
 router.post('/products/create', productController.create);
-router.put('/products/:id', productController.update);
+router.get('/product/:id', productController.getById);
+router.post('/product/update/:id', productController.update);
 
 router.get('/categories', categoryController.getCategories);
 router.post('/categories/create', categoryController.create);

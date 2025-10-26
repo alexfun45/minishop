@@ -26,9 +26,22 @@ export class ProductService {
     return product[fieldName] || product.description_ru || '';
   }
 
-  async findAll(){
+  async findAll(language: string = 'ru'){
     const products = await Product.findAll();
+    //console.log('products', products);
     return products;
+    /*return products.map((product: any) => ({
+      id: product.id,
+      ...product,
+      //name: this.getName(product, language),
+      description: this.getDescription(product, language),
+      price: product.price,
+      image_url: product.image_url,
+      category: product.category ? {
+        id: product.category.id,
+        name: categoryService.getName(product.category, language),
+      } : null,
+    }));*/
   }
 
   // Получить товары по категории
@@ -75,7 +88,7 @@ export class ProductService {
     });
 
     if (!product) return null;
-
+    return product;
     return {
       ...product.toJSON(),
       name: this.getName(product, language),

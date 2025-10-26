@@ -122,7 +122,6 @@ class ProductController{
     try {
       const productId = parseInt(req.params?.id || '');
       const productData = req.body;
-
       const product = await productService.update(productId, productData);
 
       res.json({

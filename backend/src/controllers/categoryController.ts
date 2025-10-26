@@ -23,7 +23,6 @@ class CategoryController{
   public create = async (req: Request, res: Response) => {
     try{
       const catData = req.body;
-      console.log('categoryData', catData);
       const category = await categoryService.create(catData);
 
       res.status(201).json({

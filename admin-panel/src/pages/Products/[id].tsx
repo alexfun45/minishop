@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
+import { apiClient } from '../../services/api';
 
 interface Product {
   id: string;
@@ -51,36 +52,20 @@ export const EditProduct: React.FC = () => {
     const fetchProduct = async () => {
       try {
         // Mock данные - в реальном приложении здесь будет API вызов
-        const mockProduct: Product = {
-          id: id || '',
-          name_ru: 'Хлеб Бородинский',
-          name_tj: 'Нони Бородинский',
-          name_uz: 'Borodinskiy noni',
-          description_ru: 'Ржаной хлеб с кориандром',
-          description_tj: 'Нони чӯявонӣ бо кориандр',
-          description_uz: 'Koriandrli javdar noni',
-          price: '85',
-          old_price: '95',
-          category_id: '1',
-          weight: '500г',
-          ingredients_ru: 'Мука ржаная, вода, соль, кориандр',
-          ingredients_tj: 'Орди чӯявонӣ, об, намак, кориандр',
-          ingredients_uz: 'Javdar un, suv, tuz, koriandr',
-          available: true
-        };
+        const data = await apiClient.get('/product/'+id);
         
-        setFormData(mockProduct);
+        setFormData(data.data);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching product:', error);
         setLoading(false);
       }
     };
-
-    if (id) {
-      fetchProduct();
-    }
-  }, [id]);
+    fetchProduct();
+    //if (id) {
+    //  fetchProduct();
+    //}
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,8 +74,8 @@ export const EditProduct: React.FC = () => {
     try {
       // Здесь будет вызов API для обновления товара
       console.log('Updating product:', formData);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Имитация API вызова
-      
+      //await new Promise(resolve => setTimeout(resolve, 1000)); // Имитация API вызова
+      await apiClient.post('/product/update/'+formData.id, formData);
       // После успешного сохранения - редирект
       navigate('/products');
     } catch (error) {
@@ -120,7 +105,7 @@ export const EditProduct: React.FC = () => {
     }
   };
 
-  if (loading || categoriesLoading) {
+  if (categoriesLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />

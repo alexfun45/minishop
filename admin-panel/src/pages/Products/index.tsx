@@ -110,10 +110,13 @@ export const ProductsList: React.FC = () => {
   });
 
   useEffect(()=>{
-    apiClient.get('/categories').then(res => {
+    apiClient.get('/categories').then(async (res) => {
       setCategories(res.data);
     });
 
+    apiClient.get('/products/').then(async (res) => {
+      setProducts(res.data);
+    });
   }, []);
 
   useEffect(()=>{
@@ -216,6 +219,7 @@ const filteredAndSortedProducts = useMemo(() => {
   // Пагинация
   const paginatedProducts = useMemo(() => {
     const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+    console.log('filteredAndSortedProducts', filteredAndSortedProducts);
     return filteredAndSortedProducts.slice(startIndex, startIndex + pagination.itemsPerPage);
   }, [filteredAndSortedProducts, pagination]);
 
@@ -417,7 +421,7 @@ const filteredAndSortedProducts = useMemo(() => {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-sm text-center font-medium text-gray-900">
-                          {product.name_ru}
+                          {product['name_ru']}
                         </div>
                         <div className="text-sm text-gray-500">
                           {product.name_tj} / {product.name_uz}

@@ -13,7 +13,7 @@ export const Header: React.FC = () => {
               </div>
             </div>
             <div className="ml-3">
-              <h1 className="text-xl font-semibold text-gray-900">Панель управления пекарней</h1>
+              <h1 className="text-xl font-semibold text-gray-900"><a href='/'>Панель управления пекарней</a></h1>
             </div>
           </div>
 
