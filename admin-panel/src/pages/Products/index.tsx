@@ -219,7 +219,7 @@ const filteredAndSortedProducts = useMemo(() => {
   // Пагинация
   const paginatedProducts = useMemo(() => {
     const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
-    console.log('filteredAndSortedProducts', filteredAndSortedProducts);
+    //console.log('filteredAndSortedProducts', filteredAndSortedProducts);
     return filteredAndSortedProducts.slice(startIndex, startIndex + pagination.itemsPerPage);
   }, [filteredAndSortedProducts, pagination]);
 

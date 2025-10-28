@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
 
 export const NewCategory: React.FC = () => {
   const { createCategory, loading } = useCategories();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     name_ru: '',
     name_tj: '',
@@ -15,12 +18,44 @@ export const NewCategory: React.FC = () => {
     is_active: true
   });
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createCategory(formData);
-      // Редирект или уведомление об успехе
+      // Создаем FormData для отправки файла
+      const submitData = new FormData();
+      
+      // Добавляем текстовые поля
+      Object.entries(formData).forEach(([key, value]) => {
+        submitData.append(key, value.toString());
+      });
+      
+      // Добавляем файл изображения, если есть
+      if (imageFile) {
+        submitData.append('image', imageFile);
+      }
+
+      await createCategory(submitData);
       console.log('Category created successfully');
+      
+      // Сброс формы после успешного создания
+      setFormData({
+        name_ru: '',
+        name_tj: '',
+        name_uz: '',
+        description_ru: '',
+        description_tj: '',
+        description_uz: '',
+        sort_order: 0,
+        is_active: true
+      });
+      setImageFile(null);
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
     } catch (error) {
       console.error('Error creating category:', error);
     }
@@ -32,6 +67,73 @@ export const NewCategory: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    
+    if (file) {
+      // Проверяем тип файла
+      if (!file.type.startsWith('image/')) {
+        alert('Пожалуйста, выберите файл изображения');
+        return;
+      }
+      
+      // Проверяем размер файла (максимум 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Размер файла не должен превышать 5MB');
+        return;
+      }
+      
+      setImageFile(file);
+      
+      // Создаем preview изображения
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImageFile(null);
+      setImagePreview(null);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Пожалуйста, перетащите файл изображения');
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Размер файла не должен превышать 5MB');
+        return;
+      }
+      
+      setImageFile(file);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   if (loading) {
@@ -57,6 +159,83 @@ export const NewCategory: React.FC = () => {
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                 Информация о категории
               </h3>
+
+              {/* Загрузка изображения */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Изображение категории
+                </label>
+                
+                {imagePreview ? (
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="h-32 w-32 object-cover rounded-lg border border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Изображение выбрано</p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-2 text-sm text-amber-600 hover:text-amber-500"
+                      >
+                        Выбрать другое изображение
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-amber-400 transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="space-y-1 text-center">
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400"
+                        stroke="currentColor"
+                        fill="none"
+                        viewBox="0 0 48 48"
+                      >
+                        <path
+                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <div className="flex text-sm text-gray-600">
+                        <label className="relative cursor-pointer rounded-md font-medium text-amber-600 hover:text-amber-500">
+                          <span>Загрузите изображение</span>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="sr-only"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                          />
+                        </label>
+                        <p className="pl-1">или перетащите его сюда</p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        PNG, JPG, GIF до 5MB
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               {/* Названия на трех языках */}
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">

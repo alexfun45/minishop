@@ -101,7 +101,31 @@ class ProductController{
   async create(req: Request, res: Response) {
     try {
       const productData = req.body;
-      console.log('productData', productData);
+      console.log('req.body', req.body);
+      const newProduct: any = {
+        name_ru: req.body.name_ru,
+        name_tj: req.body.name_tj,
+        name_uz: req.body.name_uz,
+        description_ru: req.body.description_ru,
+        description_tj: req.body.description_tj,
+        description_uz: req.body.description_uz,
+        price: req.body.price,
+        old_price: req.body.old_price,
+        category_id: req.body.category_id,
+        weight: req.body.weight,
+        ingredients_ru: req.body.ingredients_ru,
+        ingredients_tj: req.body.ingredients_tj,
+        ingredients_uz: req.body.ingredients_uz,
+        available: req.body.is_active === 'true',
+      }
+      console.log('productData', newProduct);
+      if (req.file) {
+        newProduct.image_url = `http://localhost:3001/uploads/products/${req.file.filename}`;
+        console.log('New image URL:', productData.image_url);
+      } else if (req.body.image_url !== undefined) {
+        // Если указан URL изображения (может быть пустой строкой)
+        newProduct.image_url = req.body.image_url || null;
+      }
       const product = await productService.create(productData);
 
       res.status(201).json({

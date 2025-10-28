@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAdmin } from '../middleware/adminAuth.ts';
 import { productController } from '../controllers/productController.ts';
 import { categoryController } from '../controllers/categoryController.ts';
+import { upload } from '../middleware/upload.ts';
 import AuthRoute from './auth.ts'
 const router = express.Router();
 
@@ -18,7 +19,8 @@ router.get('/product/:id', productController.getById);
 router.post('/product/update/:id', productController.update);
 
 router.get('/categories', categoryController.getCategories);
-router.post('/categories/create', categoryController.create);
+router.post('/categories/create',  upload.single('image'), categoryController.create);
+router.post('/categories/update/:id', upload.single('image'), categoryController.update);
 //router.delete('/products/:id', productController.delete);
 
 export default router

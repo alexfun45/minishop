@@ -10,14 +10,29 @@ class ApiClient {
 
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${API_BASE}${endpoint}`;
-    const config = {
+
+    const headers: HeadersInit = {
+      ...(this.token && { Authorization: `Bearer ${this.token}` }),
+    };
+
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...headers,
         ...options.headers,
       },
       ...options,
     };
+
+    console.log('API Request:', {
+      url,
+      method: config.method,
+      bodyType: options.body instanceof FormData ? 'FormData' : 'JSON',
+      hasFile: options.body instanceof FormData ? 'Yes' : 'No'
+    });
 
     const response = await fetch(url, config);
     
@@ -32,17 +47,21 @@ class ApiClient {
     return this.request(endpoint);
   }
 
-  async post(endpoint: string, data: any | null) {
+  async post(endpoint: string, data?: any | null, options?: any | null) {
+    const body = data instanceof FormData ? data : JSON.stringify(data);
     return this.request(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: body,
+      ...options
     });
   }
 
-  async put(endpoint: string, data: any) {
+  async put(endpoint: string, data: any, options: RequestInit = {}) {
+    const body = data instanceof FormData ? data : JSON.stringify(data);
     return this.request(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: body,
+      ...options
     });
   }
 

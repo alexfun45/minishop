@@ -6,7 +6,7 @@ export async function initializeDatabase() {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connected');
-    const mode = process.env.NODE_ENV?.trim();
+    const mode = process.env.NODE_ENV?.trim(); 
     const syncOptions = {
       force: mode === 'dev' ? false : false, // ОПАСНО: пересоздает таблицы!
       alter: mode === 'dev'

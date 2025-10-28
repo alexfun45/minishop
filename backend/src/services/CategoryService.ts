@@ -69,11 +69,12 @@ export class CategoryService {
 
   // Обновить категорию
   async update(categoryId: number, categoryData: any) {
+    console.log('Service - Updating category:', categoryId, categoryData);
     const category = await Category.findByPk(categoryId);
     if (!category) {
       throw new Error('Category not found');
     }
-
+    console.log('Service - Category updated:', categoryData);
     return await category.update(categoryData);
   }
 

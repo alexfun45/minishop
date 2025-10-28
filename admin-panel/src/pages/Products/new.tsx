@@ -4,9 +4,13 @@ import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
 import {apiClient} from '../../services/api'
 import { useNavigate } from "react-router-dom";
+import { ImageUpload } from '../../components/ImageUpload'
+import { useProducts } from '../../hooks/useProducts';
 
 export const NewProduct: React.FC = () => {
   const { categories, loading } = useCategories();
+  const {createProduct} = useProducts();
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name_ru: '',
     name_tj: '',
@@ -21,16 +25,69 @@ export const NewProduct: React.FC = () => {
     ingredients_ru: '',
     ingredients_tj: '',
     ingredients_uz: '',
+    image_url: '',
     available: true
   });
   let navigate = useNavigate();
 
+  const resetForm = () => {
+    setFormData({
+      name_ru: '',
+      name_tj: '',
+      name_uz: '',
+      description_ru: '',
+      description_tj: '',
+      description_uz: '',
+      price: '',
+      old_price: '',
+      category_id: '',
+      weight: '',
+      ingredients_ru: '',
+      ingredients_tj: '',
+      ingredients_uz: '',
+      image_url: '',
+      available: true
+      });
+    setImageFile(null);
+  };
+  let submitData = new FormData();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Здесь будет вызов API для создания товара
-    console.log('Creating product:', formData);
-    apiClient.post('/products/create', formData);
-    navigate("/products");
+    try {
+      
+      console.log('formData', formData);
+      /*Object.entries(formData).forEach(([key, value]) => {
+        if (key !== 'image_url' && value !== null && value !== undefined) {
+          console.log('value', value);
+          submitData.append(key, value.toString());
+        }
+      });*/
+      console.log('submitData', submitData);
+      // Добавляем файл изображения
+      if (imageFile) {
+        submitData.append('image', imageFile);
+      } else if (formData.image_url && !imageFile) {
+        submitData.append('image_url', formData.image_url);
+      }
+      
+      //createProduct(submitData);
+      //resetForm();
+    } catch (error) {
+      console.error('Error saving category:', error);
+    }
+    //apiClient.post('/products/create', formData);
+    //navigate("/products");
+  };
+
+  const handleImageChange = (file: File | null, previewUrl: string | null) => {
+    setImageFile(file);
+    if (previewUrl && !file) {
+      // Если это URL, а не файл
+      setFormData(prev => ({ ...prev, image_url: previewUrl }));
+    } else {
+      setFormData(prev => ({ ...prev, image_url: '' }));
+    }
   };
 
   const handleCancel = () => {
@@ -39,6 +96,8 @@ export const NewProduct: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    const val = (type === 'checkbox') ? (e.target as HTMLInputElement).checked : value
+    submitData.append(name, val.toString());
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
@@ -68,7 +127,11 @@ export const NewProduct: React.FC = () => {
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                 Основная информация
               </h3>
-              
+              <ImageUpload
+                  onImageChange={handleImageChange}
+                  existingImageUrl={formData.image_url}
+                  label="Изображение категории"
+                />
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 {/* Русское название */}
                 <div>
