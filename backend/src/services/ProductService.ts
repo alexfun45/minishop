@@ -59,8 +59,8 @@ export class ProductService {
       }],
       order: [['name_ru', 'ASC']],
     });
-    console.log('products', products);
-    return products;
+    //console.log('products', products);
+    //return products;
 
     return products.map((product: any) => ({
       id: product.id,

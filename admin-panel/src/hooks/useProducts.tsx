@@ -62,7 +62,8 @@ export const useProducts = () => {
     try{
       let response = await apiClient.post(`/products/create`, productData);
       const newProduct: Product = response.data;
-      setProducts(prev => [...prev, newProduct])
+      setProducts([...products, newProduct]);
+      
     } catch(err){
       console.log('err', err);
       setError('Ошибка загрузки категорий');

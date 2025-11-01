@@ -50,34 +50,35 @@ export const NewProduct: React.FC = () => {
       });
     setImageFile(null);
   };
-  let submitData = new FormData();
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      
-      console.log('formData', formData);
-      /*Object.entries(formData).forEach(([key, value]) => {
+      const submitData = new FormData();
+      //console.log('formData', formData);
+      Object.entries(formData).forEach(([key, value]) => {
         if (key !== 'image_url' && value !== null && value !== undefined) {
-          console.log('value', value);
-          submitData.append(key, value.toString());
+          if (typeof value === 'boolean') {
+            submitData.append(key, value ? 'true' : 'false');
+          } else {
+            submitData.append(key, value.toString());
+          }
         }
-      });*/
-      console.log('submitData', submitData);
+      });
       // Добавляем файл изображения
       if (imageFile) {
         submitData.append('image', imageFile);
       } else if (formData.image_url && !imageFile) {
         submitData.append('image_url', formData.image_url);
       }
-      
-      //createProduct(submitData);
-      //resetForm();
+        
+      createProduct(submitData);
+      resetForm();
     } catch (error) {
       console.error('Error saving category:', error);
     }
     //apiClient.post('/products/create', formData);
-    //navigate("/products");
+    navigate("/products");
   };
 
   const handleImageChange = (file: File | null, previewUrl: string | null) => {
@@ -96,8 +97,8 @@ export const NewProduct: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const val = (type === 'checkbox') ? (e.target as HTMLInputElement).checked : value
-    submitData.append(name, val.toString());
+    //const val = (type === 'checkbox') ? (e.target as HTMLInputElement).checked : value
+    //submitData.append(name, val.toString());
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value

@@ -120,7 +120,10 @@ export const ProductsList: React.FC = () => {
   }, []);
 
   useEffect(()=>{
-    apiClient.get('/products/'+filter.category);
+    //apiClient.get('/products/'+filter.category).then(async (res)=>{
+      //console.log('res', res.data);
+      //setProducts(res.data);
+    //})
   }, [filter.category]);
 
   const [sortConfig, setSortConfig] = useState<{
@@ -170,8 +173,9 @@ export const ProductsList: React.FC = () => {
   // Замените блок useMemo с фильтрацией и сортировкой на этот:
 
 const filteredAndSortedProducts = useMemo(() => {
+
   let filtered = products?.filter(product => {
-    const matchesCategory = !filter.category || product.category_id === filter.category;
+    const matchesCategory = !filter.category || product.category_id == filter.category;
     const matchesAvailable = 
       !filter.available || 
       (filter.available === 'available' && product.available) ||
@@ -184,7 +188,6 @@ const filteredAndSortedProducts = useMemo(() => {
 
     return matchesCategory && matchesAvailable && matchesSearch;
   });
-
   // Сортировка с проверкой типов
   filtered.sort((a, b) => {
     const aValue = a[sortConfig.key]; 
@@ -416,9 +419,18 @@ const filteredAndSortedProducts = useMemo(() => {
                 <tr key={product.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-amber-100 rounded-md flex items-center justify-center mr-4">
-                        <span className="text-amber-600">🍞</span>
-                      </div>
+                    {(product.image_url) ?  
+                       (
+                        <div className="flex-shrink-0 h-10 w-10 rounded-md flex items-center justify-center mr-4">
+                              <img src={product.image_url} />
+                        </div>
+                        ) : 
+                      (
+                        <div className="flex-shrink-0 h-10 w-10 bg-amber-100 rounded-md flex items-center justify-center mr-4">
+                          <span className="text-amber-600">🍞</span>
+                        </div>
+                        )}
+                      
                       <div className="min-w-0 flex-1">
                         <div className="text-sm text-center font-medium text-gray-900">
                           {product['name_ru']}

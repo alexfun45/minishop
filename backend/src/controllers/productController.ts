@@ -118,15 +118,13 @@ class ProductController{
         ingredients_uz: req.body.ingredients_uz,
         available: req.body.is_active === 'true',
       }
-      console.log('productData', newProduct);
       if (req.file) {
         newProduct.image_url = `http://localhost:3001/uploads/products/${req.file.filename}`;
-        console.log('New image URL:', productData.image_url);
       } else if (req.body.image_url !== undefined) {
         // Если указан URL изображения (может быть пустой строкой)
         newProduct.image_url = req.body.image_url || null;
       }
-      const product = await productService.create(productData);
+      const product = await productService.create(newProduct); 
 
       res.status(201).json({
         success: true,
