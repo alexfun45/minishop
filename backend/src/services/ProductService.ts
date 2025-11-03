@@ -150,12 +150,17 @@ export class ProductService {
 
   // Удалить товар
   async delete(productId: number) {
-    const product = await Product.findByPk(productId);
+    return await Product.destroy({
+      where: {
+        id: productId
+      },
+    });
+    /*const product = await Product.findByPk(productId);
     if (!product) {
       throw new Error('Product not found');
     }
-
-    return await product.update({ available: false });
+  
+    return await product.update({ available: false });*/
   }
 }
 

@@ -10,6 +10,7 @@ productRouter.get('/products/:catId', productController.getByCategory);
 productRouter.post('/products/create',uploadProduct.single('image'), productController.create);
 productRouter.get('/product/:id', productController.getById);
 productRouter.post('/product/update/:id', uploadProduct.single('image'), productController.update);
+productRouter.post('/product/delete/:id', productController.delete);
 /*productRouter.get("/", async (request, response) => {
   const products = await productController.getProducts();
   response.json({data: products});

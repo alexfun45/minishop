@@ -72,9 +72,6 @@ export const EditProduct: React.FC = () => {
     setSaving(true);
     
     try {
-      // Здесь будет вызов API для обновления товара
-      console.log('Updating product:', formData);
-      //await new Promise(resolve => setTimeout(resolve, 1000)); // Имитация API вызова
       await apiClient.post('/product/update/'+formData.id, formData);
       // После успешного сохранения - редирект
       navigate('/products');
@@ -98,6 +95,7 @@ export const EditProduct: React.FC = () => {
       try {
         // Здесь будет вызов API для удаления товара
         console.log('Deleting product:', id);
+        await apiClient.post('/product/delete/'+id);
         navigate('/products');
       } catch (error) {
         console.error('Error deleting product:', error);

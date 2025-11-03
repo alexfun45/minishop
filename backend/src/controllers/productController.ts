@@ -24,6 +24,7 @@ class ProductController{
   async getByCategory(req: Request, res: Response) {
     try {
       const categoryId = parseInt(req.params.catId || '');
+      
       const language = (req.query.lang as string) || 'ru';
 
       const products = await productService.findByCategory(categoryId, language);
@@ -135,6 +136,26 @@ class ProductController{
       res.status(500).json({
         success: false,
         error: 'Failed to create product',
+      });
+    }
+  }
+
+  // Удалить товар
+  async delete(req: Request, res: Response) {
+    try{
+      const productId = parseInt(req.params?.id || '');
+      if(productId){
+        await productService.delete(productId);
+        res.json({
+          success: true,
+          data: productId,
+        });
+      }
+    } catch(error){
+      console.error('Delete product error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete product',
       });
     }
   }
