@@ -57,8 +57,6 @@ export const CategoriesManagement: React.FC = () => {
         // Если есть URL изображения и нет нового файла, сохраняем URL
         submitData.append('image_url', formData.image_url);
       }
-      console.log('Submitting form data:');
-      console.log('Image file:', imageFile);
       if (editingId) {
         await updateCategory(editingId, submitData);
       } else {

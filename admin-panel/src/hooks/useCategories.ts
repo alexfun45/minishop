@@ -100,9 +100,10 @@ export const useCategories = () => {
       return updatedCategory;
     //await apiClient.post(`/categories/update/${id}`, upCategory);
   };
-
+  
   const deleteCategory = async (id: string) => {
     // Логика удаления категории
+    await apiClient.post(`/categories/delete/${id}`);
     setCategories(prev => prev.filter(cat => cat.id !== id));
   };
 

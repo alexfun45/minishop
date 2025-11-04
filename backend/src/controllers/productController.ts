@@ -152,7 +152,7 @@ class ProductController{
         });
       }
     } catch(error){
-      console.error('Delete product error:', error);
+      console.error('Delete product error:', error)
       res.status(500).json({
         success: false,
         error: 'Failed to delete product',

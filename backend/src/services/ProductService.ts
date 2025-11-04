@@ -89,15 +89,6 @@ export class ProductService {
 
     if (!product) return null;
     return product;
-    return {
-      ...product.toJSON(),
-      name: this.getName(product, language),
-      description: this.getDescription(product, language),
-      category: product.category_id ? {
-        id: product.category_id,
-        name: categoryService.getName(product.category_id, language),
-      } : null,
-    };
   }
 
   // Поиск товаров

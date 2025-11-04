@@ -78,7 +78,16 @@ export class CategoryService {
     return await category.update(categoryData);
   }
 
-  // Удалить категорию (мягкое удаление)
+  // Удалить категорию
+  async delete(categoryId: number) {
+    return await Category.destroy({
+      where: {
+        id: categoryId
+      },
+    });
+  }
+
+  /*
   async delete(categoryId: number) {
     const category = await Category.findByPk(categoryId);
     if (!category) {
@@ -86,7 +95,7 @@ export class CategoryService {
     }
 
     return await category.update({ is_active: false });
-  }
+  }*/
 }
 
 export const categoryService = new CategoryService();

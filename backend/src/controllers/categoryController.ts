@@ -1,6 +1,6 @@
 // controllers/categoryController.ts
 import type { Request, Response } from 'express';
-import { categoryService } from '../services/CategoryService.ts';
+import { CategoryService, categoryService } from '../services/CategoryService.ts';
 import fs from 'fs';
 import path from 'path';
 
@@ -148,6 +148,24 @@ class CategoryController {
       res.status(500).json({
         success: false,
         error: 'Failed to update category',
+      });
+    }
+  }
+
+  public delete = async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params?.id || '');
+      if(id){
+        await categoryService.delete(id);
+        res.json({
+          success: true,
+          data: id,
+        });
+      }
+    } catch(error){
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete category',
       });
     }
   }

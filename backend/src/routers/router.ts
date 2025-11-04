@@ -13,7 +13,7 @@ const router = express.Router();
 //router.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 //router.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-console.log('router', path.join(process.cwd(), 'uploads'));
+//console.log('router', path.join(process.cwd(), 'uploads'));
 router.use('/products', productRouter);
 
 export default router;
