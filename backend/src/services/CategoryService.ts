@@ -4,6 +4,7 @@ import { Category, Product } from '../models/index.ts';
 export class CategoryService {
   // Получить локализованное имя
   getName(category: any, language: string = 'ru'): string {
+    
     const fieldMap: Record<string, string> = {
       'ru': 'name_ru',
       'tj': 'name_tj',
@@ -25,18 +26,19 @@ export class CategoryService {
   }
 
   // Получить все активные категории
-  async findAllActive(language: string = 'ru') {
+  async findAllActive(language: string = "") {
     const categories = await Category.findAll({
       where: { is_active: true },
       //order: [['sort_order', 'ASC'], ['name_ru', 'ASC']],
     });
-    return categories;
-    return categories.map(async (category: any) => ({
+    if(!language)
+      return categories;
+    return categories.map((category: any) => ({
       id: category.id,
       name: this.getName(category, language),
       description: this.getDescription(category, language),
       image_url: category.image_url,
-      product_count: await this.getProductCount(category.id),
+      //product_count: await this.getProductCount(category.id),
     }));
   }
 
@@ -69,12 +71,12 @@ export class CategoryService {
 
   // Обновить категорию
   async update(categoryId: number, categoryData: any) {
-    console.log('Service - Updating category:', categoryId, categoryData);
+    //console.log('Service - Updating category:', categoryId, categoryData);
     const category = await Category.findByPk(categoryId);
     if (!category) {
       throw new Error('Category not found');
     }
-    console.log('Service - Category updated:', categoryData);
+    //console.log('Service - Category updated:', categoryData);
     return await category.update(categoryData);
   }
 

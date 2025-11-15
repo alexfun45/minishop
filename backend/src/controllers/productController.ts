@@ -1,7 +1,6 @@
 import {productService} from '../services/ProductService.ts'
 import type { Request, Response } from 'express';
 
-
 class ProductController{
 
   async getAllProducts(req: Request, res: Response){
@@ -24,7 +23,6 @@ class ProductController{
   async getByCategory(req: Request, res: Response) {
     try {
       const categoryId = parseInt(req.params.catId || '');
-      
       const language = (req.query.lang as string) || 'ru';
 
       const products = await productService.findByCategory(categoryId, language);

@@ -46,20 +46,20 @@ export class ProductService {
 
   // Получить товары по категории
   async findByCategory(categoryId: number, language: string = 'ru') {
-    //const products = await Product.findAll();
+    //const products2 = await Product.findAll();
     const products = await Product.findAll({
       where: {
         category_id: categoryId,
-        available: true,
+        //available: true,
       },
-      include: [{
+      /*include: [{
         model: Category,
         as: 'category',
         attributes: ['id', 'name_ru', 'name_tj', 'name_uz'],
-      }],
+      }],*/
       order: [['name_ru', 'ASC']],
     });
-    //console.log('products', products);
+    console.log('categoryId', categoryId);
     //return products;
 
     return products.map((product: any) => ({
@@ -70,10 +70,10 @@ export class ProductService {
       //old_price: product.old_price,
       image_url: product.image_url,
       //weight: product.weight,
-      category: product.category ? {
-        id: product.category.id,
-        name: categoryService.getName(product.category, language),
-      } : null,
+      //category: product.category ? {
+      //  id: product.category.id,
+      //  name: categoryService.getName(product.category, language),
+      //} : null,
     }));
   }
 

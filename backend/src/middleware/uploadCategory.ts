@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-const uploadsDir = path.join(process.cwd(), 'uploads', 'category');
+const uploadsDir = path.join(process.cwd(), 'uploads', 'categories');
 
 // Создаем папку если не существует
 if (!fs.existsSync(uploadsDir)) {
@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    const filename = 'product-' + uniqueSuffix + ext;
+    const filename = 'category-' + uniqueSuffix + ext;
     console.log('Generated product filename:', filename);
     cb(null, filename);
   }

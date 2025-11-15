@@ -5,9 +5,11 @@ import fs from 'fs';
 import path from 'path';
 
 class CategoryController {
+
   public getCategories = async (req: Request, res: Response) => {
     try {
-      const language = req.query.lang as string || 'ru';
+      const language = req.params.lang as string;
+      console.log('lang', language);
       const categories = await categoryService.findAllActive(language);
       
       res.json({
