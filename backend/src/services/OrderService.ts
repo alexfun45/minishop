@@ -2,6 +2,12 @@ import { Order, OrderItem, User, Product } from '../models/index.ts';
 import { orderItemService } from './OrderItemService.ts';
 
 export class OrderService {
+
+  async getOrders(){
+    const orders = await Order.findAll();
+    return orders;
+  }
+
   // Создать заказ
   async create(orderData: any) {
     const { items, ...orderMainData } = orderData;

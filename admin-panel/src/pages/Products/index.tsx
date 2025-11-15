@@ -83,9 +83,10 @@ export const ProductsList: React.FC = () => {
   };
 
   // Функция для переключения доступности товара
-  const toggleAvailability = (productId: string) => {
-    setProducts(prev => prev?.map(product =>
-      product.id === productId 
+  const toggleAvailability = (product: Product) => {
+    apiClient.post('/product/update/'+product.id, { ...product, available: !product.available});
+    setProducts(prev => prev?.map(product => 
+      product.id === product.id 
         ? { ...product, available: !product.available }
         : product
     ));
@@ -393,7 +394,7 @@ const filteredAndSortedProducts = useMemo(() => {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
                       <button
-                        onClick={() => toggleAvailability(product.id)}
+                        onClick={() => toggleAvailability(product)}
                         className={`inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md ${
                           product.available
                             ? 'bg-red-100 text-red-700 hover:bg-red-200'

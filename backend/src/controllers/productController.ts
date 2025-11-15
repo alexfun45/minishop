@@ -100,7 +100,6 @@ class ProductController{
   async create(req: Request, res: Response) {
     try {
       const productData = req.body;
-      console.log('req.body', req.body);
       const newProduct: any = {
         name_ru: req.body.name_ru,
         name_tj: req.body.name_tj,

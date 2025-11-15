@@ -1,5 +1,7 @@
 export interface UserSession {
   cart: CartItem[];
+  userPhone: string;
+  awaitingPhoneForOrders?: boolean;
   currentCategory?: number;
   language: 'ru' | 'tj' | 'uz';
   checkoutStep?: 'phone' | 'address' | 'confirm';

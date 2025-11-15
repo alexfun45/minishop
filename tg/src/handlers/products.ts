@@ -24,7 +24,6 @@ async function showProduct(ctx: BotContext, productId: number): Promise<void> {
 
   try {
     const product = await apiClient.getProduct(productId, session.language);
-    console.log('product', product);
     if (!product) {
       await bot.sendMessage(chatId, getProductNotFoundText(session.language));
       return;

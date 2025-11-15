@@ -3,24 +3,231 @@ import { SessionService } from '../services/session.ts';
 import { apiClient } from '../services/api.ts';
 import * as multi from '../lang/multi.ts'
 import {mainMenu} from '../keyboards/mainMenu.ts'
+import { getTranslation } from '../types.js';
 
+export async function orderHandler(ctx: BotContext, data?: string): Promise<void> {
+  //const { bot, chatId, session } = ctx;
 
+  if (data && data.startsWith('order_')) {
+    await handleOrderAction(ctx, data);
+    return;
+  }
+
+  await showOrderHistory(ctx);
+}
+
+async function showOrderHistory(ctx: BotContext): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  // Проверяем, есть ли сохраненный номер телефона в сессии
+  if (!session.userPhone) {
+    await askForPhoneNumber(ctx);
+    return;
+  }
+
+  await loadAndShowOrders(ctx, session.userPhone);
+}
+
+async function askForPhoneNumber(ctx: BotContext): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  const askPhoneText = {
+    ru: `📞 *Для просмотра заказов нужен ваш номер телефона*\n\n` +
+        `Мы найдем ваши заказы по номеру телефона, который вы указывали при оформлении.\n\n` +
+        `Пожалуйста, отправьте ваш номер телефона:`,
+    tj: `📞 *Барои дидани фармоишҳо ба рақами телефони шумо ниёз аст*\n\n` +
+        `Мо фармоишҳои шуморо бо рақами телефоне, ки шумо дар вақти содир кардан зикр кардед, пайдо мекунем.\n\n` +
+        `Лутфан, рақами телефони худро фиристед:`,
+    uz: `📞 *Buyurtmalarni ko'rish uchun telefon raqamingiz kerak*\n\n` +
+        `Sizning buyurtmalaringizni rasmiylashtirish paytida ko'rsatgan telefon raqamingiz orqali topamiz.\n\n` +
+        `Iltimos, telefon raqamingizni yuboring:`
+  };
+
+  await bot.sendMessage(chatId, askPhoneText[session.language] || askPhoneText.ru, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      keyboard: [
+        [{ text: '📞 ' + multi.getSendPhoneText(session.language), request_contact: true }],
+        ['⬅️ ' + multi.getBackText(session.language)]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true
+    }
+  });
+
+  // Сохраняем состояние ожидания номера телефона
+  session.awaitingPhoneForOrders = true;
+  SessionService.saveUserSession(chatId, session);
+}
+
+async function loadAndShowOrders(ctx: BotContext, phoneNumber: string): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  try {
+    const orders = await apiClient.getUserOrders(phoneNumber);
+    
+    if (orders.length === 0) {
+      await showNoOrders(ctx);
+      return;
+    }
+
+    await showOrdersList(ctx, orders);
+
+  } catch (error) {
+    console.error('Load orders error:', error);
+    await bot.sendMessage(chatId, getTranslation(session, 'error'));
+  }
+}
+
+async function showNoOrders(ctx: BotContext): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  const noOrdersText = {
+    ru: `📭 *У вас пока нет заказов*\n\n` +
+        `Совершите свой первый заказ и он появится здесь!`,
+    tj: `📭 *Шумо то ҳол ягон фармоиш надоред*\n\n` +
+        `Якумин фармоиши худро содир кунед ва он дар ин ҷо пайдо мешавад!`,
+    uz: `📭 *Hozircha sizda buyurtmalar yo'q*\n\n` +
+        `Birinchi buyurtmangizni bering va u shu yerda paydo bo'ladi!`
+  };
+
+  await bot.sendMessage(chatId, noOrdersText[session.language] || noOrdersText.ru, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🛍️ ' + multi.getStartShoppingText(session.language), callback_data: 'categories' }],
+        [{ text: '🏠 ' + multi.getMainMenuText(session.language), callback_data: 'main_menu' }]
+      ]
+    }
+  });
+}
+
+async function showOrdersList(ctx: BotContext, orders: any[]): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  let message = `📦 *${multi.getOrderHistoryText(session.language)}*\n\n`;
+  
+  orders.forEach((order, index) => {
+    const orderDate = new Date(order.created_at).toLocaleDateString('ru-RU');
+    const status = multi.getOrderStatusText(order.status, session.language);
+    
+    message += `${index + 1}. *Заказ #${order.id}* (${orderDate})\n`;
+    message += `   💰 Сумма: ${order.total_amount} ₽\n`;
+    message += `   📍 Статус: ${status}\n`;
+    message += `   └─ /order_${order.id}\n\n`;
+  });
+
+  const keyboard = orders.map(order => [
+    {
+      text: `📋 Заказ #${order.id} - ${order.total_amount} ₽`,
+      callback_data: `order_details_${order.id}`
+    }
+  ]);
+
+  // Добавляем кнопки навигации
+  keyboard.push([
+    { text: '🔄 ' + multi.getRefreshText(session.language), callback_data: 'orders_refresh' },
+    { text: '🏠 ' + multi.getMainMenuText(session.language), callback_data: 'main_menu' }
+  ]);
+
+  await bot.sendMessage(chatId, message, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: keyboard
+    }
+  });
+}
+
+async function handleOrderAction(ctx: BotContext, data: string): Promise<void> {
+  const { bot, chatId, session, callbackQuery } = ctx;
+
+  try {
+    if (data.startsWith('order_details_')) {
+      const orderId = parseInt(data.replace('order_details_', ''));
+      await showOrderDetails(ctx, orderId);
+    }
+    else if (data === 'orders_refresh') {
+      await loadAndShowOrders(ctx, session.userPhone);
+    }
+
+    await bot.answerCallbackQuery(callbackQuery.id);
+  } catch (error) {
+    console.error('Order action error:', error);
+    await bot.answerCallbackQuery(callbackQuery.id, { 
+      text: getTranslation(session, 'error') 
+    });
+  }
+}
+
+async function showOrderDetails(ctx: BotContext, orderId: number): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  try {
+    const order = await apiClient.getOrderById(orderId);
+    
+    if (!order) {
+      await bot.sendMessage(chatId, multi.getOrderNotFoundText(session.language));
+      return;
+    }
+
+    const orderDate = new Date(order.created_at).toLocaleString('ru-RU');
+    const status = multi.getOrderStatusText(order.status, session.language);
+
+    let message = `📋 *${multi.getOrderDetailsText(session.language)} #${order.id}*\n\n`;
+    message += `📅 ${multi.getDateText(session.language)}: ${orderDate}\n`;
+    message += `📞 ${multi.getPhoneText(session.language)}: ${order.customer_phone}\n`;
+    message += `🏠 ${multi.getAddressText(session.language)}: ${order.customer_address}\n`;
+    message += `💰 ${multi.getTotalAmountText(session.language)}: ${order.total_amount} ₽\n`;
+    message += `📊 ${multi.getStatusText(session.language)}: ${status}\n\n`;
+    
+    message += `*${multi.getOrderItemsText(session.language)}:*\n`;
+    
+    if (order.items && order.items.length > 0) {
+      order.items.forEach((item: any, index: number) => {
+        message += `${index + 1}. ${item.name} - ${item.quantity} x ${item.price} ₽\n`;
+      });
+    } else {
+      message += multi.getNoItemsText(session.language) + '\n';
+    }
+
+    const keyboard = [
+      [
+        { text: '📦 ' + multi.getBackToOrdersText(session.language), callback_data: 'orders_show' },
+        { text: '🔄 ' + multi.getRefreshText(session.language), callback_data: `order_details_${orderId}` }
+      ],
+      [
+        { text: '🏠 ' + multi.getMainMenuText(session.language), callback_data: 'main_menu' }
+      ]
+    ];
+
+    await bot.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    });
+
+  } catch (error) {
+    console.error('Show order details error:', error);
+    await bot.sendMessage(chatId, getTranslation(session, 'error'));
+  }
+}
 
 async function showOrderConfirmation(ctx: BotContext): Promise<void> {
   const { bot, chatId, session } = ctx;
   const order = session.tempOrder;
   
-  let message = '📦 *' + getOrderConfirmationText(session.language) + '*\n\n';
-  message += `👤 ${getCustomerNameText(session.language)}: ${order.customer_name}\n`;
-  message += `📞 ${getPhoneText(session.language)}: ${order.phone}\n`;
-  message += `🏠 ${getAddressText(session.language)}: ${order.address}\n\n`;
-  message += `*${getOrderContentsText(session.language)}:*\n`;
+  let message = '📦 *' + multi.getOrderConfirmationText(session.language) + '*\n\n';
+  message += `👤 ${multi.getCustomerNameText(session.language)}: ${order.customer_name}\n`;
+  message += `📞 ${multi.getPhoneText(session.language)}: ${order.phone}\n`;
+  message += `🏠 ${multi.getAddressText(session.language)}: ${order.address}\n\n`;
+  message += `*${multi.getOrderContentsText(session.language)}:*\n`;
 
   order.items.forEach((item: any, index: number) => {
     message += `${index + 1}. ${item.name} - ${item.quantity} x ${item.price} ₽\n`;
   });
 
-  message += `\n💎 *${getTotalText(session.language)}: ${order.total} ₽*`;
+  message += `\n💎 *${multi.getTotalText(session.language)}: ${order.total} ₽*`;
 
   await bot.sendMessage(
     chatId,
@@ -97,59 +304,4 @@ async function placeOrder(ctx: BotContext): Promise<void> {
     
     await bot.sendMessage(chatId, errorText[session.language] || errorText.ru, mainMenu);
   }
-}
-
-// Дополнительные текстовые функции
-function getOrderConfirmationText(language: string): string {
-  const texts: textMap = {
-    ru: 'Подтверждение заказа',
-    tj: 'Тасдиқ кардани фармоиш',
-    uz: 'Buyurtmani tasdiqlash'
-  };
-  return texts[language] || texts.ru;
-}
-
-function getCustomerNameText(language: string): string {
-  const texts: textMap = {
-    ru: 'Имя',
-    tj: 'Ном',
-    uz: 'Ism'
-  };
-  return texts[language] || texts.ru;
-}
-
-function getPhoneText(language: string): string {
-  const texts: textMap = {
-    ru: 'Телефон',
-    tj: 'Телефон',
-    uz: 'Telefon'
-  };
-  return texts[language] || texts.ru;
-}
-
-function getAddressText(language: string): string {
-  const texts: textMap = {
-    ru: 'Адрес',
-    tj: 'Суроға',
-    uz: 'Manzil'
-  };
-  return texts[language] || texts.ru;
-}
-
-function getOrderContentsText(language: string): string {
-  const texts: textMap = {
-    ru: 'Состав заказа',
-    tj: 'Таркиби фармоиш',
-    uz: 'Buyurtma tarkibi'
-  };
-  return texts[language] || texts.ru;
-}
-
-function getTotalText(language: string): string {
-  const texts: textMap = {
-    ru: 'Итого',
-    tj: 'Ҳамагӣ',
-    uz: 'Jami'
-  };
-  return texts[language] || texts.ru;
 }

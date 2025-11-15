@@ -171,3 +171,175 @@ export function getOrderContentsText(language: string): string {
   };
   return texts[language] || texts.ru;
 }
+
+
+export function getBackText(language: string): string {
+  const texts:textMap = {
+    ru: 'Назад',
+    tj: 'Бозгашт',
+    uz: 'Orqaga'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getStartShoppingText(language: string): string {
+  const texts:textMap = {
+    ru: 'Начать покупки',
+    tj: 'Харид оғоз кардан',
+    uz: 'Xaridni boshlash'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getMainMenuText(language: string): string {
+  const texts:textMap = {
+    ru: 'Главное меню',
+    tj: 'Менюи асосӣ',
+    uz: 'Asosiy menyu'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getOrderHistoryText(language: string): string {
+  const texts:textMap = {
+    ru: 'История заказов',
+    tj: 'Таърихи фармоишҳо',
+    uz: 'Buyurtmalar tarixi'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getRefreshText(language: string): string {
+  const texts:textMap = {
+    ru: 'Обновить',
+    tj: 'Нав кардан',
+    uz: 'Yangilash'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getOrderDetailsText(language: string): string {
+  const texts:textMap = {
+    ru: 'Детали заказа',
+    tj: 'Тафсилоти фармоиш',
+    uz: 'Buyurtma tafsilotlari'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getDateText(language: string): string {
+  const texts:textMap = {
+    ru: 'Дата',
+    tj: 'Сана',
+    uz: 'Sana'
+  };
+  return texts[language] || texts.ru;
+}
+
+
+export function getTotalAmountText(language: string): string {
+  const texts:textMap = {
+    ru: 'Общая сумма',
+    tj: 'Маблағи умумӣ',
+    uz: 'Umumiy summa'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getStatusText(language: string): string {
+  const texts:textMap = {
+    ru: 'Статус',
+    tj: 'Ҳолат',
+    uz: 'Holat'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getOrderItemsText(language: string): string {
+  const texts:textMap = {
+    ru: 'Состав заказа',
+    tj: 'Таркиби фармоиш',
+    uz: 'Buyurtma tarkibi'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getNoItemsText(language: string): string {
+  const texts:textMap = {
+    ru: 'Товары не найдены',
+    tj: 'Маҳсулотҳо ёфт нашуд',
+    uz: 'Mahsulotlar topilmadi'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getBackToOrdersText(language: string): string {
+  const texts:textMap = {
+    ru: 'К заказам',
+    tj: 'Ба фармоишҳо',
+    uz: 'Buyurtmalarga'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getOrderNotFoundText(language: string): string {
+  const texts:textMap = {
+    ru: '❌ Заказ не найден',
+    tj: '❌ Фармоиш ёфт нашуд',
+    uz: '❌ Buyurtma topilmadi'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getOrderStatusText(status: string, language: string): string {
+  const statusTexts: { [key: string]: { [key: string]: string } } = {
+    new: {
+      ru: '🆕 Новый',
+      tj: '🆕 Нав',
+      uz: '🆕 Yangi'
+    },
+    processing: {
+      ru: '🔄 В обработке',
+      tj: '🔄 Дар раванди кор',
+      uz: '🔄 Qayta ishlashda'
+    },
+    confirmed: {
+      ru: '✅ Подтвержден',
+      tj: '✅ Тасдиқ шуд',
+      uz: '✅ Tasdiqlandi'
+    },
+    cooking: {
+      ru: '👨‍🍳 Готовится',
+      tj: '👨‍🍳 Омода мешавад',
+      uz: '👨‍🍳 Tayyorlanmoqda'
+    },
+    ready: {
+      ru: '📦 Готов',
+      tj: '📦 Омода аст',
+      uz: '📦 Tayyor'
+    },
+    delivering: {
+      ru: '🚚 Доставляется',
+      tj: '🚚 Расона мешавад',
+      uz: '🚚 Yetkazilmoqda'
+    },
+    delivered: {
+      ru: '🎉 Доставлен',
+      tj: '🎉 Расид',
+      uz: '🎉 Yetkazib berildi'
+    },
+    cancelled: {
+      ru: '❌ Отменен',
+      tj: '❌ Бекор шуд',
+      uz: '❌ Bekor qilindi'
+    }
+  };
+
+  const defaultStatus: any = {
+    ru: '❓ Неизвестен',
+    tj: '❓ Номаълум',
+    uz: '❓ Nomaʼlum'
+  };
+
+  return statusTexts[status]?.[language] || defaultStatus[language] || defaultStatus.ru;
+}

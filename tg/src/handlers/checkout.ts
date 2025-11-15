@@ -35,6 +35,7 @@ export async function handleCheckoutStep(ctx: BotContext, msg: any): Promise<voi
     }
 
     if (phone) {
+      session.userPhone = phone;
       session.tempOrder.phone = phone;
       session.checkoutStep = 'address';
       SessionService.saveUserSession(chatId, session);
@@ -118,7 +119,6 @@ async function placeOrder(ctx: BotContext): Promise<void> {
 
   try {
     const order = session.tempOrder;
-    
     // Отправляем заказ на бэкенд
     const orderData = {
       customer_name: order.customer_name,
@@ -132,7 +132,7 @@ async function placeOrder(ctx: BotContext): Promise<void> {
       }))
     };
 
-    const result = await apiClient.createOrder(orderData);
+    //const result = await apiClient.createOrder(orderData);
 
     // Очищаем корзину и сессию
     session.cart = [];

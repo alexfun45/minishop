@@ -6,7 +6,7 @@ const userCache = new NodeCache({ stdTTL: 3600 }); // 1 час
 
 export class SessionService {
   static getUserSession(chatId: number): UserSession {
-    let session = userCache.get<UserSession>(chatId.toString());
+    let session: any = userCache.get<UserSession>(chatId.toString());
     if (!session) {
       session = {
         cart: [],

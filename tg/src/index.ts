@@ -124,9 +124,9 @@ bot.on('callback_query', async (callbackQuery) => {
     else if (data?.startsWith('add_to_cart_')) {
       await ProductsHandler(ctx, data);
     }
-    //else if (data?.startsWith('cart_')) {
-    //  await cartHandler(ctx, data);
-   // }
+    else if (data?.startsWith('cart_')) {
+      await cartHandler(ctx, data);
+    }
     else if (data?.startsWith('profile_')) {
       await profileHandler(ctx, data);
     }

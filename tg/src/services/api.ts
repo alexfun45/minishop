@@ -50,6 +50,8 @@ class ApiClient {
     }
   }
 
+
+
   async createOrder(orderData: any) {
     try {
       const response = await axios.post(`${this.baseURL}/api/orders`, orderData);
@@ -57,6 +59,26 @@ class ApiClient {
     } catch (error) {
       console.error('Create order error:', error);
       throw error;
+    }
+  }
+
+  async getUserOrders(phoneNumber: string) {
+    try {
+      const response = await axios.get(`${this.baseURL}/api/orders?phone=${encodeURIComponent(phoneNumber)}`);
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Get user orders error:', error);
+      return [];
+    }
+  }
+
+  async getOrderById(orderId: number) {
+    try {
+      const response = await axios.get(`${this.baseURL}/api/orders/${orderId}`);
+      return response.data.data || null;
+    } catch (error) {
+      console.error('Get order by id error:', error);
+      return null;
     }
   }
 }

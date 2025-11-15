@@ -1,8 +1,8 @@
 // src/bot/handlers/cart.ts
-import { getTranslation } from '../types.js';
-import type { BotContext, textMap } from '../types.js';
-import { apiClient } from '../services/api.js';
-import { SessionService } from '../services/session.js';
+import { getTranslation } from '../types.ts';
+import type { BotContext, textMap } from '../types.ts';
+import { apiClient } from '../services/api.ts';
+import { SessionService } from '../services/session.ts';
 
 export async function cartHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;
