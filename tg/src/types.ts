@@ -1,10 +1,11 @@
 export interface UserSession {
   cart: CartItem[];
   userPhone: string;
+  userId: number;
   awaitingPhoneForOrders?: boolean;
   currentCategory?: number;
   language: 'ru' | 'tj' | 'uz';
-  checkoutStep?: 'phone' | 'address' | 'confirm';
+  checkoutStep?: 'phone' | 'address' | 'confirm' | 'payment';
   tempOrder?: any;
   lastMessageId?: number;
 }

@@ -50,11 +50,9 @@ class ApiClient {
     }
   }
 
-
-
   async createOrder(orderData: any) {
     try {
-      const response = await axios.post(`${this.baseURL}/api/orders`, orderData);
+      const response = await axios.post(`${this.baseURL}/api/orders/create`, orderData);
       return response.data;
     } catch (error) {
       console.error('Create order error:', error);
@@ -62,9 +60,9 @@ class ApiClient {
     }
   }
 
-  async getUserOrders(phoneNumber: string) {
+  async getUserOrders(userId: number) {
     try {
-      const response = await axios.get(`${this.baseURL}/api/orders?phone=${encodeURIComponent(phoneNumber)}`);
+      const response = await axios.get(`${this.baseURL}/api/orders?user_id=${userId}`);
       return response.data.data || [];
     } catch (error) {
       console.error('Get user orders error:', error);

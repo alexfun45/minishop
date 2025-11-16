@@ -145,6 +145,80 @@ export function getCustomerNameText(language: string): string {
   return texts[language] || texts.ru;
 }
 
+export function getOrderText(language: string): string {
+  const texts:textMap = {
+    ru: 'Заказ',
+    tj: 'Фармоиш',
+    uz: 'Buyurtma'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getOrderAccessDeniedText(language: string): string {
+  const texts:textMap = {
+    ru: '❌ У вас нет доступа к этому заказу',
+    tj: '❌ Шумо ба ин фармоиш дастрасӣ надоред',
+    uz: '❌ Sizda ushbu buyurtmaga kirish huquqi yo\'q'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getCashPaymentText(language: string): string {
+  const texts:textMap = {
+    ru: 'Наличными при получении',
+    tj: 'Пуллакӣ дар вақти гирифтан',
+    uz: 'Olib ketish paytida naqd pul'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getCardPaymentText(language: string): string {
+  const texts:textMap = {
+    ru: 'Картой при получении',
+    tj: 'Кортӣ дар вақти гирифтан',
+    uz: 'Olib ketish paytida karta'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getBackToCartText(language: string): string {
+  const texts:textMap = {
+    ru: 'Назад к корзине',
+    tj: 'Ба ароба бозгашт',
+    uz: 'Savatga qaytish'
+  };
+  return texts[language] || texts.ru;
+}
+
+
+export function getOnlinePaymentText(language: string): string {
+  const texts:textMap = {
+    ru: 'Онлайн оплата',
+    tj: 'Пардохти онлайн',
+    uz: 'Onlayn to\'lov'
+  };
+  return texts[language] || texts.ru;
+}
+
+
+export function getNewOrderText(language: string): string {
+  const texts:textMap = {
+    ru: 'Новый заказ',
+    tj: 'Фармоиши нав',
+    uz: 'Yangi buyurtma'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getCustomerText(language: string): string {
+  const texts:textMap  = {
+    ru: 'Клиент',
+    tj: 'Мизоҷ',
+    uz: 'Mijoz'
+  };
+  return texts[language] || texts.ru;
+}
+
 export function getPhoneText(language: string): string {
   const texts:textMap = {
     ru: 'Телефон',

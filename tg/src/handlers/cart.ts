@@ -3,6 +3,7 @@ import { getTranslation } from '../types.ts';
 import type { BotContext, textMap } from '../types.ts';
 import { apiClient } from '../services/api.ts';
 import { SessionService } from '../services/session.ts';
+import * as multi from '../lang/multi.ts'
 
 export async function cartHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;
@@ -130,6 +131,9 @@ async function handleCartAction(ctx: BotContext, action: string): Promise<void> 
       const [productId, change] = action.replace('cart_update_', '').split('_');
       await updateCartItem(ctx, parseInt(productId), parseInt(change));
     }
+    else if (action.startsWith('payment_')) {
+      await handlePaymentSelection(ctx, action);
+    }
 
     await bot.answerCallbackQuery(callbackQuery.id);
   } catch (error) {
@@ -138,6 +142,50 @@ async function handleCartAction(ctx: BotContext, action: string): Promise<void> 
       text: getTranslation(session, 'error') 
     });
   }
+}
+
+async function handlePaymentSelection(ctx: BotContext, action: string): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  const paymentMethod = action.replace('payment_', '');
+  
+  // Сохраняем выбранный метод оплаты
+  session.tempOrder.payment_method = paymentMethod;
+  session.checkoutStep = 'phone'; // Переходим к следующему шагу
+  SessionService.saveUserSession(chatId, session);
+
+  const confirmationText: any = {
+    cash: {
+      ru: '💵 Вы выбрали оплату наличными при получении',
+      tj: '💵 Шумо пардохти пулакӣ дар вақти гирифтанро интихоб кардед',
+      uz: '💵 Siz olib ketish paytida naqd pul to\'lashni tanladingiz'
+    },
+    card: {
+      ru: '💳 Вы выбрали оплату картой при получении',
+      tj: '💳 Шумо пардохти кортӣ дар вақти гирифтанро интихоб кардед',
+      uz: '💵 Siz olib ketish paytida kartadan to\'lashni tanladingiz'
+    },
+    online: {
+      ru: '📱 Вы выбрали онлайн оплату',
+      tj: '📱 Шумо пардохти онлайн-ро интихоб кардед',
+      uz: '📱 Siz onlayn to\'lovni tanladingiz'
+    }
+  };
+
+  await bot.sendMessage(
+    chatId, 
+    confirmationText[paymentMethod]?.[session.language] || confirmationText.cash[session.language],
+    {
+      reply_markup: {
+        keyboard: [
+          [{ text: '📞 ' + getSendPhoneText(session.language), request_contact: true }],
+          ['⬅️ ' + getCancelOrderText(session.language)]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      }
+    }
+  );
 }
 
 async function updateCartItem(ctx: BotContext, productId: number, change: number): Promise<void> {
@@ -208,33 +256,59 @@ async function startCheckout(ctx: BotContext): Promise<void> {
     items: [...cart],
     total: totalAmount
   };
-  session.checkoutStep = 'phone';
+  session.checkoutStep = 'payment';
   SessionService.saveUserSession(chatId, session);
 
-  const checkoutText = {
-    ru: `📋 *Оформление заказа*\n\n` +
-        `💎 Общая сумма: ${totalAmount} ₽\n\n` +
-        `Для оформления заказа нам нужны ваши данные.\n\n` +
-        `Пожалуйста, отправьте ваш номер телефона:`,
-    tj: `📋 *Содир кардани фармоиш*\n\n` +
-        `💎 Маблағи умумӣ: ${totalAmount} ₽\n\n` +
-        `Барои содир кардани фармоиш ба маълумоти шумо ниёз дорем.\n\n` +
-        `Лутфан, рақами телефони худро фиристед:`,
-    uz: `📋 *Buyurtma rasmiylashtirish*\n\n` +
-        `💎 Umumiy summa: ${totalAmount} ₽\n\n` +
-        `Buyurtma rasmiylashtirish uchun maʼlumotlaringiz kerak.\n\n` +
-        `Iltimos, telefon raqamingizni yuboring:`
+  await showPaymentMethods(ctx);
+}
+
+async function showPaymentMethods(ctx: BotContext): Promise<void> {
+  const { bot, chatId, session } = ctx;
+  const order = session.tempOrder;
+
+  const paymentText = {
+    ru: `💳 *Выберите способ оплаты*\n\n` +
+        `💰 Общая сумма: ${order.total} ₽\n\n` +
+        `Доступные способы оплаты:`,
+    tj: `💳 *Усули пардохтро интихоб кунед*\n\n` +
+        `💰 Маблағи умумӣ: ${order.total} ₽\n\n` +
+        `Усулҳои пардохти дастрас:`,
+    uz: `💳 *To'lov usulini tanlang*\n\n` +
+        `💰 Umumiy summa: ${order.total} ₽\n\n` +
+        `Mavjud to'lov usullari:`
   };
 
-  await bot.sendMessage(chatId, checkoutText[session.language] || checkoutText.ru, {
+  const keyboard = [
+    [
+      { 
+        text: '💵 ' + multi.getCashPaymentText(session.language), 
+        callback_data: 'payment_cash' 
+      }
+    ],
+    [
+      { 
+        text: '💳 ' + multi.getCardPaymentText(session.language), 
+        callback_data: 'payment_card' 
+      }
+    ],
+    [
+      { 
+        text: '📱 ' + multi.getOnlinePaymentText(session.language), 
+        callback_data: 'payment_online' 
+      }
+    ],
+    [
+      { 
+        text: '⬅️ ' + multi.getBackToCartText(session.language), 
+        callback_data: 'cart_show' 
+      }
+    ]
+  ];
+
+  await bot.sendMessage(chatId, paymentText[session.language] || paymentText.ru, {
     parse_mode: 'Markdown',
     reply_markup: {
-      keyboard: [
-        [{ text: '📞 ' + getSendPhoneText(session.language), request_contact: true }],
-        ['⬅️ ' + getCancelOrderText(session.language)]
-      ],
-      resize_keyboard: true,
-      one_time_keyboard: true
+      inline_keyboard: keyboard
     }
   });
 }

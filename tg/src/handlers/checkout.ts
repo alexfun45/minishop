@@ -24,6 +24,22 @@ export async function handleCheckoutStep(ctx: BotContext, msg: any): Promise<voi
     return;
   }
 
+   // Обработка выбора метода оплаты (если нужно обрабатывать текстовые команды)
+   if (session.checkoutStep === 'payment') {
+    if (text.includes('налич') || text.includes('cash') || text.includes('пул')) {
+      await handlePaymentSelection(ctx, 'payment_cash');
+      return;
+    }
+    else if (text.includes('карт') || text.includes('card') || text.includes('корт')) {
+      await handlePaymentSelection(ctx, 'payment_card');
+      return;
+    }
+    else if (text.includes('онлайн') || text.includes('online')) {
+      await handlePaymentSelection(ctx, 'payment_online');
+      return;
+    }
+  }
+
   // Обработка номера телефона
   if (session.checkoutStep === 'phone') {
     let phone = '';
@@ -82,6 +98,50 @@ export async function handleCheckoutStep(ctx: BotContext, msg: any): Promise<voi
   }
 }
 
+async function handlePaymentSelection(ctx: BotContext, action: string): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  const paymentMethod = action.replace('payment_', '');
+  
+  // Сохраняем выбранный метод оплаты
+  session.tempOrder.payment_method = paymentMethod;
+  session.checkoutStep = 'phone'; // Переходим к следующему шагу
+  SessionService.saveUserSession(chatId, session);
+
+  const confirmationText: any = {
+    cash: {
+      ru: '💵 Вы выбрали оплату наличными при получении',
+      tj: '💵 Шумо пардохти пулакӣ дар вақти гирифтанро интихоб кардед',
+      uz: '💵 Siz olib ketish paytida naqd pul to\'lashni tanladingiz'
+    },
+    card: {
+      ru: '💳 Вы выбрали оплату картой при получении',
+      tj: '💳 Шумо пардохти кортӣ дар вақти гирифтанро интихоб кардед',
+      uz: '💵 Siz olib ketish paytida kartadan to\'lashni tanladingiz'
+    },
+    online: {
+      ru: '📱 Вы выбрали онлайн оплату',
+      tj: '📱 Шумо пардохти онлайн-ро интихоб кардед',
+      uz: '📱 Siz onlayn to\'lovni tanladingiz'
+    }
+  };
+
+  await bot.sendMessage(
+    chatId, 
+    confirmationText[paymentMethod]?.[session.language] || confirmationText.cash[session.language],
+    {
+      reply_markup: {
+        keyboard: [
+          [{ text: '📞 ' + multi.getSendPhoneText(session.language), request_contact: true }],
+          ['⬅️ ' + multi.getCancelOrderText(session.language)]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      }
+    }
+  );
+}
+
 async function showOrderConfirmation(ctx: BotContext): Promise<void> {
   const { bot, chatId, session } = ctx;
   const order = session.tempOrder;
@@ -123,7 +183,8 @@ async function placeOrder(ctx: BotContext): Promise<void> {
     const orderData = {
       customer_name: order.customer_name,
       customer_phone: order.phone,
-      customer_address: order.address,
+      delivery_address: order.address,
+      user_id: chatId,
       total_amount: order.total,
       items: order.items.map((item: any) => ({
         product_id: item.productId,
@@ -132,7 +193,7 @@ async function placeOrder(ctx: BotContext): Promise<void> {
       }))
     };
 
-    //const result = await apiClient.createOrder(orderData);
+    const result = await apiClient.createOrder(orderData);
 
     // Очищаем корзину и сессию
     session.cart = [];
@@ -142,13 +203,19 @@ async function placeOrder(ctx: BotContext): Promise<void> {
 
     const successText = {
       ru: '🎉 *Заказ успешно оформлен!*\n\n' +
-          'Мы свяжемся с вами в ближайшее время для подтверждения заказа.\n' +
+          `Номер вашего заказа: #${result.data.id}\n` +
+          'Мы свяжемся с вами в ближайшее время для подтверждения.\n' +
+          'Вы можете отслеживать статус заказа в разделе "📦 Мои заказы"\n\n' +
           'Спасибо за покупку! 🥖',
       tj: '🎉 *Фармоиш бо муваффақият содир шуд!*\n\n' +
-          'Мо барои тасдиқ кардани фармоиш ба зудӣ бо шумо тамос мегирем.\n' +
+          `Рақами фармоиши шумо: #${result.data.id}\n` +
+          'Мо барои тасдиқ кардан ба зудӣ бо шумо тамос мегирем.\n' +
+          'Шумо метавонед ҳолати фармоишро дар бахши "📦 Фармоишҳои ман" пайгирӣ кунед\n\n' +
           'Барои харид ташаккур! 🥖',
       uz: '🎉 *Buyurtma muvaffaqiyatli rasmiylashtirildi!*\n\n' +
-          'Buyurtmani tasdiqlash uchun tez orada siz bilan bogʻlanamiz.\n' +
+          `Buyurtma raqamingiz: #${result.data.id}\n` +
+          'Tasdiqlash uchun tez orada siz bilan bog\'lanamiz.\n' +
+          'Buyurtma holatini "📦 Mening buyurtmalarim" bo\'limida kuzatishingiz mumkin\n\n' +
           'Xaridingiz uchun rahmat! 🥖'
     };
 
