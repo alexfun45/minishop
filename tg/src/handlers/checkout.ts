@@ -179,6 +179,10 @@ async function placeOrder(ctx: BotContext): Promise<void> {
 
   try {
     const order = session.tempOrder;
+    if (!order) {
+      console.log('🔴 No tempOrder in session');
+      throw new Error('No temporary order data found');
+    }
     // Отправляем заказ на бэкенд
     const orderData = {
       customer_name: order.customer_name,
@@ -192,14 +196,23 @@ async function placeOrder(ctx: BotContext): Promise<void> {
         price: item.price
       }))
     };
-
+    console.log('🟡 Sending order data to API:', JSON.stringify(orderData, null, 2));
+   
     const result = await apiClient.createOrder(orderData);
+    console.log('🟡 API response received:', result);
 
+    if (!result.success) {
+      console.log('🔴 API returned error:', result.error);
+      throw new Error(result.error || 'Unknown API error');
+    }
+   
     // Очищаем корзину и сессию
     session.cart = [];
     session.checkoutStep = undefined;
     session.tempOrder = undefined;
     SessionService.saveUserSession(chatId, session);
+
+    console.log('🟢 Order created successfully, session cleared');
 
     const successText = {
       ru: '🎉 *Заказ успешно оформлен!*\n\n' +
@@ -230,6 +243,7 @@ async function placeOrder(ctx: BotContext): Promise<void> {
 
   } catch (error) {
     console.error('Place order error:', error);
+    
     
     const errorText = {
       ru: '❌ Произошла ошибка при оформлении заказа. Попробуйте позже.',

@@ -21,7 +21,12 @@ class OrderController {
 
   async createOrder(req: Request, res: Response){
     try{
-      await orderService.create(req.body);
+      console.log('create order', req.body);
+      const data = await orderService.create(req.body);
+      res.json({
+        success: true,
+        data: data,
+      });
     } catch(error){
       console.error('save order error:', error);
       res.status(500).json({

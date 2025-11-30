@@ -8,7 +8,7 @@ interface OrderItemAttribute{
   product_id: number;
   quantity: number;
   price: number;
-  product_name: string;
+  product_name: string | null;
   product_image: string;
 }
 
@@ -56,7 +56,7 @@ price: {
 },
 product_name: {
   type: DataTypes.STRING(255),
-  allowNull: false,
+  allowNull: true,
 },
 product_image: {
   type: DataTypes.STRING(500),

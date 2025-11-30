@@ -10,20 +10,44 @@ export class OrderService {
 
   // Создать заказ
   async create(orderData: any) {
-    const { items, ...orderMainData } = orderData;
+    const { items, user_id, ...orderMainData } = orderData;
 
-    // Создаем заказ
-    const order = await Order.create(orderMainData);
-
-    // Добавляем товары в заказ
-    if (items && items.length > 0) {
-      await orderItemService.addItemsToOrder(order.id, items);
+    try {
+      // Сначала находим или создаем пользователя
+      let user = await User.findOne({ where: { telegram_id: user_id } });
+      
+      if (!user) {
+        // Создаем нового пользователя
+        user = await User.create({
+          telegram_id: user_id,
+          role: 'user',
+          username: orderData.customer_name || 'Пользователь',
+          phone: orderData.customer_phone,
+          //created_at: new Date()
+        });
+      }
+  
+      // Создаем заказ с user_id из найденного/созданного пользователя
+      const order = await Order.create({
+        ...orderMainData,
+        user_id: user.id, // Используем id из таблицы users
+        telegram_id: user_id // Сохраняем также telegram_id для быстрого поиска
+      });
+  
+      // Добавляем товары в заказ
+      if (items && items.length > 0) {
+        await orderItemService.addItemsToOrder(order.id, items);
+      }
+  
+      // Пересчитываем общую сумму
+      await this.calculateTotal(order.id);
+  
+      return await this.findById(order.id);
+  
+    } catch (error) {
+      console.error('Create order error:', error);
+      throw error;
     }
-
-    // Пересчитываем общую сумму
-    await this.calculateTotal(order.id);
-
-    return await this.findById(order.id);
   }
 
   // Найти заказ по ID

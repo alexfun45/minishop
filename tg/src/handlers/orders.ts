@@ -276,7 +276,7 @@ async function placeOrder(ctx: BotContext): Promise<void> {
 
   try {
     const order = session.tempOrder;
-    
+    console.log('order', order);
     // Отправляем заказ на бэкенд
     const orderData = {
       customer_name: order.customer_name,

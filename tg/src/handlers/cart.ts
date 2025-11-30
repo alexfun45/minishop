@@ -8,7 +8,7 @@ import * as multi from '../lang/multi.ts'
 export async function cartHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;
 
-  if (data && data.startsWith('cart_')) {
+  if (data && data.startsWith('cart_') || data?.startsWith('payment_')) {
     await handleCartAction(ctx, data);
     return;
   }
@@ -146,7 +146,7 @@ async function handleCartAction(ctx: BotContext, action: string): Promise<void> 
 
 async function handlePaymentSelection(ctx: BotContext, action: string): Promise<void> {
   const { bot, chatId, session } = ctx;
-
+  console.log('action', action);
   const paymentMethod = action.replace('payment_', '');
   
   // Сохраняем выбранный метод оплаты

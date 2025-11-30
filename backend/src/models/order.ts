@@ -45,7 +45,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
     autoIncrement: true,
   },
   user_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.BIGINT,
     allowNull: false,
   },
   total_amount: {

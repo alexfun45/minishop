@@ -52,10 +52,33 @@ class ApiClient {
 
   async createOrder(orderData: any) {
     try {
-      const response = await axios.post(`${this.baseURL}/api/orders/create`, orderData);
+      console.log('🟡 API Client: Sending order to backend');
+      console.log('🟡 Order data:', JSON.stringify(orderData, null, 2));
+      const response = await axios.post(`${this.baseURL}/api/orders/create`, orderData, {
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+  
+      console.log('🟢 API Client: Order created successfully');
+      console.log('🟢 Response status:', response.status);
+      console.log('🟢 Response data:', response.data);
+  
       return response.data;
     } catch (error) {
+      console.error('🔴 API Client: Create order error');
       console.error('Create order error:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('🔴 Axios error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message
+        });
+      } else {
+        console.error('🔴 Unknown error:', error);
+      }
       throw error;
     }
   }
