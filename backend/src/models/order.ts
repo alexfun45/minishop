@@ -6,6 +6,7 @@ import sequelize from '../config/database.ts';
 interface OrderAttribute{
   id: number;
   user_id: number;
+  telegram_id: number;
   total_amount: number;
   status: string;
   delivery_address: string;
@@ -25,6 +26,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
  class Order extends Model<OrderAttribute, OrderCreationAttribute> implements OrderAttribute{
   declare id: number;
   declare user_id: number;
+  declare telegram_id: number;
   declare total_amount: number;
   declare status: string;
   declare delivery_address: string;
@@ -45,6 +47,10 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
     autoIncrement: true,
   },
   user_id: {
+    type: DataTypes.BIGINT,
+    allowNull: false,
+  },
+  telegram_id:{
     type: DataTypes.BIGINT,
     allowNull: false,
   },

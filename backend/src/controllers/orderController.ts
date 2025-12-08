@@ -16,7 +16,21 @@ class OrderController {
   }
 
   async getUserOrders(req: Request, res: Response){
-    
+    try{
+      const userId = parseInt(req.params?.userId || '');
+      const orders = await orderService.findByUserId(userId);
+      console.log('orders', orders);
+      res.json({
+        success: true,
+        data: orders,
+      });
+    } catch(error){
+      console.error('Getting user orders error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to getting user orders',
+      });
+    }
   }
 
   async createOrder(req: Request, res: Response){

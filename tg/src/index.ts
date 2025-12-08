@@ -8,7 +8,7 @@ import { cartHandler } from './handlers/cart.ts';
 import * as multi from './lang/multi.ts'
 import  'dotenv/config'
 //import { cartHandler } from './handlers/cart.js';
-//import { orderHandler } from './handlers/orders.js';
+import { orderHandler } from './handlers/orders.ts';
 import { profileHandler } from './handlers/profile.ts';
 import { searchHandler } from './handlers/search.ts';
 import type { BotContext } from './types.ts';
@@ -83,11 +83,11 @@ bot.on('message', async (msg) => {
     case '🛒 Savat':
       await cartHandler(ctx);
       break;
-  //  case '📦 Мои заказы':
-  //  case '📦 Фармоишҳои ман':
-  //  case '📦 Mening buyurtmalarim':
-  //    await orderHandler(ctx);
-  //    break;
+    case '📦 Мои заказы':
+    case '📦 Фармоишҳои ман':
+    case '📦 Mening buyurtmalarim':
+      await orderHandler(ctx);
+      break;
     case '👤 Профиль':
     case '👤 Профил':
     case '👤 Profil':

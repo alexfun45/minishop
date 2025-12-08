@@ -3,7 +3,7 @@ import { SessionService } from '../services/session.ts';
 import { apiClient } from '../services/api.ts';
 import * as multi from '../lang/multi.ts'
 import {mainMenu} from '../keyboards/mainMenu.ts'
-import { getTranslation } from '../types.js';
+import { getTranslation } from '../types.ts';
 
 export async function orderHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;
@@ -18,11 +18,11 @@ export async function orderHandler(ctx: BotContext, data?: string): Promise<void
 
 async function showOrderHistory(ctx: BotContext): Promise<void> {
   const { bot, chatId, session } = ctx;
-
+  console.log('showOrderHistory', chatId);
   try {
     // Получаем заказы по Telegram ID
     const orders = await apiClient.getUserOrders(chatId);
-    
+    console.log('orders111', orders);
     if (orders.length === 0) {
       await showNoOrders(ctx);
       return;
@@ -110,6 +110,81 @@ async function showNoOrders(ctx: BotContext): Promise<void> {
   });
 }
 
+function formatOrderDate(dateInput: any): string {
+  if (!dateInput) return 'Дата не указана';
+  
+  console.log('Форматируем дату:', dateInput);
+  
+  // Если это уже Date объект
+  if (dateInput instanceof Date) {
+    return !isNaN(dateInput.getTime()) 
+      ? dateInput.toLocaleDateString('ru-RU')
+      : 'Некорректная дата';
+  }
+  
+  // Преобразуем в строку
+  const dateStr = String(dateInput).trim();
+  
+  // Убираем лишние символы (на случай, если есть невидимые символы)
+  const cleaned = dateStr.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  
+  console.log('Очищенная строка:', cleaned);
+  console.log('Коды символов:');
+  for (let i = 0; i < Math.min(cleaned.length, 30); i++) {
+    console.log(`  [${i}] '${cleaned[i]}' = ${cleaned.charCodeAt(i)}`);
+  }
+  
+  // Проверяем, похожа ли строка на ISO дату
+  const isoPattern = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(?:Z)?$/;
+  const match = cleaned.match(isoPattern);
+  
+  if (match) {
+    console.log('Соответствует ISO паттерну:', match);
+    
+    // Создаем дату из компонентов
+    const year = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // Месяцы 0-11
+    const day = parseInt(match[3], 10);
+    const hour = parseInt(match[4], 10);
+    const minute = parseInt(match[5], 10);
+    const second = parseInt(match[6], 10);
+    
+    const date = new Date(year, month, day, hour, minute, second);
+    
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString('ru-RU');
+    }
+  }
+  
+  // Пробуем стандартный парсинг как запасной вариант
+  const date = new Date(cleaned);
+  console.log('Результат new Date():', date);
+  
+  if (!isNaN(date.getTime())) {
+    return date.toLocaleDateString('ru-RU');
+  }
+  
+  // Пробуем парсить как timestamp
+  const timestamp = Date.parse(cleaned);
+  console.log('Результат Date.parse():', timestamp);
+  
+  if (!isNaN(timestamp)) {
+    return new Date(timestamp).toLocaleDateString('ru-RU');
+  }
+  
+  return 'Дата не распознана';
+}
+
+function formatDateSimple(dateStr: string): string {
+  if (!dateStr) return 'Дата не указана';
+  
+  // Из "2025-12-08T18:10:11.486Z" берем "2025-12-08"
+  const datePart = dateStr.substring(0, 10);
+  
+  // Преобразуем "2025-12-08" в "08.12.2025"
+  return datePart.split('-').reverse().join('.');
+}
+
 async function showOrdersList(ctx: BotContext, orders: any[]): Promise<void> {
   const { bot, chatId, session } = ctx;
 
@@ -118,10 +193,12 @@ async function showOrdersList(ctx: BotContext, orders: any[]): Promise<void> {
   message += `🆔 *Telegram ID:* ${chatId}\n\n`;
   
   orders.forEach((order, index) => {
-    const orderDate = new Date(order.created_at).toLocaleDateString('ru-RU');
+
+    //const orderDate = formatDateSimple(order.createdAt);
+    const orderDate = new Date(order.createdAt).toLocaleDateString('ru-RU');
     const status = multi.getOrderStatusText(order.status, session.language);
     
-    message += `${index + 1}. *Заказ #${order.id}* (${orderDate})\n`;
+    message += `${index + 1}. Заказ #${order.id}* (${orderDate})\n`;
     message += `   💰 ${multi.getTotalAmountText(session.language)}: ${order.total_amount} ₽\n`;
     message += `   📍 ${multi.getStatusText(session.language)}: ${status}\n`;
     
@@ -132,7 +209,8 @@ async function showOrdersList(ctx: BotContext, orders: any[]): Promise<void> {
     
     message += `   └─ /order_${order.id}\n\n`;
   });
-
+  console.log('message', message);
+  
   const keyboard = orders.map(order => [
     {
       text: `📋 ${multi.getOrderText(session.language)} #${order.id} - ${order.total_amount} ₽`,
@@ -145,13 +223,15 @@ async function showOrdersList(ctx: BotContext, orders: any[]): Promise<void> {
     { text: '🔄 ' + multi.getRefreshText(session.language), callback_data: 'orders_refresh' },
     { text: '🏠 ' + multi.getMainMenuText(session.language), callback_data: 'main_menu' }
   ]);
-
+  console.log('keyboard', keyboard);
+ 
   await bot.sendMessage(chatId, message, {
-    parse_mode: 'Markdown',
+    parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: keyboard
     }
   });
+  
 }
 
 async function handleOrderAction(ctx: BotContext, data: string): Promise<void> {

@@ -24,5 +24,5 @@ router.use('/products/:catId/:lang', productController.getByCategory);
 router.use('/categories/:lang', categoryController.getCategories);
 
 router.use('/orders/create', orderController.createOrder);
-router.use('/orders/', orderController.getUserOrders);
+router.use('/orders/:userId', orderController.getUserOrders);
 export default router;

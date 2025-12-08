@@ -50,7 +50,7 @@ async function seedInitialData() {
         password: passHash
       })
       // Создаем тестовые товары
-      await Product.create({
+      /*await Product.create({
         name_ru: 'White bread',
         name_tj: 'Нони сафед',
         name_uz: 'Oq non',
@@ -66,7 +66,7 @@ async function seedInitialData() {
         category_id: 1,
         available: true
       });
-      
+      */
       console.log('✅ Initial data seeded successfully.');
     //}
   } catch (error) {

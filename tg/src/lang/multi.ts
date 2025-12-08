@@ -372,7 +372,7 @@ export function getOrderStatusText(status: string, language: string): string {
       tj: '🆕 Нав',
       uz: '🆕 Yangi'
     },
-    processing: {
+    pending: {
       ru: '🔄 В обработке',
       tj: '🔄 Дар раванди кор',
       uz: '🔄 Qayta ishlashda'

@@ -75,7 +75,7 @@ export class OrderService {
   // Найти заказы пользователя
   async findByUserId(userId: number, limit: number = 10) {
     return await Order.findAll({
-      where: { user_id: userId },
+      where: { telegram_id: userId },
       include: [{
         model: OrderItem,
         as: 'order_items',

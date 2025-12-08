@@ -85,7 +85,7 @@ class ApiClient {
 
   async getUserOrders(userId: number) {
     try {
-      const response = await axios.get(`${this.baseURL}/api/orders?user_id=${userId}`);
+      const response = await axios.get(`${this.baseURL}/api/orders/${userId}`);
       return response.data.data || [];
     } catch (error) {
       console.error('Get user orders error:', error);
