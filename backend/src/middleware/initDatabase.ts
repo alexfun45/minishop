@@ -6,15 +6,19 @@ export async function initializeDatabase() {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connected');
-    const mode = process.env.NODE_ENV?.trim(); 
+    const mode = process.env.NODE_ENV || process.env.MODE || 'production';
+    const trimmedMode = mode.trim().toLowerCase();
+    console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔍 MODE:', process.env.MODE);
     const syncOptions = {
-      force: mode === 'dev' ? true : true, // ОПАСНО: пересоздает таблицы!
-      alter: mode === 'dev'
+      force: trimmedMode === 'dev' || trimmedMode === 'development',
+      alter: trimmedMode === 'dev' || trimmedMode === 'development'
     };
+    console.log('🔍 Sync options:', syncOptions);
     await sequelize.query("SET client_encoding = 'UTF8'");
     await sequelize.sync(syncOptions);
     console.log('✅ Database synchronized');
-    if(mode == 'dev'){
+    if(trimmedMode === 'dev' || trimmedMode === 'development'){
       await seedInitialData(); 
     }
     return true;
