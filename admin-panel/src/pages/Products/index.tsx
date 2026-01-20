@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from '../../components/header';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../../services/api';
+import { useCategories } from '../../hooks/useCategories';
 
 interface Product {
   id: string;
@@ -23,7 +24,7 @@ export const ProductsList: React.FC = () => {
 
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [Categories, setCategories] = useState([]);
+  const { categories, loading } = useCategories();
   // Состояния для фильтрации, сортировки и пагинации
   const [filter, setFilter] = useState({
     category: '',
@@ -32,9 +33,9 @@ export const ProductsList: React.FC = () => {
   });
 
   useEffect(()=>{
-    apiClient.get('/categories').then(async (res) => {
-      setCategories(res.data);
-    });
+    //apiClient.get('/categories').then(async (res) => {
+    //  setCategories(res.data);
+    //});
 
     apiClient.get('/products/').then(async (res) => {
       setProducts(res.data);
@@ -151,13 +152,6 @@ const filteredAndSortedProducts = useMemo(() => {
 
   // Общее количество страниц
   const totalPages = Math.ceil(filteredAndSortedProducts.length / pagination.itemsPerPage);
-
-  // Категории для фильтра
-  const categories = [
-    { id: '1', name_ru: 'Хлеб' },
-    { id: '2', name_ru: 'Выпечка' },
-    { id: '3', name_ru: 'Торты' }
-  ];
 
   // Опции для количества элементов на странице
   const itemsPerPageOptions = [5, 10, 20, 50];

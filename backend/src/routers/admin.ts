@@ -14,7 +14,6 @@ const router = express.Router();
 //router.use(requireAdmin)
 
 router.use(AuthRoute);
-router.use(LogEvents);
 // Продукты
 /*router.get('/products', productController.getAllProducts);
 router.get('/products/:catId', productController.getByCategory);

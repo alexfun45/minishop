@@ -48,7 +48,7 @@ class CategoryController {
 
       console.log('Creating category with data:', newData);
       const category = await categoryService.create(newData);
-      LogEvent("create new category", category.id.toString());
+      //LogEvent("create new category", category.id.toString());
       console.log('Category created successfully:', category);
       res.status(201).json({
         success: true,

@@ -3,6 +3,9 @@ import { Header } from '../components/header'
 import { StatCard } from '../components/dashboard/StatCard';
 import { RecentOrders } from '../components/dashboard/RecentOrders';
 import { QuickActions } from '../components/dashboard/QuickActions';
+import type {Order} from '../types/index'
+import { useOrders } from '../hooks/useOrders'
+import { useProducts } from '../hooks/useProducts';
 
 // Mock данные - потом замените на реальные из API
 const mockStats = {
@@ -31,6 +34,11 @@ const mockOrders = [
 ];
 
 const Dashboard: React.FC = () => {
+  const {orders} = useOrders();
+  const {products} = useProducts();
+
+  console.log('products', products);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -40,8 +48,7 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             title="Всего заказов"
-            value={mockStats.totalOrders}
-            change={12}
+            value={orders.length}
             icon="📦"
             color="blue"
           />
@@ -54,14 +61,14 @@ const Dashboard: React.FC = () => {
           />
           <StatCard
             title="Товаров в продаже"
-            value={mockStats.activeProducts}
+            value={(products)?products.length:0}
             change={-2}
             icon="🍞"
             color="amber"
           />
           <StatCard
             title="Ожидают обработки"
-            value={mockStats.pendingOrders}
+            value={ (orders.filter((v: Order)=>v.payment_status=='pending')).length }
             change={5}
             icon="⏳"
             color="red"
@@ -71,7 +78,7 @@ const Dashboard: React.FC = () => {
         {/* Основной контент */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
-            <RecentOrders orders={mockOrders} />
+            <RecentOrders orders={orders} />
           </div>
           <div>
             <QuickActions />

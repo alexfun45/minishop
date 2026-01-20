@@ -69,8 +69,8 @@ class OrderController {
   async createOrder(req: Request, res: Response){
     try{
       const data = await orderService.create(req.body);
-      if(data)
-        LogEvent('create new order', data.id.toString());
+      //if(data)
+        //LogEvent('create new order', data.id.toString());
       res.json({
         success: true,
         data: data,

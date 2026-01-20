@@ -89,6 +89,7 @@ Category.init({
   underscored: true,
 })
 
+export {Category}
 /*
 export const Category = sequelize.define('Category', {
   id: {

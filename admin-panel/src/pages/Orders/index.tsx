@@ -1,6 +1,7 @@
 // pages/orders/index.tsx
 import React, { useState } from 'react';
 import { Header } from '../../components/header';
+import { useOrders } from '../../hooks/useOrders';
 
 interface Order {
   id: number;
@@ -21,7 +22,7 @@ interface OrderItem {
 }
 
 export const OrdersManagement: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const {orders, loading}: {orders: Order[], loading: boolean} = useOrders();
   const [filter, setFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
@@ -99,7 +100,7 @@ export const OrdersManagement: React.FC = () => {
 
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {filteredOrders.map((order) => (
+            {orders.map((order) => (
               <li key={order.id}>
                 <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
                   <div className="flex items-center justify-between">

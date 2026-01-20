@@ -27,7 +27,7 @@ export const useProducts = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res: any = apiClient.get('/products/');
+        const res: any = await apiClient.get('/products/');
         setProducts(res.data);
       } catch (err) {
         setError('Ошибка загрузки продукта');

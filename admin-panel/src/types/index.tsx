@@ -25,3 +25,22 @@ export type AuthContextType = {
   login: (data: loginData) => void;
   logout: () => void;
 };
+
+export interface Order {
+  id: number;
+  customer_name: string;
+  customer_phone: string;
+  total_amount: number;
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+  delivery_address: string;
+  payment_status: string;
+  payment_method: string;
+  created_at: string;
+  order_items: OrderItem[];
+}
+
+export interface OrderItem {
+  product_name: string;
+  quantity: number;
+  price: number;
+}

@@ -27,6 +27,7 @@ const MainRoutes = () => {
               <Route path="/products/new" element={<NewProduct />} />
               <Route path="/products/:id" element={<EditProduct />} />
               <Route path="/categories/" element={<CategoriesManagement/>} />
+              <Route path="/orders/" element={<OrdersManagement/>} />
             </Route>
           </Routes>
         </AuthProvider>
