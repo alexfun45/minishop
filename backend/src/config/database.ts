@@ -19,7 +19,7 @@ const sequelize = new Sequelize(
     host: 'localhost',
     port: 5432,
     dialect: 'postgres',
-    logging: console.log, // для отладки
+    logging: false, // для отладки
     define: {
       timestamps: true,
       underscored: true,
