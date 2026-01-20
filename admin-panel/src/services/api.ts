@@ -1,5 +1,6 @@
 // services/api.ts
-const API_BASE = 'http://localhost:3001/admin';
+//const API_BASE = 'http://localhost:3001/admin';
+const API_BASE = `http://${window.location.hostname}:3001/admin`;
 
 class ApiClient {
   private token: string | null = null;
