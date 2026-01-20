@@ -14,8 +14,8 @@ interface UserAttributes {
   phone: string | null;
   bonus_points: number;
   is_active: boolean;
-  //created_at: Date;
-  //updated_at: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 
@@ -34,8 +34,8 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare phone: string | null;
   declare bonus_points: number;
   declare is_active: boolean;
-  //declare created_at: Date;
-  //declare updated_at: Date;
+  declare created_at: Date;
+  declare updated_at: Date;
 }
 
 User.init({
@@ -87,18 +87,21 @@ User.init({
     defaultValue: true,
     allowNull: true,
   },
-  /*created_at: {
+  created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
   updated_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
-  },*/
+  }
 }, {
   sequelize,
   tableName: 'users',
+  timestamps: true,
   underscored: true,
+  createdAt: 'created_at', // Маппинг на underscored
+  updatedAt: 'updated_at',
 });
 
 export { User };
