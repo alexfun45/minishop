@@ -26,6 +26,7 @@ export async function initializeDatabase() {
 
 // Функция для заполнения начальных данных
 async function seedInitialData() {
+  console.log('initial database...');
   try {
     //const { Category, Product } = await import('./models/index.js');
     //const { Product } = await import('../models/index.ts');
@@ -44,6 +45,7 @@ async function seedInitialData() {
     const passHash = createHmac('sha256', secret)
     .update('admin465')
     .digest('hex');
+    console.log('create user...');
     const user = await User.create({
         username: 'admin',
         role: 'admin',
