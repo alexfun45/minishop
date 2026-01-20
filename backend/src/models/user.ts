@@ -72,6 +72,7 @@ User.init({
   language: {
     type: DataTypes.ENUM('ru', 'tj', 'uz'),
     defaultValue: 'ru',
+    allowNull: true,
   },
   phone: {
     type: DataTypes.STRING(20),
@@ -84,6 +85,7 @@ User.init({
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
+    allowNull: true,
   },
   /*created_at: {
     type: DataTypes.DATE,
@@ -96,7 +98,6 @@ User.init({
 }, {
   sequelize,
   tableName: 'users',
-  timestamps: true,
   underscored: true,
 });
 
