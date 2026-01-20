@@ -1,5 +1,5 @@
 // models/Order.ts
-import type {Optional } from 'sequelize';
+import type {Optional} from 'sequelize';
 import {DataTypes, Model} from 'sequelize'
 import sequelize from '../config/database.ts';
 
@@ -69,6 +69,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   },
   delivery_time: {
     type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
     allowNull: true,
   },
   customer_phone: {

@@ -5,7 +5,22 @@ export class OrderService {
 
   async getOrders(){
     const orders = await Order.findAll();
-    return orders;
+   
+    return orders.map((order: any) => ({
+      id: order.id,
+      user_id: order.user_id,
+      telegram_id: order.telegram_id,
+      total_amount: order.total_amount,
+      status: order.status,
+      delivery_address: order.delivery_address,
+      delivery_time: order.delivery_time,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      payment_method: order.payment_method,
+      payment_status: order.payment_status,
+      notes: order.notes,
+      //product_count: await this.getProductCount(category.id),
+    }));
   }
 
   // Создать заказ

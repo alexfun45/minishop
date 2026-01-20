@@ -4,6 +4,7 @@ import { Product } from './product.ts';
 import { Category } from './category.ts';
 import { Order } from './order.ts';
 import { OrderItem } from './OrderItem.ts';
+import {Event} from './events.ts'
 
 // Импортируем ассоциации
 import './associations.ts';
@@ -14,4 +15,5 @@ export {
   Category,
   Order,
   OrderItem,
+  Event
 }

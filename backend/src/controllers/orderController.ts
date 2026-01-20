@@ -1,11 +1,16 @@
 import { orderService } from "../services/OrderService.ts";
 import type { Request, Response } from 'express';
+import LogEvent from '../utils/LogEvents.ts'
 
 class OrderController {
 
   async getAllOrders(req: Request, res: Response){
     try{  
-      const orders = orderService.getOrders();
+      const orders = await orderService.getOrders();
+      res.json({
+        success: true,
+        data: orders
+      });
     }catch(error){  
       console.error('Get all orders error:', error);
       res.status(500).json({
@@ -19,7 +24,6 @@ class OrderController {
     try{
       const userId = parseInt(req.params?.userId || '');
       const orders = await orderService.findByUserId(userId);
-      console.log('orders', orders);
       res.json({
         success: true,
         data: orders,
@@ -33,10 +37,40 @@ class OrderController {
     }
   }
 
+  async update(req: Request, res: Response){
+    try{
+      const id = parseInt(req.params?.id || '');
+      console.log('Update category - id:', id);
+      console.log('Update category - body:', req.body);
+      LogEvent('update order', id.toString());
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid order ID'
+        });
+      }
+      const currentCategory = await orderService.findById(id);
+      const updatedStatus = req.body.status;
+      const Order = await orderService.updateStatus(id, updatedStatus);
+
+      res.json({
+        success: true,
+        data: Order,
+      });
+    } catch(error){
+      console.error('update order error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update order',
+      });
+    }
+  }
+
   async createOrder(req: Request, res: Response){
     try{
-      console.log('create order', req.body);
       const data = await orderService.create(req.body);
+      if(data)
+        LogEvent('create new order', data.id.toString());
       res.json({
         success: true,
         data: data,

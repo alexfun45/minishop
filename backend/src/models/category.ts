@@ -1,21 +1,95 @@
-import { DataTypes } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
+import type {Optional} from 'sequelize'
 import sequelize from '../config/database.ts';
 
 // Интерфейс для атрибутов категории
 interface CategoryAttributes {
   id: number;
-  nameRu: string;
-  nameTj?: string;
-  nameUz?: string;
-  descriptionRu?: string;
-  descriptionTj?: string;
-  descriptionUz?: string;
-  imageUrl?: string;
-  isActive: boolean;
+  name_ru: string;
+  name_tj?: string;
+  name_uz?: string;
+  description_ru?: string;
+  description_tj?: string;
+  description_uz?: string;
+  image_url?: string;
+  is_active: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
+interface ProductCreationAttribute extends Optional<CategoryAttributes,
+  'id' | 'name_ru' | 'name_tj' | 'name_uz' | 'description_ru' | 'description_tj' | 'description_uz' | 'image_url' | 'is_active' | 'createdAt' | 'updatedAt'>{};
+
+  class Category extends Model<CategoryAttributes, ProductCreationAttribute> implements CategoryAttributes {
+    declare id: number;
+    declare name_ru: string;
+    declare name_tj: string;
+    declare name_uz: string;
+    declare description_ru: string;
+    declare description_tj: string;
+    declare description_uz: string;
+    declare image_url: string;
+    declare is_active: boolean;
+    declare createdAt: Date;
+    declare updatedAt: Date;
+  }
+
+Category.init({
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  name_ru: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  name_tj: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  name_uz: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  description_ru: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  description_tj: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  description_uz: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  image_url: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  createdAt:{
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+    allowNull: true
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+    allowNull: true
+  }
+}, {
+  sequelize,
+  tableName: 'categories',
+  timestamps: true,
+  underscored: true,
+})
+
+/*
 export const Category = sequelize.define('Category', {
   id: {
     type: DataTypes.INTEGER,
@@ -59,6 +133,7 @@ export const Category = sequelize.define('Category', {
   timestamps: true,
   underscored: true,
 });
+*/
 
 // Отдельные функции для работы с моделью
 /*export const categoryService = {

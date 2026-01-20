@@ -3,13 +3,13 @@ import type { Request, Response } from 'express';
 import { CategoryService, categoryService } from '../services/CategoryService.ts';
 import fs from 'fs';
 import path from 'path';
+import LogEvent from '../utils/LogEvents.ts'
 
 class CategoryController {
 
   public getCategories = async (req: Request, res: Response) => {
     try {
       const language = req.params.lang as string;
-      console.log('lang', language);
       const categories = await categoryService.findAllActive(language);
       
       res.json({
@@ -41,7 +41,6 @@ class CategoryController {
       // Если загружено новое изображение
       if (req.file) {
         newData.image_url = `http://localhost:3001/uploads/categories/${req.file.filename}`;
-        console.log('New image URL:', newData.image_url);
       } else if (req.body.image_url !== undefined) {
         // Если указан URL изображения (может быть пустой строкой)
         newData.image_url = req.body.image_url || null;
@@ -49,7 +48,7 @@ class CategoryController {
 
       console.log('Creating category with data:', newData);
       const category = await categoryService.create(newData);
-      
+      LogEvent("create new category", category.id.toString());
       console.log('Category created successfully:', category);
       res.status(201).json({
         success: true,

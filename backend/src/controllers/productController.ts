@@ -1,5 +1,6 @@
 import {productService} from '../services/ProductService.ts'
 import type { Request, Response } from 'express';
+import LogEvent from '../utils/LogEvents.ts'
 
 class ProductController{
 
@@ -123,7 +124,7 @@ class ProductController{
         newProduct.image_url = req.body.image_url || null;
       }
       const product = await productService.create(newProduct); 
-
+      LogEvent('create new product', product.id.toString());
       res.status(201).json({
         success: true,
         data: product,
@@ -141,6 +142,7 @@ class ProductController{
   async delete(req: Request, res: Response) {
     try{
       const productId = parseInt(req.params?.id || '');
+      LogEvent('delete product', productId.toString());
       if(productId){
         await productService.delete(productId);
         res.json({
@@ -163,7 +165,7 @@ class ProductController{
       const productId = parseInt(req.params?.id || '');
       const productData = req.body;
       const product = await productService.update(productId, productData);
-
+      LogEvent('update product', productId.toString());
       res.json({
         success: true,
         data: product,
