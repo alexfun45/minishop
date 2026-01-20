@@ -8,7 +8,7 @@ export async function initializeDatabase() {
     console.log('✅ Database connected');
     const mode = process.env.NODE_ENV?.trim(); 
     const syncOptions = {
-      force: mode === 'dev' ? false : false, // ОПАСНО: пересоздает таблицы!
+      force: mode === 'dev' ? true : false, // ОПАСНО: пересоздает таблицы!
       alter: mode === 'dev'
     };
     await sequelize.query("SET client_encoding = 'UTF8'");
