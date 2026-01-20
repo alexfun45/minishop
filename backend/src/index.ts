@@ -1,17 +1,12 @@
 import express from 'express'
 import cors from './middleware/cors.ts';
 import { initializeDatabase } from './middleware/initDatabase.ts';
-import bodyParser from 'body-parser';
 import routes from './routers/router.ts';
 import adminRoutes from './routers/admin.ts'
-import path from 'path';
 
 const app = express();
 app.use(cors);
 app.use(express.json());
-//app.use(bodyParser.urlencoded({ extended: true }));
-//app.use(bodyParser.json());
-//app.use(bodyParser.raw());
 app.use('/api', routes);
 app.use('/admin', adminRoutes);
 app.use('/uploads', express.static('uploads'));
