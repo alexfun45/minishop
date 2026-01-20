@@ -19,7 +19,7 @@ interface UserAttributes {
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 
-  'id' | 'username' | 'telegram_id' | 'first_name' | 'language' | 'last_name' | 'phone' | 'bonus_points' | 'is_active' | 'password'
+  'id' | 'username' | 'telegram_id' | 'first_name' | 'language' | 'last_name' | 'phone' | 'bonus_points' | 'is_active' | 'password' | 'created_at' | 'updated_at'
 > {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
