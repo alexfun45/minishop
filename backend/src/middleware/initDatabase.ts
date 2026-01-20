@@ -44,11 +44,12 @@ async function seedInitialData() {
     const passHash = createHmac('sha256', secret)
     .update('admin465')
     .digest('hex');
-      await User.create({
+    const user = await User.create({
         username: 'admin',
         role: 'admin',
         password: passHash
-      })
+      });
+      console.log('create user', user);
       // Создаем тестовые товары
       /*await Product.create({
         name_ru: 'White bread',
