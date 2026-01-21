@@ -1,9 +1,10 @@
 // pages/orders/index.tsx
 import React, { useState } from 'react';
 import { Header } from '../../components/header';
+import type { Order } from '../../types/index';
 import { useOrders } from '../../hooks/useOrders';
 
-interface Order {
+/*interface Order {
   id: number;
   customer_name: string;
   customer_phone: string;
@@ -13,7 +14,7 @@ interface Order {
   payment_method: string;
   created_at: string;
   order_items: OrderItem[];
-}
+}*/
 
 interface OrderItem {
   product_name: string;
@@ -22,27 +23,9 @@ interface OrderItem {
 }
 
 export const OrdersManagement: React.FC = () => {
-  const {orders, loading}: {orders: Order[], loading: boolean} = useOrders();
+  const {orders, updateOrder, loading} = useOrders();
   const [filter, setFilter] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-
-  // Mock данные
-  const mockOrders: Order[] = [
-    {
-      id: 1001,
-      customer_name: 'Иван Петров',
-      customer_phone: '+992123456789',
-      total_amount: 1250,
-      status: 'pending',
-      delivery_address: 'ул. Мирзо Турсунзода 45, кв. 12',
-      payment_method: 'cash',
-      created_at: '2024-01-15T10:30:00Z',
-      order_items: [
-        { product_name: 'Хлеб белый', quantity: 2, price: 50 },
-        { product_name: 'Круассан', quantity: 3, price: 80 }
-      ]
-    }
-  ];
+  const [selectedOrder, setSelectedOrder] = useState<Order>();
 
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800',
@@ -63,13 +46,10 @@ export const OrdersManagement: React.FC = () => {
   };
 
   const updateOrderStatus = async (orderId: number, newStatus: Order['status']) => {
+    updateOrder(orderId, newStatus);
     // API call to update status
     console.log(`Updating order ${orderId} to ${newStatus}`);
   };
-
-  const filteredOrders = filter === 'all' 
-    ? mockOrders 
-    : mockOrders.filter(order => order.status === filter);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,7 +122,7 @@ export const OrdersManagement: React.FC = () => {
                     </div>
                     <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                       <span>
-                        {new Date(order.created_at).toLocaleString('ru-RU')}
+                        {new Date(order.createdAt).toLocaleString('ru-RU')}
                       </span>
                     </div>
                   </div>
@@ -217,13 +197,7 @@ export const OrdersManagement: React.FC = () => {
                   </div>
                 </div>
                 <div className="mt-5 sm:mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedOrder(null)}
-                    className="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-amber-600 text-base font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 sm:text-sm"
-                  >
-                    Закрыть
-                  </button>
+                 
                 </div>
               </div>
             </div>

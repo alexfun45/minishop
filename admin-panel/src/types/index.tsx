@@ -35,7 +35,7 @@ export interface Order {
   delivery_address: string;
   payment_status: string;
   payment_method: string;
-  created_at: string;
+  createdAt: string;
   order_items: OrderItem[];
 }
 

@@ -5,7 +5,7 @@ export class OrderService {
 
   async getOrders(){
     const orders = await Order.findAll();
-   
+    return orders;
     return orders.map((order: any) => ({
       id: order.id,
       user_id: order.user_id,
@@ -19,6 +19,7 @@ export class OrderService {
       payment_method: order.payment_method,
       payment_status: order.payment_status,
       notes: order.notes,
+      created_at: order.created_at
       //product_count: await this.getProductCount(category.id),
     }));
   }
@@ -107,6 +108,7 @@ export class OrderService {
 
   // Обновить статус заказа
   async updateStatus(orderId: number, status: string) {
+    console.log();
     const order = await Order.findByPk(orderId);
     if (!order) {
       throw new Error('Order not found');

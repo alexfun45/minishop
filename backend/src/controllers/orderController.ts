@@ -50,6 +50,7 @@ class OrderController {
         });
       }
       const currentCategory = await orderService.findById(id);
+      console.log('req.body', req.body);
       const updatedStatus = req.body.status;
       const Order = await orderService.updateStatus(id, updatedStatus);
 

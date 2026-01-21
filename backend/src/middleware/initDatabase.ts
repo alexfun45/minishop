@@ -13,7 +13,7 @@ export async function initializeDatabase() {
     console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
     console.log('🔍 MODE:', process.env.MODE);
     const syncOptions = {
-      force: trimmedMode === 'dev' || trimmedMode === 'development',
+      force: false,//trimmedMode === 'dev' || trimmedMode === 'development',
       alter: trimmedMode === 'dev' || trimmedMode === 'development'
     };
     console.log('🔍 Sync options:', syncOptions);

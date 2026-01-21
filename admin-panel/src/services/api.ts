@@ -49,7 +49,9 @@ class ApiClient {
   }
 
   async post(endpoint: string, data?: any | null, options?: any | null) {
-    const body = data instanceof FormData ? data : JSON.stringify(data);
+   
+    const body = (data) ? (data instanceof FormData ? data : JSON.stringify(data)) : "";
+   
     return this.request(endpoint, {
       method: 'POST',
       body: body,
@@ -57,8 +59,9 @@ class ApiClient {
     });
   }
 
-  async put(endpoint: string, data: any, options: RequestInit = {}) {
-    const body = data instanceof FormData ? data : JSON.stringify(data);
+  async put(endpoint: string, data: any | undefined = null, options: RequestInit = {}) {
+    //const body = data instanceof FormData ? data : JSON.stringify(data);
+    const body = (data) ? (data instanceof FormData ? data : JSON.stringify(data)) : "";
     return this.request(endpoint, {
       method: 'PUT',
       body: body,

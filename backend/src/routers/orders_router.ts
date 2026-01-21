@@ -5,6 +5,6 @@ const orderRouter = Router();
 
 orderRouter.get('/orders', orderController.getAllOrders);
 //categoryRouter.post('/categories/delete/:id', orderController.delete);
-orderRouter.post('/orders/update/:id', orderController.update);
+orderRouter.put('/order/update/:id', orderController.update);
 
 export default orderRouter;

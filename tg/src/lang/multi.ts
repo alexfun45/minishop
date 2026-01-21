@@ -310,6 +310,14 @@ export function getDateText(language: string): string {
   return texts[language] || texts.ru;
 }
 
+export function getAddToCartText(language: string): string {
+  const texts: textMap = {
+    ru: 'Добавить в корзину',
+    tj: 'Ба ароба илова кунед',
+    uz: 'Savatga qo‘shish'
+  };
+  return texts[language] || texts.ru;
+}
 
 export function getTotalAmountText(language: string): string {
   const texts:textMap = {

@@ -28,7 +28,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const response = await apiClient.post("/login", {
         method: "POST",
         headers: {
-          //"Content-Type": "json"
+          //"Content-Type": "application/json"
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: data,

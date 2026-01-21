@@ -39,17 +39,17 @@ export const useOrders = () => {
     fetchOrders();
   }, []);
 
-  const updateOrder= async (id: number, orderData: FormData  | Partial<Order>) => {
+  const updateOrder= async (id: number, orderData: string) => {
     
     let response;
     // Логика обновления категории
-    if (orderData instanceof FormData) {
+    //if (orderData instanceof FormData) {
       // Здесь будет реальный API вызов с FormData
-      response = await apiClient.post(`/order/update/${id}`, orderData);
+      response = await apiClient.put(`/order/update/${id}`, {'status': orderData});
       // Временная имитация создания категории
       //setCategories(prev => [...prev, upCategory]);
       //return upCategory;
-    } 
+    //} 
     const updatedCategory = response.data;
       setOrders(prev => prev.map(order => 
         order.id == id ? updatedCategory : order

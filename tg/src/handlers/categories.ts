@@ -2,6 +2,9 @@ import { getTranslation } from '../types.ts';
 import type {BotContext} from '../types.ts';
 import { apiClient } from '../services/api.ts';
 import { SessionService } from '../services/session.ts';
+import {getAddToCartText} from '../lang/multi.ts'
+import icons from '../utils/icons.ts'
+import axios from 'axios';
 
 export async function categoriesHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session} = ctx;
@@ -48,6 +51,35 @@ async function showCategories(ctx: BotContext): Promise<void> {
   }
 }
 
+async function sendPhotoAsBuffer(ctx: BotContext, imageUrl: string, caption: string, keyboard: any[]): Promise<void> {
+  const { bot, chatId } = ctx;
+  
+  try {
+    // Скачиваем изображение
+    const response = await axios({
+      method: 'GET',
+      url: imageUrl,
+      responseType: 'arraybuffer'
+    });
+
+    // Конвертируем в Buffer
+    const photoBuffer = Buffer.from(response.data, 'binary');
+    
+    // Отправляем как Buffer
+    await bot.sendPhoto(chatId, photoBuffer, {
+      caption: caption,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error downloading image:', error);
+    throw error; // Пробрасываем ошибку для fallback
+  }
+}
+
 async function showCategoryProducts(ctx: BotContext, categoryId: number): Promise<void> {
   const { bot, chatId, session } = ctx;
 
@@ -63,12 +95,40 @@ async function showCategoryProducts(ctx: BotContext, categoryId: number): Promis
 
     let message = getProductsListText(session.language) + '\n\n';
     
-    products.forEach((product: any, index: number) => {
+    products.forEach(async (product: any, index: number) => {
+      const keyboard = [];
       message += `${index + 1}. ${product.name} - ${product.price} ₽\n`;
       if (product.description) {
         message += `   ${product.description}\n`;
       }
       message += '\n';
+      keyboard.push([{
+        text: `${icons['info']} ${product.name} - ${product.price} ₽ посмотреть`,
+        callback_data: `product_${product.id}`
+        }
+      ]);
+      keyboard.push([{
+        text: '🛒 ' + getAddToCartText(session.language),
+        callback_data: `add_to_cart_${product.id}`
+      }]);
+      try {
+        if(product.image_url.includes('localhost') || product.image_url.includes('127.0.0.1')){
+          await sendPhotoAsBuffer(ctx, product.image_url, message, keyboard);
+        }
+        else{
+          
+       await bot.sendPhoto(chatId, product.image_url, {
+         caption: message,
+         parse_mode: 'Markdown',
+         reply_markup: {
+           inline_keyboard: keyboard
+         }
+       });
+      }
+     } catch (photoError) {
+      console.log('image error', photoError);
+     }
+
     });
 
     const keyboard = products.map((product: any) => [
@@ -83,11 +143,21 @@ async function showCategoryProducts(ctx: BotContext, categoryId: number): Promis
       callback_data: 'categories' 
     }]);
 
-    await bot.sendMessage(chatId, message, {
-      reply_markup: {
-        inline_keyboard: keyboard
-      }
-    });
+    type productKeybord = {
+      text: string;
+      callback_data: string;
+    }
+
+    /*keyboard.forEach(async (item: productKeybord, i: number)=>{
+
+      await bot.sendMessage(chatId, message, {
+        reply_markup: {
+          inline_keyboard: keyboard[i]
+        }
+      });
+    })*/
+    
+
   } catch (error) {
     console.error('Show category products error:', error);
     await bot.sendMessage(chatId, getTranslation(session, 'error'));

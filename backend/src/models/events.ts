@@ -40,7 +40,7 @@ Event.init({
   }
  }, 
  {sequelize,
-   tableName: 'orders',
+   tableName: 'events',
    timestamps: true,
    underscored: true});
  
