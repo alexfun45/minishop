@@ -2,8 +2,6 @@
 import React from 'react';
 import type {Order} from '../../types/index' 
 
-
-
 interface RecentOrdersProps {
   orders: Order[];
 }

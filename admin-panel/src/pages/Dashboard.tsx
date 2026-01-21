@@ -6,6 +6,7 @@ import { QuickActions } from '../components/dashboard/QuickActions';
 import type {Order} from '../types/index'
 import { useOrders } from '../hooks/useOrders'
 import { useProducts } from '../hooks/useProducts';
+import { Activity } from '../components/dashboard/Activity';
 
 // Mock данные - потом замените на реальные из API
 const mockStats = {
@@ -101,15 +102,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Активность</h3>
-            <div className="space-y-2 text-sm">
-              <div>✅ Новый заказ #1003</div>
-              <div>🔄 Статус заказа #1001 изменен</div>
-              <div>📦 Добавлен новый товар</div>
-            </div>
-          </div>
+          <Activity/>
         </div>
       </main>
     </div>

@@ -5,6 +5,7 @@ import { categoryController } from '../controllers/categoryController.ts';
 import productRouter from './products.ts'
 import categoryRouter from './category_router.ts'
 import orderRouter from './orders_router.ts'
+import activityRouter from './activity.ts'
 //import LogEvents from './LogEvents.ts'
 import { upload } from '../middleware/upload.ts';
 import AuthRoute from './auth.ts'
@@ -24,7 +25,7 @@ router.post('/product/update/:id', productController.update);
 router.use(productRouter);
 router.use(categoryRouter);
 router.use(orderRouter);
-
+router.use(activityRouter);
 //router.get('/categories', categoryController.getCategories);
 //router.post('/categories/create',  upload.single('image'), categoryController.create);
 //router.post('/categories/update/:id', upload.single('image'), categoryController.update);

@@ -44,3 +44,9 @@ export interface OrderItem {
   quantity: number;
   price: number;
 }
+
+export interface ActivityType{
+  data: string;
+  event_name: string;
+  created_at: string; 
+}
