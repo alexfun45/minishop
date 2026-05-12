@@ -4,6 +4,7 @@ import { apiClient } from '../services/api.ts';
 import { SessionService } from '../services/session.ts';
 import {getAddToCartText} from '../lang/multi.ts'
 import icons from '../utils/icons.ts'
+import sharp from 'sharp';
 import axios from 'axios';
 
 export async function categoriesHandler(ctx: BotContext, data?: string): Promise<void> {
@@ -63,7 +64,14 @@ async function sendPhotoAsBuffer(ctx: BotContext, imageUrl: string, caption: str
     });
 
     // Конвертируем в Buffer
-    const photoBuffer = Buffer.from(response.data, 'binary');
+    //const photoBuffer = Buffer.from(response.data, 'binary');
+    const photoBuffer = await sharp(response.data)
+      .resize(500, 500, { // Делаем картинку небольшой
+        fit: 'inside',   // Сохраняем пропорции, но вписываем в размер
+        withoutEnlargement: true 
+      })
+      .jpeg({ quality: 100 }) // Сжимаем качество для веса
+      .toBuffer();
     
     // Отправляем как Buffer
     await bot.sendPhoto(chatId, photoBuffer, {
@@ -93,17 +101,19 @@ async function showCategoryProducts(ctx: BotContext, categoryId: number): Promis
 
     SessionService.updateSession(chatId, { currentCategory: categoryId });
 
-    let message = getProductsListText(session.language) + '\n\n';
-    
+    //let message = getProductsListText(session.language) + '\n\n';
+    let message = '';
+
     products.forEach(async (product: any, index: number) => {
       const keyboard = [];
-      message += `${index + 1}. ${product.name} - ${product.price} ₽\n`;
-      if (product.description) {
-        message += `   ${product.description}\n`;
-      }
+      
+      message = `${index + 1}. ${product.name} - ${product.price} ₽\n`;
+      //if (product.description) {
+      //  message += `   ${product.description}\n`;
+      //}
       message += '\n';
       keyboard.push([{
-        text: `${icons['info']} ${product.name} - ${product.price} ₽ посмотреть`,
+        text: `${icons['info']} посмотреть подробнее`,
         callback_data: `product_${product.id}`
         }
       ]);
@@ -112,6 +122,7 @@ async function showCategoryProducts(ctx: BotContext, categoryId: number): Promis
         callback_data: `add_to_cart_${product.id}`
       }]);
       try {
+        
         if(product.image_url.includes('localhost') || product.image_url.includes('127.0.0.1')){
           await sendPhotoAsBuffer(ctx, product.image_url, message, keyboard);
         }
