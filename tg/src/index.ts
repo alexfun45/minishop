@@ -12,6 +12,7 @@ import { orderHandler } from './handlers/orders.ts';
 import { profileHandler } from './handlers/profile.ts';
 import { searchHandler } from './handlers/search.ts';
 import type { BotContext } from './types.ts';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN';
 console.log('BOT_TOKEN', BOT_TOKEN);
@@ -31,8 +32,14 @@ const mainMenu = {
   }
 };
 
+const proxyAgent = new HttpsProxyAgent('http://user361622:lw0kic@45.159.180.166:1768');
 // Инициализация бота
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(BOT_TOKEN, { 
+  polling: true,
+  request: {
+    agent: proxyAgent
+  } as any
+});
 
 // Создание контекста для обработчиков
 function createContext(chatId: number, message?: any, callbackQuery?: any): BotContext {
