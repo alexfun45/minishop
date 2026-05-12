@@ -1,5 +1,5 @@
 // components/ImageUpload.tsx
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 
 interface ImageUploadProps {
   onImageChange: (file: File | null, previewUrl: string | null) => void;
@@ -15,8 +15,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   className = ''
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(existingImageUrl || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(existingImageUrl || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (existingImageUrl) {
+      setImagePreview(existingImageUrl);
+    }
+  }, [existingImageUrl]);
 
   const handleImageChange = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -160,7 +166,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         </label>
         <input
           type="url"
-          value={imagePreview && !imageFile ? imagePreview : ''}
+          value={(imagePreview && !imageFile ? imagePreview : '') ?? ''}
           onChange={(e) => handleUrlChange(e.target.value)}
           placeholder="https://example.com/image.jpg"
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500"

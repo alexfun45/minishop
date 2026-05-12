@@ -14,6 +14,10 @@ interface ProductAttribute{
   available: boolean;
   image_url: string;
   category_id: number;
+  weight: number;
+  ingredients_ru: string;
+  ingredients_tj: string;
+  ingredients_uz: string;
 }
 
 interface ProductCreationAttribute extends Optional<ProductAttribute,
@@ -31,6 +35,10 @@ class Product extends Model<ProductAttribute, ProductCreationAttribute> implemen
   declare available: boolean;
   declare image_url: string;
   declare category_id: number;
+  declare weight: number;
+  declare ingredients_ru: string;
+  declare ingredients_tj: string;
+  declare ingredients: string;
 }
 
 Product.init({
@@ -78,6 +86,22 @@ Product.init({
   category_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
+  },
+  weight: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  ingredients_ru: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  ingredients_tj: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  ingredients_uz: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
   }
 }, {
   sequelize,

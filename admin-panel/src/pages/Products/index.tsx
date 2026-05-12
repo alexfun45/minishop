@@ -84,11 +84,11 @@ export const ProductsList: React.FC = () => {
   };
 
   // Функция для переключения доступности товара
-  const toggleAvailability = (product: Product) => {
-    apiClient.post('/product/update/'+product.id, { ...product, available: !product.available});
+  const toggleAvailability = (selectedProduct: Product) => {
+    apiClient.post('/product/update/'+selectedProduct.id, { ...selectedProduct, available: !selectedProduct.available});
     setProducts(prev => prev?.map(product => 
-      product.id === product.id 
-        ? { ...product, available: !product.available }
+      product.id === selectedProduct.id 
+        ? { ...product, available: !selectedProduct.available }
         : product
     ));
   };

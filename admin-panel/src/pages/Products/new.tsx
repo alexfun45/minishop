@@ -55,7 +55,6 @@ export const NewProduct: React.FC = () => {
     e.preventDefault();
     try {
       const submitData = new FormData();
-      //console.log('formData', formData);
       Object.entries(formData).forEach(([key, value]) => {
         if (key !== 'image_url' && value !== null && value !== undefined) {
           if (typeof value === 'boolean') {

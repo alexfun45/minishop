@@ -164,6 +164,13 @@ class ProductController{
     try {
       const productId = parseInt(req.params?.id || '');
       const productData = req.body;
+      console.log('productData', productData);
+      if (req.file) {
+        productData.image_url = `http://localhost:3001/uploads/products/${req.file.filename}`;
+      } else if (req.body.image_url !== undefined) {
+        // Если указан URL изображения (может быть пустой строкой)
+        productData.image_url = req.body.image_url || null;
+      }
       const product = await productService.update(productId, productData);
       LogEvent('update product', productId.toString());
       res.json({

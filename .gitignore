@@ -2,4 +2,4 @@ node_modules/
 .git/
 tg/node_modules/
 tg/.env
-tg/backend/uploads/
+backend/uploads/

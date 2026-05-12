@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
 import { apiClient } from '../../services/api';
+import { ImageUpload } from '../../components/ImageUpload'
 
 interface Product {
   id: string;
@@ -19,6 +20,7 @@ interface Product {
   ingredients_ru: string;
   ingredients_tj: string;
   ingredients_uz: string;
+  image_url: string;
   available: boolean;
 }
 
@@ -28,7 +30,8 @@ export const EditProduct: React.FC = () => {
   const { categories, loading: categoriesLoading } = useCategories();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
   const [formData, setFormData] = useState<Product>({
     id: '',
     name_ru: '',
@@ -44,6 +47,7 @@ export const EditProduct: React.FC = () => {
     ingredients_ru: '',
     ingredients_tj: '',
     ingredients_uz: '',
+    image_url: '',
     available: true
   });
 
@@ -53,8 +57,11 @@ export const EditProduct: React.FC = () => {
       try {
         // Mock данные - в реальном приложении здесь будет API вызов
         const data = await apiClient.get('/product/'+id);
-        
-        setFormData(data.data);
+        const sanitizedData = { ...data.data };
+        Object.keys(sanitizedData).forEach(key => {
+          if (sanitizedData[key] === null) sanitizedData[key] = '';
+        });
+        setFormData(sanitizedData);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching product:', error);
@@ -72,7 +79,23 @@ export const EditProduct: React.FC = () => {
     setSaving(true);
     
     try {
-      await apiClient.post('/product/update/'+formData.id, formData);
+      const submitData = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== 'image_url' && value !== null && value !== undefined) {
+          if (typeof value === 'boolean') {
+            submitData.append(key, value ? 'true' : 'false');
+          } else {
+            submitData.append(key, value.toString());
+          }
+        }
+      });
+      // Добавляем файл изображения
+      if (imageFile) {
+        submitData.append('image', imageFile);
+      } else if (formData.image_url && !imageFile) {
+        submitData.append('image_url', formData.image_url);
+      }
+      await apiClient.post('/product/update/'+formData.id, submitData);
       // После успешного сохранения - редирект
       navigate('/products');
     } catch (error) {
@@ -88,6 +111,16 @@ export const EditProduct: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+  };
+
+  const handleImageChange = (file: File | null, previewUrl: string | null) => {
+    setImageFile(file);
+    if (previewUrl && !file) {
+      // Если это URL, а не файл
+      setFormData(prev => ({ ...prev, image_url: previewUrl }));
+    } else {
+      setFormData(prev => ({ ...prev, image_url: '' }));
+    }
   };
 
   const handleDelete = async () => {
@@ -147,7 +180,12 @@ export const EditProduct: React.FC = () => {
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                 Основная информация
               </h3>
-              
+              <ImageUpload
+                  key={formData.id}
+                  onImageChange={handleImageChange}
+                  existingImageUrl={formData.image_url}
+                  label="Изображение категории"
+                />
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 {/* Русское название */}
                 <div>
