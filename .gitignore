@@ -3,3 +3,4 @@ node_modules/
 tg/node_modules/
 tg/.env
 backend/uploads/
+backend/.env

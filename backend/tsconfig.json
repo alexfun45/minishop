@@ -20,7 +20,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-
+    "allowJs": true,
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -52,6 +52,6 @@
   "ts-node": {
     "esm": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "dist/typings.d.ts"],
   "exclude": ["node_modules"]
 }

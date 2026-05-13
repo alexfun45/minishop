@@ -1,5 +1,6 @@
 import { Order, OrderItem, User, Product } from '../models/index.ts';
 import { orderItemService } from './OrderItemService.ts';
+import {sendStatusUpdateNotification} from '../api/telegramNotification.ts'
 
 export class OrderService {
 
@@ -108,12 +109,13 @@ export class OrderService {
 
   // Обновить статус заказа
   async updateStatus(orderId: number, status: string) {
-    console.log();
+    console.log('update status');
     const order = await Order.findByPk(orderId);
     if (!order) {
       throw new Error('Order not found');
     }
-
+    console.log('sendStatusUpdateNotification', order);
+    sendStatusUpdateNotification(order.telegram_id, orderId, status);
     order.status = status;
     await order.save();
 

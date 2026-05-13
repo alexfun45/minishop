@@ -1,33 +1,30 @@
-// pages/orders/index.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Header } from '../../components/header';
 import type { Order } from '../../types/index';
 import { useOrders } from '../../hooks/useOrders';
 
-/*interface Order {
-  id: number;
-  customer_name: string;
-  customer_phone: string;
-  total_amount: number;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
-  delivery_address: string;
-  payment_method: string;
-  created_at: string;
-  order_items: OrderItem[];
-}*/
-
-interface OrderItem {
-  product_name: string;
-  quantity: number;
-  price: number;
-}
+// Вспомогательная функция для красивого формата даты
+const formatDate = (dateString: string) => {
+  if (!dateString) return '—';
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  } catch (e) {
+    return dateString;
+  }
+};
 
 export const OrdersManagement: React.FC = () => {
-  const {orders, updateOrder, loading} = useOrders();
+  const { orders, updateOrder, loading } = useOrders();
   const [filter, setFilter] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<Order>();
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
     confirmed: 'bg-blue-100 text-blue-800',
     preparing: 'bg-purple-100 text-purple-800',
@@ -36,7 +33,7 @@ export const OrdersManagement: React.FC = () => {
     cancelled: 'bg-red-100 text-red-800'
   };
 
-  const statusLabels = {
+  const statusLabels: Record<string, string> = {
     pending: 'Ожидает',
     confirmed: 'Подтвержден',
     preparing: 'Готовится',
@@ -45,165 +42,227 @@ export const OrdersManagement: React.FC = () => {
     cancelled: 'Отменен'
   };
 
-  const updateOrderStatus = async (orderId: number, newStatus: Order['status']) => {
-    updateOrder(orderId, newStatus);
-    // API call to update status
-    console.log(`Updating order ${orderId} to ${newStatus}`);
+  // Логика фильтрации заказов по статусу
+  const filteredOrders = useMemo(() => {
+    if (filter === 'all') return orders;
+    return orders.filter(order => order.status === filter);
+  }, [orders, filter]);
+
+  const handleStatusChange = async (orderId: number, newStatus: Order['status']) => {
+    try {
+      await updateOrder(orderId, newStatus);
+    } catch (error) {
+      console.error("Ошибка при обновлении статуса:", error);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20">
       <Header />
       
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="md:flex md:items-center md:justify-between mb-6">
+        {/* Заголовок и Фильтр */}
+        <div className="md:flex md:items-center md:justify-between mb-8">
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
+            <h2 className="text-2xl font-extrabold leading-7 text-gray-900 sm:text-3xl sm:truncate">
               Управление заказами
             </h2>
           </div>
-          <div className="mt-4 flex md:mt-0 md:ml-4">
+          <div className="mt-4 flex md:mt-0 md:ml-4 items-center space-x-3">
+            <label className="text-sm font-medium text-gray-700">Статус:</label>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md"
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm rounded-md shadow-sm"
             >
               <option value="all">Все заказы</option>
-              <option value="pending">Ожидают обработки</option>
-              <option value="confirmed">Подтвержденные</option>
-              <option value="preparing">Готовятся</option>
-              <option value="ready">Готовы к выдаче</option>
-              <option value="delivered">Доставленные</option>
+              {Object.entries(statusLabels).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
             </select>
           </div>
         </div>
 
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
-            {orders.map((order) => (
-              <li key={order.id}>
-                <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
+        {loading ? (
+          <div className="flex justify-center py-20 italic text-gray-500">Загрузка данных...</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6">
+            {filteredOrders.map((order) => (
+              <div key={order.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="p-5 sm:p-6">
+                  
+                  {/* ВЕРХНЯЯ ЧАСТЬ: Номер, Клиент, Общая сумма */}
+                  <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="h-8 w-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                          <span className="text-amber-800 font-bold text-sm">#</span>
-                        </div>
+                      <div className="h-12 w-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 font-black border border-amber-100 text-lg">
+                        #{order.id}
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          Заказ #{order.id}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {order.customer_name} • {order.customer_phone}
-                        </div>
+                      <div className="ml-4 text-left">
+                        <h3 className="text-lg font-bold text-gray-900 leading-tight">{order.customer_name}</h3>
+                        <p className="text-sm text-gray-500 font-medium">{order.customer_phone}</p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[order.status]}`}>
-                        {statusLabels[order.status]}
-                      </span>
-                      <div className="text-sm text-gray-900 font-medium">
-                        {order.total_amount} ₽
-                      </div>
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="text-amber-600 hover:text-amber-900 text-sm font-medium"
+                    
+                    <div className="flex flex-col items-end">
+                      <div className="text-2xl font-black text-gray-900">{order.total_amount} ₽</div>
+                      <select 
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value as Order['status'])}
+                        className={`mt-2 text-[10px] uppercase tracking-wider font-bold rounded-full px-3 py-1 border-none cursor-pointer transition-colors ${statusColors[order.status]}`}
                       >
-                        Подробнее
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-2 sm:flex sm:justify-between">
-                    <div className="sm:flex">
-                      <p className="flex items-center text-sm text-gray-500">
-                        📍 {order.delivery_address}
-                      </p>
-                    </div>
-                    <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                      <span>
-                        {new Date(order.createdAt).toLocaleString('ru-RU')}
-                      </span>
+                        {Object.entries(statusLabels).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
-                  {/* Быстрое управление статусом */}
-                  <div className="mt-3 flex space-x-2">
+                  {/* СРЕДНЯЯ ЧАСТЬ: Две колонки (Инфо слева | Состав справа) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-b py-6 border-gray-50">
+                    
+                    {/* Левая колонка: Доставка и Оплата */}
+                    <div className="flex flex-col space-y-4 text-left">
+                      <div className="flex items-start">
+                        <span className="text-lg mr-3">📍</span>
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Адрес доставки</p>
+                          <p className="text-sm font-semibold text-gray-800">{order.delivery_address}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start">
+                        <span className="text-lg mr-3">⏰</span>
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Желаемое время</p>
+                          <p className="text-sm font-semibold text-gray-800">
+                            {order.delivery_time ? order.delivery_time : 'Как можно скорее'}
+                          </p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">Создан: {formatDate(order.createdAt)}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start">
+                        <span className="text-lg mr-3">💳</span>
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Оплата</p>
+                          <div className="flex items-center mt-0.5">
+                            <span className="text-sm font-semibold text-gray-800">
+                              {order.payment_method === 'cash' ? 'Наличные' : 'Картой онлайн'}
+                            </span>
+                            <span className={`ml-2 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                              order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {order.payment_status === 'paid' ? 'Оплачено' : 'Не оплачено'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Правая колонка: Заметки и Состав */}
+                    <div className="flex flex-col space-y-4 text-left">
+                      <div className={`p-4 rounded-xl border ${order.notes ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
+                        <p className="text-[10px] text-amber-800 uppercase font-black mb-1">Заметка пекарю:</p>
+                        <p className="text-sm text-gray-700 italic leading-relaxed">
+                          {order.notes || 'Клиент не оставил комментариев'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tight mb-3">Состав корзины:</p>
+                        <div className="space-y-2">
+                          {order.order_items?.map((item, i) => (
+                            <div key={i} className="flex justify-between items-center text-sm">
+                              <span className="text-gray-700 font-medium">
+                                {item.product_name} <span className="text-gray-400 font-normal ml-1">x {item.quantity}</span>
+                              </span>
+                              <span className="font-bold text-gray-900">{item.price * item.quantity} ₽</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between pt-3 mt-2 border-t border-gray-100">
+                            <span className="text-sm font-bold text-gray-900">Итого к оплате:</span>
+                            <span className="text-lg font-black text-amber-600">{order.total_amount} ₽</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* НИЖНЯЯ ЧАСТЬ: Быстрые кнопки управления */}
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
                     {order.status === 'pending' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'confirmed')}
-                        className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700"
+                        onClick={() => handleStatusChange(order.id, 'confirmed')}
+                        className="flex-1 sm:flex-none px-6 py-2.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 shadow-sm transition-all"
                       >
-                        Подтвердить
+                        Принять заказ
                       </button>
                     )}
                     {order.status === 'confirmed' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'preparing')}
-                        className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                        onClick={() => handleStatusChange(order.id, 'preparing')}
+                        className="flex-1 sm:flex-none px-6 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-all"
                       >
                         Начать готовить
                       </button>
                     )}
                     {order.status === 'preparing' && (
                       <button
-                        onClick={() => updateOrderStatus(order.id, 'ready')}
-                        className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700"
+                        onClick={() => handleStatusChange(order.id, 'ready')}
+                        className="flex-1 sm:flex-none px-6 py-2.5 bg-purple-600 text-white text-xs font-bold rounded-lg hover:bg-purple-700 shadow-sm transition-all"
                       >
-                        Готов
+                        Готов к выдаче
                       </button>
                     )}
+                    
                     <button
-                      onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                      className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                      onClick={() => handleStatusChange(order.id, 'cancelled')}
+                      className="flex-1 sm:flex-none px-6 py-2.5 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-lg hover:bg-red-50 transition-all"
                     >
-                      Отменить
+                      Отмена
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedOrder(order)}
+                      className="ml-auto text-xs font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest p-2"
+                    >
+                      Инфо
                     </button>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Модальное окно с деталями заказа */}
-        {selectedOrder && (
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-              <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  Детали заказа #{selectedOrder.id}
-                </h3>
-                {/* Детали заказа */}
-                <div className="mt-2">
-                  <p><strong>Клиент:</strong> {selectedOrder.customer_name}</p>
-                  <p><strong>Телефон:</strong> {selectedOrder.customer_phone}</p>
-                  <p><strong>Адрес:</strong> {selectedOrder.delivery_address}</p>
-                  <p><strong>Способ оплаты:</strong> {selectedOrder.payment_method === 'cash' ? 'Наличные' : 'Карта'}</p>
-                  
-                  <div className="mt-4">
-                    <h4 className="font-medium">Состав заказа:</h4>
-                    {selectedOrder.order_items.map((item, index) => (
-                      <div key={index} className="flex justify-between mt-1">
-                        <span>{item.product_name} × {item.quantity}</span>
-                        <span>{item.price * item.quantity} ₽</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between mt-2 border-t pt-2 font-medium">
-                      <span>Итого:</span>
-                      <span>{selectedOrder.total_amount} ₽</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-5 sm:mt-6">
-                 
-                </div>
               </div>
-            </div>
+            ))}
+
+            {filteredOrders.length === 0 && (
+              <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-100 text-gray-400 font-medium">
+                Нет заказов в категории «{statusLabels[filter] || 'Все'}»
+              </div>
+            )}
           </div>
         )}
       </main>
+
+      {/* Модалка с доп. данными (ID, координаты и т.д.) */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-left">
+            <h3 className="text-xl font-black text-gray-900 mb-6 flex items-center">
+              <span className="mr-2">🔍</span> Технические данные
+            </h3>
+            <div className="space-y-4 text-xs font-mono bg-gray-50 p-5 rounded-xl border border-gray-100 text-gray-600">
+               <p><span className="text-gray-400">Telegram ID:</span> {selectedOrder.telegram_id}</p>
+               <p><span className="text-gray-400">Координаты:</span> {selectedOrder.delivery_lat}, {selectedOrder.delivery_lng}</p>
+               <p><span className="text-gray-400">User ID:</span> {selectedOrder.telegram_id}</p>
+            </div>
+            <button 
+              onClick={() => setSelectedOrder(null)}
+              className="mt-8 w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200"
+            >
+              Понятно
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
