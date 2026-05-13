@@ -109,12 +109,10 @@ export class OrderService {
 
   // Обновить статус заказа
   async updateStatus(orderId: number, status: string) {
-    console.log('update status');
     const order = await Order.findByPk(orderId);
     if (!order) {
       throw new Error('Order not found');
     }
-    console.log('sendStatusUpdateNotification', order);
     sendStatusUpdateNotification(order.telegram_id, orderId, status);
     order.status = status;
     await order.save();

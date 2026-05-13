@@ -19,7 +19,8 @@ const router = express.Router();
 //router.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 //console.log('router', path.join(process.cwd(), 'uploads'));
 //router.use('/products', productRouter);
-router.use('/product/:id', productController.getById);
+router.get('/product/search/:q/:lang', productController.search);
+router.get('/product/:id', productController.getById);
 router.use('/products/:catId/:lang', productController.getByCategory);
 router.use('/categories/:lang', categoryController.getCategories);
 

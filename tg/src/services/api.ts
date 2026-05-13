@@ -42,10 +42,10 @@ class ApiClient {
 
   async searchProducts(query: string, language: string = 'ru') {
     try {
-      const response = await axios.get(`${this.baseURL}/api/products/search?q=${encodeURIComponent(query)}&lang=${language}`);
+      const response = await axios.get(`${this.baseURL}/api/product/search/${encodeURIComponent(query)}/${language}`);
       return response.data.data || [];
     } catch (error) {
-      console.error('Search products error:', error);
+      //console.error('Search products error:', error);
       return [];
     }
   }

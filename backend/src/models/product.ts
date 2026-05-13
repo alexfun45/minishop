@@ -38,7 +38,7 @@ class Product extends Model<ProductAttribute, ProductCreationAttribute> implemen
   declare weight: number;
   declare ingredients_ru: string;
   declare ingredients_tj: string;
-  declare ingredients: string;
+  declare ingredients_uz: string;
 }
 
 Product.init({

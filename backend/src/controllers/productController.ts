@@ -22,6 +22,7 @@ class ProductController{
 
   // Получить все товары категории
   async getByCategory(req: Request, res: Response) {
+    console.log('req', req);
     try {
       const categoryId = parseInt(req.params.catId || '');
       const language = (req.query.lang as string) || 'ru';
@@ -33,7 +34,7 @@ class ProductController{
         data: products,
       });
     } catch (error) {
-      console.error('Get products by category error:', error);
+      //console.error('Get products by category error:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to fetch products',
@@ -72,7 +73,8 @@ class ProductController{
    // Поиск товаров
    async search(req: Request, res: Response) {
     try {
-      const query = req.query.q as string;
+      //const query = req.query.q as string;
+      const query = req.params?.q || '';
       const language = (req.query.lang as string) || 'ru';
 
       if (!query) {
@@ -82,7 +84,7 @@ class ProductController{
         });
       }
 
-      const products = await productService.search(query, language);
+      const products = await productService.search(query.toLowerCase(), language);
 
       res.json({
         success: true,

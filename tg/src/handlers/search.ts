@@ -2,6 +2,7 @@
 import { getTranslation } from '../types.ts';
 import type {BotContext} from '../types.ts';
 import { apiClient } from '../services/api.ts';
+import {showProduct} from '../logic/products.ts'
 
 export async function searchHandler(ctx: BotContext, query?: string): Promise<void> {
   const { bot, chatId, session } = ctx;
@@ -24,18 +25,19 @@ async function handleSearch(ctx: BotContext, query: string): Promise<void> {
       let message = getSearchResultsText(session.language, query) + '\n\n';
       
       products.forEach((product: any, index: number) => {
-        message += `${index + 1}. ${product.name} - ${product.price} ₽\n`;
+        showProduct(ctx, product);
+        //message += `${index + 1}. ${product.name} - ${product.price} ₽\n`;
       });
       
       message += `\n${getSearchFooterText(session.language)}`;
       
-      await bot.sendMessage(chatId, message, {
+      /*await bot.sendMessage(chatId, message, {
         reply_markup: {
           inline_keyboard: [
             [{ text: getTranslation(session, 'categories'), callback_data: 'categories' }]
           ]
         }
-      });
+      });*/
     } else {
       await bot.sendMessage(
         chatId,
