@@ -32,14 +32,22 @@ const mainMenu = {
   }
 };
 
-const proxyAgent = new HttpsProxyAgent('http://user361622:lw0kic@45.159.180.166:1768');
-// Инициализация бота
-const bot = new TelegramBot(BOT_TOKEN, { 
-  polling: true,
-  request: {
-    agent: proxyAgent
-  } as any
-});
+let bot: any;
+
+if (process.env.USE_PROXY === 'true') {
+  const proxyAgent = new HttpsProxyAgent('http://user361622:lw0kic@45.159.180.166:1768');
+  bot = new TelegramBot(BOT_TOKEN, { 
+    polling: true,
+    request: {
+      agent: proxyAgent
+    } as any
+  });
+
+  console.log('Запуск бота через прокси...');
+} else{
+  bot = new TelegramBot(BOT_TOKEN!);
+  console.log('Запуск бота напрямую (без прокси)...');
+}
 
 // Создание контекста для обработчиков
 function createContext(chatId: number, message?: any, callbackQuery?: any): BotContext {
