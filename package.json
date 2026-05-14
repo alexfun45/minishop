@@ -5,9 +5,12 @@
   "main": "index.js",
   "scripts": {
     "dev": "npm-run-all --parallel dev:backend dev:frontend dev:tg",
-	"dev:tg": "cd tg && npm run dev",
+	  "dev:tg": "cd tg && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd admin-panel && npm run dev",
+    "prod:tg":"cd tg && npm start",
+    "prod:backend": "cd backend && npm start",
+    "start": "npm run prod:backend && npm run prod:tg",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
