@@ -1,17 +1,17 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { SessionService } from './services/session.ts';
-import { startHandler } from './handlers/start.ts';
-import { categoriesHandler } from './handlers/categories.ts';
-import {handleCheckoutStep} from './handlers/checkout.ts'
-import { ProductsHandler } from './handlers/products.ts';
-import { cartHandler } from './handlers/cart.ts';
-import * as multi from './lang/multi.ts'
+import { SessionService } from './services/session.js';
+import { startHandler } from './handlers/start.js';
+import { categoriesHandler } from './handlers/categories.js';
+import {handleCheckoutStep} from './handlers/checkout.js'
+import { ProductsHandler } from './handlers/products.js';
+import { cartHandler } from './handlers/cart.js';
+import * as multi from './lang/multi.js'
 import  'dotenv/config'
 //import { cartHandler } from './handlers/cart.js';
-import { orderHandler } from './handlers/orders.ts';
-import { profileHandler } from './handlers/profile.ts';
-import { searchHandler } from './handlers/search.ts';
-import type { BotContext } from './types.ts';
+import { orderHandler } from './handlers/orders.js';
+import { profileHandler } from './handlers/profile.js';
+import { searchHandler } from './handlers/search.js';
+import type { BotContext } from './types.js';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || 'YOUR_BOT_TOKEN';

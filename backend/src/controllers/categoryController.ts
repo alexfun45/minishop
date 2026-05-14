@@ -1,9 +1,8 @@
 // controllers/categoryController.ts
 import type { Request, Response } from 'express';
-import { CategoryService, categoryService } from '../services/CategoryService.ts';
+import { categoryService } from '../services/CategoryService.js';
 import fs from 'fs';
 import path from 'path';
-import LogEvent from '../utils/LogEvents.ts'
 
 class CategoryController {
 

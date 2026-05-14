@@ -1,9 +1,9 @@
-import type {BotContext, textMap} from '../types'
-import { SessionService } from '../services/session.ts';
-import { apiClient } from '../services/api.ts';
-import * as multi from '../lang/multi.ts'
-import {mainMenu} from '../keyboards/mainMenu.ts'
-import { getTranslation } from '../types.ts';
+import type {BotContext, textMap} from '../types.js'
+import { SessionService } from '../services/session.js';
+import { apiClient } from '../services/api.js';
+import * as multi from '../lang/multi.js'
+import {mainMenu} from '../keyboards/mainMenu.js'
+import { getTranslation } from '../types.js';
 
 export async function orderHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;
@@ -51,7 +51,7 @@ async function askForPhoneNumber(ctx: BotContext): Promise<void> {
         `Iltimos, telefon raqamingizni yuboring:`
   };
 
-  await bot.sendMessage(chatId, askPhoneText[session.language] || askPhoneText.ru, {
+  await bot.sendMessage(chatId, (askPhoneText as any)[session.language] || askPhoneText.ru, {
     parse_mode: 'Markdown',
     reply_markup: {
       keyboard: [
@@ -99,7 +99,7 @@ async function showNoOrders(ctx: BotContext): Promise<void> {
         `Birinchi buyurtmangizni bering va u shu yerda paydo bo'ladi!`
   };
 
-  await bot.sendMessage(chatId, noOrdersText[session.language] || noOrdersText.ru, {
+  await bot.sendMessage(chatId, (noOrdersText as any)[session.language] || noOrdersText.ru, {
     parse_mode: 'Markdown',
     reply_markup: {
       inline_keyboard: [
@@ -392,7 +392,7 @@ async function placeOrder(ctx: BotContext): Promise<void> {
 
     await bot.sendMessage(
       chatId,
-      successText[session.language] || successText.ru,
+      (successText as any)[session.language] || successText.ru,
       {
         parse_mode: 'Markdown',
         ...mainMenu
@@ -408,6 +408,6 @@ async function placeOrder(ctx: BotContext): Promise<void> {
       uz: '❌ Buyurtma rasmiylashtirishda xatolik yuz berdi. Keyinroq urinib koʻring.'
     };
     
-    await bot.sendMessage(chatId, errorText[session.language] || errorText.ru, mainMenu);
+    await bot.sendMessage(chatId, (errorText as any)[session.language] || errorText.ru, mainMenu);
   }
 }

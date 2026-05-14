@@ -1,14 +1,9 @@
 import express from 'express';
-import { requireAdmin } from '../middleware/adminAuth.ts';
-import { productController } from '../controllers/productController.ts';
-import { categoryController } from '../controllers/categoryController.ts';
-import productRouter from './products.ts'
-import categoryRouter from './category_router.ts'
-import orderRouter from './orders_router.ts'
-import activityRouter from './activity.ts'
-//import LogEvents from './LogEvents.ts'
-import { upload } from '../middleware/upload.ts';
-import AuthRoute from './auth.ts'
+import productRouter from './products.js'
+import categoryRouter from './category_router.js'
+import orderRouter from './orders_router.js'
+import activityRouter from './activity.js'
+import AuthRoute from './auth.js'
 const router = express.Router();
 
 // Все роуты требуют админских прав

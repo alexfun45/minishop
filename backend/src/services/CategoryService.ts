@@ -1,5 +1,5 @@
 // services/CategoryService.ts
-import { Category, Product } from '../models/index.ts';
+import { Category, Product } from '../models/index.js';
 
 export class CategoryService {
   // Получить локализованное имя

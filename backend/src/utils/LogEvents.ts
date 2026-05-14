@@ -1,4 +1,4 @@
-import {Event} from '../models/index.ts'
+import {Event} from '../models/index.js'
 import type { Request, Response } from 'express';
 
 export default async function LogEvent(eventName: string, data: string){

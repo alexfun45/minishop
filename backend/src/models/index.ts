@@ -1,13 +1,13 @@
 // models/index.ts
-import { User } from './user.ts';
-import { Product } from './product.ts';
-import { Category } from './category.ts';
-import { Order } from './order.ts';
-import { OrderItem } from './OrderItem.ts';
-import {Event} from './events.ts'
+import { User } from './user.js';
+import { Product } from './product.js';
+import { Category } from './category.js';
+import { Order } from './order.js';
+import { OrderItem } from './OrderItem.js';
+import {Event} from './events.js'
 
 // Импортируем ассоциации
-import './associations.ts';
+import './associations.js';
 
 export {
   User,

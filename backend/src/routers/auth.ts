@@ -1,7 +1,7 @@
 // routes/auth.ts
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/user.ts';
+import { User } from '../models/user.js';
 import { createHmac } from 'node:crypto';
 
 const router = express.Router();

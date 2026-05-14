@@ -5,8 +5,8 @@ import type { ActivityType } from '../../types/index';
 export const Activity = () => {
 
   const [activities, setActivities] = useState<ActivityType[] | []>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  //const [error, setError] = useState<string | null>(null);
+  //const [loading, setLoading] = useState(true);
 
   const getEventString = (event_name: string, data: string) => {
     switch(event_name){
@@ -26,10 +26,10 @@ export const Activity = () => {
       try{
         const acts = await apiClient.get('/activity/');
         setActivities(acts.data);
-        setLoading(false);
+        //setLoading(false);
       } catch(e){
-        setError('Ошибка загрузки категорий');
-        setLoading(false);
+        //setError('Ошибка загрузки категорий');
+        //setLoading(false);
       }
     }
     fetchRecentActivity();

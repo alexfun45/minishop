@@ -4,3 +4,6 @@ tg/node_modules/
 tg/.env
 backend/uploads/
 backend/.env
+backend/dist/
+tg/dist/
+admin-panel/dist/

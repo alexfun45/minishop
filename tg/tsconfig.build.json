@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "Node16",        /* Для Node.js лучше использовать CommonJS */
+    "moduleResolution": "Node16",
+    "outDir": "./dist",          /* Куда сохранять */
+    "rootDir": "./src",          /* Где лежит исходный код */
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": false,             /* ВАЖНО: разрешаем создание файлов */
+    "noUnusedLocals": false,     /* Твоя просьба игнорировать переменные */
+    "noUnusedParameters": false,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*"]        /* Укажи путь к папке с кодом бота */
+}

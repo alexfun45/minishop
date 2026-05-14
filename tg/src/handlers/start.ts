@@ -1,7 +1,7 @@
 // src/bot/handlers/start.ts
-import type {BotContext} from '../types.ts'
-import {getTranslation} from '../types.ts'
-import { SessionService } from '../services/session.ts'
+import type {BotContext} from '../types.js'
+import {getTranslation} from '../types.js'
+import { SessionService } from '../services/session.js'
 
 export async function startHandler(ctx: BotContext): Promise<void> {
   const { bot, chatId, session } = ctx;

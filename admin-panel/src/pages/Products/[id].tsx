@@ -28,7 +28,7 @@ export const EditProduct: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { categories, loading: categoriesLoading } = useCategories();
-  const [loading, setLoading] = useState(true);
+  //const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -62,10 +62,10 @@ export const EditProduct: React.FC = () => {
           if (sanitizedData[key] === null) sanitizedData[key] = '';
         });
         setFormData(sanitizedData);
-        setLoading(false);
+        //setLoading(false);
       } catch (error) {
         console.error('Error fetching product:', error);
-        setLoading(false);
+        //setLoading(false);
       }
     };
     fetchProduct();

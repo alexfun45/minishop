@@ -1,8 +1,8 @@
-import type {BotContext, textMap} from '../types'
-import { SessionService } from '../services/session.ts';
-import { apiClient } from '../services/api.ts';
-import * as multi from '../lang/multi.ts'
-import {mainMenu} from '../keyboards/mainMenu.ts'
+import type {BotContext, textMap} from '../types.js'
+import { SessionService } from '../services/session.js';
+import { apiClient } from '../services/api.js';
+import * as multi from '../lang/multi.js'
+import {mainMenu} from '../keyboards/mainMenu.js'
 
 export async function handleCheckoutStep(ctx: BotContext, msg: any): Promise<void> {
   const { bot, chatId, session } = ctx;
@@ -20,7 +20,7 @@ export async function handleCheckoutStep(ctx: BotContext, msg: any): Promise<voi
       uz: '❌ Buyurtma bekor qilindi.'
     };
     
-    await bot.sendMessage(chatId, cancelText[session.language] || cancelText.ru, mainMenu);
+    await bot.sendMessage(chatId, (cancelText as any)[session.language] || cancelText.ru, mainMenu);
     return;
   }
 
@@ -64,7 +64,7 @@ export async function handleCheckoutStep(ctx: BotContext, msg: any): Promise<voi
 
       await bot.sendMessage(
         chatId,
-        addressText[session.language] || addressText.ru,
+        (addressText as any)[session.language] || addressText.ru,
         {
           reply_markup: {
             keyboard: [['⬅️ ' + multi.getCancelOrderText(session.language)]],
@@ -78,7 +78,7 @@ export async function handleCheckoutStep(ctx: BotContext, msg: any): Promise<voi
         tj: '❌ Лутфан, рақами телефони дурустро ворид кунед.',
         uz: '❌ Iltimos, toʻgʻri telefon raqamini kiriting.'
       };
-      await bot.sendMessage(chatId, errorText[session.language] || errorText.ru);
+      await bot.sendMessage(chatId, (errorText as any)[session.language] || errorText.ru);
     }
   }
   // Обработка адреса
@@ -234,7 +234,7 @@ async function placeOrder(ctx: BotContext): Promise<void> {
 
     await bot.sendMessage(
       chatId,
-      successText[session.language] || successText.ru,
+      (successText as any)[session.language] || successText.ru,
       {
         parse_mode: 'Markdown',
         ...mainMenu
@@ -251,6 +251,6 @@ async function placeOrder(ctx: BotContext): Promise<void> {
       uz: '❌ Buyurtma rasmiylashtirishda xatolik yuz berdi. Keyinroq urinib koʻring.'
     };
     
-    await bot.sendMessage(chatId, errorText[session.language] || errorText.ru, mainMenu);
+    await bot.sendMessage(chatId, (errorText as any)[session.language] || errorText.ru, mainMenu);
   }
 }

@@ -1,6 +1,6 @@
 // services/UserService.ts
-import { User } from '../models/user.ts';
-import type { UserAttributes } from '../types/ModelTypes.ts';
+import { User } from '../models/user.js';
+import type { UserAttributes } from '../types/ModelTypes.js';
 
 export class UserService {
   // Найти или создать пользователя по Telegram ID

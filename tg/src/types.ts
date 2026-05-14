@@ -10,6 +10,8 @@ export interface UserSession {
   lastMessageId?: number;
 }
 
+export type Language = 'ru' | 'tj' | 'uz';
+
 export interface CartItem {
   productId: number;
   name: string;

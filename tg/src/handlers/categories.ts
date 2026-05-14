@@ -1,9 +1,9 @@
-import { getTranslation } from '../types.ts';
-import type {BotContext} from '../types.ts';
-import { apiClient } from '../services/api.ts';
-import { SessionService } from '../services/session.ts';
-import {getAddToCartText} from '../lang/multi.ts'
-import icons from '../utils/icons.ts'
+import { getTranslation } from '../types.js';
+import type {BotContext} from '../types.js';
+import { apiClient } from '../services/api.js';
+import { SessionService } from '../services/session.js';
+import {getAddToCartText} from '../lang/multi.js'
+import icons from '../utils/icons.js'
 import sharp from 'sharp';
 import axios from 'axios';
 

@@ -1,7 +1,7 @@
 // src/bot/handlers/profile.ts
-import { getTranslation } from '../types.ts';
-import type {BotContext} from '../types.ts';
-import { SessionService } from '../services/session.ts';
+import { getTranslation } from '../types.js';
+import type {BotContext} from '../types.js';
+import { SessionService } from '../services/session.js';
 
 export async function profileHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;

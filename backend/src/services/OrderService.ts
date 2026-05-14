@@ -1,6 +1,6 @@
-import { Order, OrderItem, User, Product } from '../models/index.ts';
-import { orderItemService } from './OrderItemService.ts';
-import {sendStatusUpdateNotification} from '../api/telegramNotification.ts'
+import { Order, OrderItem, User, Product } from '../models/index.js';
+import { orderItemService } from './OrderItemService.js';
+import {sendStatusUpdateNotification} from '../api/telegramNotification.js'
 
 export class OrderService {
 

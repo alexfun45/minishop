@@ -1,9 +1,9 @@
 // models/associations.ts
-import { User } from './user.ts';
-import { Product } from './product.ts';
-import { Category } from './category.ts';
-import { Order } from './order.ts';
-import { OrderItem } from './OrderItem.ts';
+import { User } from './user.js';
+import { Product } from './product.js';
+import { Category } from './category.js';
+import { Order } from './order.js';
+import { OrderItem } from './OrderItem.js';
 
 // User ↔ Order (One-to-Many)
 User.hasMany(Order, {

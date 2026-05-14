@@ -1,9 +1,8 @@
 // src/bot/handlers/cart.ts
-import { getTranslation } from '../types.ts';
-import type { BotContext, textMap } from '../types.ts';
-import { apiClient } from '../services/api.ts';
-import { SessionService } from '../services/session.ts';
-import * as multi from '../lang/multi.ts'
+import { getTranslation } from '../types.js';
+import type { BotContext, textMap } from '../types.js';
+import { SessionService } from '../services/session.js';
+import * as multi from '../lang/multi.js'
 
 export async function cartHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;
@@ -73,11 +72,11 @@ async function showCartContents(ctx: BotContext): Promise<void> {
   cart.forEach(item => {
     keyboard.push([
       {
-        text: `➖ ${getDecreaseText(session.language)}`,
+        text: `${item.name} ➖ ${getDecreaseText(session.language)}`,
         callback_data: `cart_update_${item.productId}_-1`
       },
       {
-        text: `➕ ${getIncreaseText(session.language)}`,
+        text: `${item.name} ➕ ${getIncreaseText(session.language)}`,
         callback_data: `cart_update_${item.productId}_1`
       }
     ]);
@@ -146,7 +145,6 @@ async function handleCartAction(ctx: BotContext, action: string): Promise<void> 
 
 async function handlePaymentSelection(ctx: BotContext, action: string): Promise<void> {
   const { bot, chatId, session } = ctx;
-  console.log('action', action);
   const paymentMethod = action.replace('payment_', '');
   
   // Сохраняем выбранный метод оплаты

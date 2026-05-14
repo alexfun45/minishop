@@ -1,5 +1,5 @@
 // services/OrderItemService.ts
-import { OrderItem, Product } from '../models/index.ts';
+import { OrderItem, Product } from '../models/index.js';
 
 export class OrderItemService {
   // Добавить товары в заказ

@@ -24,7 +24,7 @@ export const ProductsList: React.FC = () => {
 
 
   const [products, setProducts] = useState<Product[]>([]);
-  const { categories, loading } = useCategories();
+  const { categories } = useCategories();
   // Состояния для фильтрации, сортировки и пагинации
   const [filter, setFilter] = useState({
     category: '',

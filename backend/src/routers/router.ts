@@ -1,8 +1,7 @@
 import express from 'express'
-import productRouter from './products.ts'
-import { productController } from '../controllers/productController.ts';
-import {categoryController} from '../controllers/categoryController.ts'
-import {orderController} from '../controllers/orderController.ts'
+import { productController } from '../controllers/productController.js';
+import {categoryController} from '../controllers/categoryController.js'
+import {orderController} from '../controllers/orderController.js'
 
 import path from 'path';
 import { fileURLToPath } from 'url';

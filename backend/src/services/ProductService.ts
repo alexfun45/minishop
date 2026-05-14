@@ -1,6 +1,6 @@
 // services/ProductService.ts
-import { Product, Category } from '../models/index.ts';
-import {categoryService} from './CategoryService.ts'
+import { Product, Category } from '../models/index.js';
+import {categoryService} from './CategoryService.js'
 import { Op } from 'sequelize';
 
 export class ProductService {

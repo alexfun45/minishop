@@ -1,6 +1,6 @@
-import { orderService } from "../services/OrderService.ts";
+import { orderService } from "../services/OrderService.js";
 import type { Request, Response } from 'express';
-import LogEvent from '../utils/LogEvents.ts'
+import LogEvent from '../utils/LogEvents.js'
 
 class OrderController {
 

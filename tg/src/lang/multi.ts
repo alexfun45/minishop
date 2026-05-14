@@ -1,4 +1,4 @@
-import type {textMap} from '../types'
+import type {textMap} from '../types.js'
 
 export function getCartTitleText(language: string): string {
   const texts:textMap = {
@@ -425,3 +425,68 @@ export function getOrderStatusText(status: string, language: string): string {
 
   return statusTexts[status]?.[language] || defaultStatus[language] || defaultStatus.ru;
 }
+
+export function getProductNotFoundText(language: string): string {
+  const texts: textMap = {
+    ru: '❌ Товар не найден',
+    tj: '❌ Маҳсулот ёфт нашуд',
+    uz: '❌ Mahsulot topilmadi'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getPriceText(language: string): string {
+  const texts: textMap = {
+    ru: 'Цена',
+    tj: 'Нарх',
+    uz: 'Narx'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getOldPriceText(language: string): string {
+  
+  const texts: textMap = {
+    ru: 'Старая цена',
+    tj: 'Нархи кӯҳна',
+    uz: 'Eski narx'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getWeightText(language: string): string {
+  const texts: textMap = {
+    ru: 'Вес',
+    tj: 'Вазн',
+    uz: 'Vazn'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getNotAvailableText(language: string): string {
+  const texts: textMap = {
+    ru: '❌ Товар временно недоступен',
+    tj: '❌ Маҳсулот ҳоло дастрас нест',
+    uz: '❌ Mahsulot hozircha mavjud emas'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getMoreProductsText(language: string): string {
+  const texts: textMap = {
+    ru: 'Еще товары',
+    tj: 'Маҳсулоти дигар',
+    uz: 'Boshqa mahsulotlar'
+  };
+  return texts[language] || texts.ru;
+}
+
+export function getAddedToCartText(language: string): string {
+  const texts: textMap = {
+    ru: 'добавлен в корзину!',
+    tj: 'ба ароба илова шуд!',
+    uz: 'savatga qo‘shildi!'
+  };
+  return texts[language] || texts.ru;
+}
+

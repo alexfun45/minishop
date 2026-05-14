@@ -2,7 +2,6 @@
 import * as Sequelize from 'sequelize';
 
 console.log('=== Sequelize Version Info ===');
-console.log('Sequelize version:', Sequelize.Sequelize?.version || 'Unknown');
 
 console.log('\n=== All Exports ===');
 const allExports = Object.keys(Sequelize).sort();

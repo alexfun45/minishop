@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
-import {apiClient} from '../../services/api'
 import { useNavigate } from "react-router-dom";
 import { ImageUpload } from '../../components/ImageUpload'
 import { useProducts } from '../../hooks/useProducts';

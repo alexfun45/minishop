@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import {categoryController} from '../controllers/categoryController.ts'
-import { uploadCategory } from '../middleware/uploadCategory.ts';
+import {categoryController} from '../controllers/categoryController.js'
+import { uploadCategory } from '../middleware/uploadCategory.js';
 
 const categoryRouter = Router();
 

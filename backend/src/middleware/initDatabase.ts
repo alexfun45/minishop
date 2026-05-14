@@ -1,5 +1,5 @@
-import sequelize from '../config/database.ts';
-import { Product, Category, User } from '../models/index.ts'
+import sequelize from '../config/database.js';
+import { Product, Category, User } from '../models/index.js'
 import { createHmac } from 'node:crypto';
 import { config } from 'dotenv';
 config(); // Явно вызываем конфигурацию

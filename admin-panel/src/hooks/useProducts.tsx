@@ -36,7 +36,7 @@ export const useProducts = () => {
     fetchProducts();
 }, []);
 
-  const getProducts = async (categoryId: number | null = null) => {
+  async (categoryId: number | null = null) => {
     if(categoryId){
       try{
         const res: any = apiClient.get('/products/'+categoryId);

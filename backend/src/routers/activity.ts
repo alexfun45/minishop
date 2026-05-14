@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import {getActivities} from '../utils/LogEvents.ts'
+import {getActivities} from '../utils/LogEvents.js'
 
 const activityRouter = Router();
 activityRouter.get('/activity/', getActivities);

@@ -1,8 +1,8 @@
 // src/bot/handlers/search.ts
-import { getTranslation } from '../types.ts';
-import type {BotContext} from '../types.ts';
-import { apiClient } from '../services/api.ts';
-import {showProduct} from '../logic/products.ts'
+import { getTranslation } from '../types.js';
+import type {BotContext} from '../types.js';
+import { apiClient } from '../services/api.js';
+import {showProduct} from '../logic/products.js'
 
 export async function searchHandler(ctx: BotContext, query?: string): Promise<void> {
   const { bot, chatId, session } = ctx;

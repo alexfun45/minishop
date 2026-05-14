@@ -16,23 +16,6 @@ const mockStats = {
   pendingOrders: 12
 };
 
-const mockOrders = [
-  {
-    id: 1001,
-    customer_name: 'Иван Петров',
-    total: 1250,
-    status: 'pending' as const,
-    created_at: '2024-01-15T10:30:00Z'
-  },
-  {
-    id: 1002, 
-    customer_name: 'Мария Сидорова',
-    total: 890,
-    status: 'confirmed' as const,
-    created_at: '2024-01-15T09:15:00Z'
-  },
-  // ... больше заказов
-];
 
 const Dashboard: React.FC = () => {
   const {orders} = useOrders();

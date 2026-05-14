@@ -1,8 +1,8 @@
 import express from 'express'
-import cors from './middleware/cors.ts';
-import { initializeDatabase } from './middleware/initDatabase.ts';
-import routes from './routers/router.ts';
-import adminRoutes from './routers/admin.ts'
+import cors from './middleware/cors.js';
+import { initializeDatabase } from './middleware/initDatabase.js';
+import routes from './routers/router.js';
+import adminRoutes from './routers/admin.js'
 
 const app = express();
 app.use(cors);

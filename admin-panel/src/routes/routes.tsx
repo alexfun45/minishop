@@ -4,13 +4,8 @@ import Dashboard from "../pages/Dashboard";
 import {ProductsList} from '../pages/Products/index';
 import {EditProduct} from '../pages/Products/[id]';
 import {NewProduct} from '../pages/Products/new';
-
 import {CategoriesManagement} from '../pages/Categories/index';
-import {NewCategory} from '../pages/Categories/new';
-
-import {OrderDetails} from '../pages/Orders/[id]';
 import {OrdersManagement} from '../pages/Orders/index';
-
 import {AuthProvider} from "../contexts/AuthContext";
 import PrivateRoute from "./protectedRoutes";
 

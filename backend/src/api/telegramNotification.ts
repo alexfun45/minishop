@@ -1,7 +1,6 @@
 
 import axios from "axios";
-import type {NotifiesType, Notifiers} from '../types/NotifyTypes.ts'
-import {isNotify} from '../types/NotifyTypes.ts'
+import {isNotify} from '../types/NotifyTypes.js'
 import {HttpsProxyAgent} from 'https-proxy-agent'
 import 'dotenv/config'
 
