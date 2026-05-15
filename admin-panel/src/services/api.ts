@@ -1,6 +1,7 @@
 // services/api.ts
 //const API_BASE = 'http://localhost:3001/admin';
-const API_BASE = `http://${window.location.hostname}:3001/admin`;
+//const API_BASE = `http://${window.location.hostname}:3001/admin`;
+import  'dotenv/config'
 
 class ApiClient {
   private token: string | null = null;
@@ -10,7 +11,7 @@ class ApiClient {
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${import.meta.env.VITE_API_BASE}${endpoint}`;
 
     const headers: HeadersInit = {
       ...(this.token && { Authorization: `Bearer ${this.token}` }),

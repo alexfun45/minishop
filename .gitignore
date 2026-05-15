@@ -7,3 +7,4 @@ backend/.env
 backend/dist/
 tg/dist/
 admin-panel/dist/
+admin-panel/.env
