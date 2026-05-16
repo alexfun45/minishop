@@ -1,9 +1,15 @@
-// middleware/uploadProduct.ts
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-const uploadsDir = path.join(process.cwd(), 'uploads', 'categories');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const uploadsDir = path.resolve(__dirname, '..', '..', 'uploads', 'categories');
+
+console.log('Absolute uploads directory resolved to:', uploadsDir);
+//const uploadsDir = path.join(process.cwd(), 'uploads', 'categories');
 
 // Создаем папку если не существует
 if (!fs.existsSync(uploadsDir)) {

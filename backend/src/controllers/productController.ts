@@ -110,17 +110,17 @@ class ProductController{
         description_ru: req.body.description_ru,
         description_tj: req.body.description_tj,
         description_uz: req.body.description_uz,
-        price: req.body.price,
+        price: parseInt(req.body.price),
         old_price: req.body.old_price,
-        category_id: req.body.category_id,
-        weight: req.body.weight,
+        category_id: parseInt(req.body.category_id),
+        weight: parseInt(req.body.weight),
         ingredients_ru: req.body.ingredients_ru,
         ingredients_tj: req.body.ingredients_tj,
         ingredients_uz: req.body.ingredients_uz,
         available: req.body.is_active === 'true',
       }
       if (req.file) {
-        newProduct.image_url = `http://localhost:3001/uploads/products/${req.file.filename}`;
+        newProduct.image_url = `${process.env.BASE_PATH}/uploads/products/${req.file.filename}`;
       } else if (req.body.image_url !== undefined) {
         // Если указан URL изображения (может быть пустой строкой)
         newProduct.image_url = req.body.image_url || null;
