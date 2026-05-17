@@ -70,7 +70,7 @@ export const NewProduct: React.FC = () => {
         submitData.append('image_url', formData.image_url);
       }
         
-      createProduct(submitData);
+      await createProduct(submitData);
       resetForm();
     } catch (error) {
       console.error('Error saving category:', error);
