@@ -48,15 +48,15 @@ Product.init({
     autoIncrement: true,
   },
   name_ru: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(512),
     allowNull: false,
   },
   name_tj: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(512),
     allowNull: true,
   },
   name_uz: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(512),
     allowNull: true,
   },
   description_ru: {
@@ -92,15 +92,15 @@ Product.init({
     allowNull: true,
   },
   ingredients_ru: {
-    type: DataTypes.STRING(500),
+    type: DataTypes.STRING(1500),
     allowNull: true,
   },
   ingredients_tj: {
-    type: DataTypes.STRING(500),
+    type: DataTypes.STRING(1500),
     allowNull: true,
   },
   ingredients_uz: {
-    type: DataTypes.STRING(500),
+    type: DataTypes.STRING(1500),
     allowNull: true,
   }
 }, {
