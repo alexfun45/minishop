@@ -64,7 +64,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
     defaultValue: 0.00,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'pending_payment', 'ready', 'delivered', 'cancelled'),
     defaultValue: 'pending',
   },
   delivery_address: {

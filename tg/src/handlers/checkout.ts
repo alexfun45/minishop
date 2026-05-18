@@ -183,6 +183,135 @@ async function placeOrder(ctx: BotContext): Promise<void> {
       console.log('🔴 No tempOrder in session');
       throw new Error('No temporary order data found');
     }
+
+    // Отправляем заказ на бэкенд
+    const orderData = {
+      customer_name: order.customer_name,
+      customer_phone: order.phone,
+      delivery_address: order.address,
+      user_id: chatId,
+      total_amount: order.total,
+      payment_method: order.payment_method, // Передаем метод оплаты на бэкенд
+      items: order.items.map((item: any) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    };
+    console.log('🟡 Sending order data to API:', JSON.stringify(orderData, null, 2));
+   
+    const result = await apiClient.createOrder(orderData);
+    console.log('🟡 API response received:', result);
+
+    if (!result.success) {
+      console.log('🔴 API returned error:', result.error);
+      throw new Error(result.error || 'Unknown API error');
+    }
+   
+    // Разделяем логику для ОНЛАЙН оплаты и НАЛИЧНЫХ/КАРТЫ при получении
+    const isOnlinePayment = order.payment_method === 'online' && result.data.payment_url;
+
+    // Очищаем корзину и сессию
+    session.cart = [];
+    session.checkoutStep = undefined;
+    session.tempOrder = undefined;
+    SessionService.saveUserSession(chatId, session);
+
+    console.log('🟢 Order created successfully, session cleared');
+
+    if (isOnlinePayment) {
+      console.log('result payment', result);
+      // Сценарий 1: Онлайн оплата (Выдаем ссылку на ЮKassa)
+      const payText = {
+        ru: `✨ *Заказ #${result.data.id} успешно сформирован!*\n\nДля завершения оформления необходимо оплатить его онлайн по кнопке ниже.`,
+        tj: `✨ *Фармоиши #${result.data.id} бо муваффақият сохта шуд!*\n\nБарои анҷом додани он, шумо бояд онро тавассути тугмаи зер онлайн пардохт кунед.`,
+        uz: `✨ *Buyurtma #${result.data.id} muvaffaqiyatli yaratildi!*\n\nHisobni rasmiylashtirishni yakunlash uchun quyidagi tugma orqali onlayn to'lovni amalga oshiring.`
+      };
+
+      const btnPayText = {
+        ru: '💳 Оплатить заказ',
+        tj: '💳 Пардохти фармоиш',
+        uz: '💳 Buyurtmani to\'lash'
+      };
+
+      await bot.sendMessage(
+        chatId,
+        (payText as any)[session.language] || payText.ru,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: (btnPayText as any)[session.language] || btnPayText.ru,
+                  url: result.data.payment_url // Ссылка, которую сгенерировал бэкенд через ЮKassa
+                }
+              ]
+            ]
+          }
+        }
+      );
+
+      // Возвращаем главное меню отдельным сообщением, чтобы у пользователя были кнопки навигации
+      const afterPayText = {
+        ru: 'После оплаты вы сможете отслеживать статус в разделе "📦 Мои заказы".',
+        tj: 'Пас аз пардохт, шумо метавонед ҳолатро дар бахши "📦 Фармоишҳои ман" пайгирӣ кунед.',
+        uz: 'To\'lovdan so\'ng holatni "📦 Mening buyurtmalarim" bo\'limida kuzatishingiz mumkin.'
+      };
+      
+      await bot.sendMessage(chatId, (afterPayText as any)[session.language] || afterPayText.ru, mainMenu);
+
+    } else {
+      // Сценарий 2: Оплата при получении (Твой стандартный текст)
+      const successText = {
+        ru: '🎉 *Заказ успешно оформлен!*\n\n' +
+            `Номер вашего заказа: #${result.data.id}\n` +
+            'Мы свяжемся с вами в ближайшее время для подтверждения.\n' +
+            'Вы можете отслеживать статус заказа в разделе "📦 Мои заказы"\n\n' +
+            'Спасибо за покупку! 🥖',
+        tj: '🎉 *Фармоиш бо муваффақият содир шуд!*\n\n' +
+            `Рақами фармоиши шумо: #${result.data.id}\n` +
+            'Мо барои тасдиқ кардан ба зудӣ бо шумо тамос мегирем.\n' +
+            'Шумо метавонед ҳолати фармоишро дар бахши "📦 Фармоишҳои ман" пайгирӣ кунед\n\n' +
+            'Барои харид ташаккур! 🥖',
+        uz: '🎉 *Buyurtma muvaffaqiyatli rasmiylashtirildi!*\n\n' +
+            `Buyurtma raqamingiz: #${result.data.id}\n` +
+            'Tasdiqlash uchun tez orada siz bilan bog\'lanamiz.\n' +
+            'Buyurtma holatini "📦 Mening buyurtmalarim" bo\'limida kuzatishingiz mumkin\n\n' +
+            'Xaridingiz uchun rahmat! 🥖'
+      };
+
+      await bot.sendMessage(
+        chatId,
+        (successText as any)[session.language] || successText.ru,
+        {
+          parse_mode: 'Markdown',
+          ...mainMenu
+        }
+      );
+    }
+
+  } catch (error) {
+    console.error('Place order error:', error);
+    
+    const errorText = {
+      ru: '❌ Произошла ошибка при оформлении заказа. Попробуйте позже.',
+      tj: '❌ Дар вақти содир кардани фармоиш хато рӯй дод. Баъдтар кӯшиш кунед.',
+      uz: '❌ Buyurtma rasmiylashtirishda xatolik yuz berdi. Keyinroq urinib koʻring.'
+    };
+    
+    await bot.sendMessage(chatId, (errorText as any)[session.language] || errorText.ru, mainMenu);
+  }
+}
+/*async function placeOrder(ctx: BotContext): Promise<void> {
+  const { bot, chatId, session } = ctx;
+
+  try {
+    const order = session.tempOrder;
+    if (!order) {
+      console.log('🔴 No tempOrder in session');
+      throw new Error('No temporary order data found');
+    }
     // Отправляем заказ на бэкенд
     const orderData = {
       customer_name: order.customer_name,
@@ -253,4 +382,4 @@ async function placeOrder(ctx: BotContext): Promise<void> {
     
     await bot.sendMessage(chatId, (errorText as any)[session.language] || errorText.ru, mainMenu);
   }
-}
+}*/

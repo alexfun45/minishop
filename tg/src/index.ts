@@ -33,7 +33,6 @@ const mainMenu = {
 };
 
 let bot: any;
-
 if (process.env.USE_PROXY === 'true') {
   const proxyAgent = new HttpsProxyAgent('http://user361622:lw0kic@45.159.180.166:1768');
   bot = new TelegramBot(BOT_TOKEN, { 

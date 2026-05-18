@@ -1,6 +1,7 @@
 import { orderService } from "../services/OrderService.js";
 import type { Request, Response } from 'express';
 import LogEvent from '../utils/LogEvents.js'
+import {checkout} from '../api/YKassaPayment.js'
 
 class OrderController {
 
@@ -69,13 +70,29 @@ class OrderController {
 
   async createOrder(req: Request, res: Response){
     try{
-      const data = await orderService.create(req.body);
-      if(data)
-        LogEvent('create new order', data.id.toString());
+      let newOrder = {...req.body};
+      if(newOrder.payment_method == 'online'){
+        newOrder.status = 'pending_payment';
+      }
+      const order = await orderService.create(newOrder);
+      if(order)
+        LogEvent('create new order', order.id.toString());
+      
+      if(order && order.payment_method == 'online'){
+        const payment: any = await checkout(newOrder, order.id);
+        return res.status(201).json({
+          success: true,
+          data: {
+            id: order.id,
+            payment_url: payment.confirmation.confirmation_url
+          }
+        });
+      } else{
       res.json({
         success: true,
-        data: data,
+        data: order,
       });
+    }
     } catch(error){
       console.error('save order error:', error);
       res.status(500).json({

@@ -2,6 +2,7 @@ import express from 'express'
 import { productController } from '../controllers/productController.js';
 import {categoryController} from '../controllers/categoryController.js'
 import {orderController} from '../controllers/orderController.js'
+import { getPayment } from '../controllers/payments.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,4 +26,6 @@ router.use('/categories/:lang', categoryController.getCategories);
 
 router.use('/orders/create', orderController.createOrder);
 router.use('/orders/:userId', orderController.getUserOrders);
+
+router.post('/payment/webhook', getPayment);
 export default router;
