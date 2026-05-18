@@ -3,6 +3,7 @@ import productRouter from './products.js'
 import categoryRouter from './category_router.js'
 import orderRouter from './orders_router.js'
 import activityRouter from './activity.js'
+import Stats from './stats.js'
 import AuthRoute from './auth.js'
 const router = express.Router();
 
@@ -21,6 +22,7 @@ router.use(productRouter);
 router.use(categoryRouter);
 router.use(orderRouter);
 router.use(activityRouter);
+router.use(Stats);
 //router.get('/categories', categoryController.getCategories);
 //router.post('/categories/create',  upload.single('image'), categoryController.create);
 //router.post('/categories/update/:id', upload.single('image'), categoryController.update);

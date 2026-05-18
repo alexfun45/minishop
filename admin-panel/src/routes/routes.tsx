@@ -6,6 +6,7 @@ import {EditProduct} from '../pages/Products/[id]';
 import {NewProduct} from '../pages/Products/new';
 import {CategoriesManagement} from '../pages/Categories/index';
 import {OrdersManagement} from '../pages/Orders/index';
+import {StatisticsPage} from '../pages/Analytics/Analytics'
 import {AuthProvider} from "../contexts/AuthContext";
 import PrivateRoute from "./protectedRoutes";
 
@@ -23,6 +24,7 @@ const MainRoutes = () => {
               <Route path="/products/:id" element={<EditProduct />} />
               <Route path="/categories/" element={<CategoriesManagement/>} />
               <Route path="/orders/" element={<OrdersManagement/>} />
+              <Route path="/analytics/" element={<StatisticsPage/>} />
             </Route>
           </Routes>
         </AuthProvider>

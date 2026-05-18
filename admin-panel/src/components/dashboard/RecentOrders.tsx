@@ -13,6 +13,8 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders }) => {
     preparing: 'bg-orange-100 text-blue-800',
     delivered: 'bg-green-100 text-green-800',
     cancelled: 'bg-red-100 text-red-800',
+    pending_payment: 'bg-yellow-200 text-yellow-800',
+    payment_success: 'bg-green-100 text-green-800',
     ready: 'bg-green-50 text-green-500'
   };
 
@@ -21,6 +23,8 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders }) => {
     confirmed: 'Подтвержден', 
     delivered: 'Доставлен',
     preparing: 'Собирается',
+    pending_payment: 'Ожидает оплаты',
+    payment_success: 'Оплачен',
     ready: 'Готов',
     cancelled: 'Отменен'
   };
@@ -49,7 +53,7 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {orders.map((order) => (
+            {orders.slice(0, 6).map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">#{order.id}</div>

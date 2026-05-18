@@ -1,6 +1,7 @@
 import { Order, OrderItem, User, Product } from '../models/index.js';
 import { orderItemService } from './OrderItemService.js';
 import {sendStatusUpdateNotification} from '../api/telegramNotification.js'
+import { Op, fn, col } from 'sequelize';
 
 export class OrderService {
 
@@ -182,6 +183,91 @@ export class OrderService {
       pending_orders: pendingOrders,
     };
   }
+
+  async getAdvancedStats() {
+    // 1. Общие показатели (За всё время)
+    const totalOrders = await Order.count();
+    const paidStatuses = ['payment_success', 'delivered'];
+    // Приводим результат sum к числу, так как DECIMAL в БД возвращается строкой
+    const totalRevenueResult = await Order.sum('total_amount', {
+      where: { status: { [Op.in]: paidStatuses } }
+    });
+    const totalRevenue = Number(totalRevenueResult) || 0;
+  
+    // Берем статусы строго из твоего ENUM в модели
+    const pendingOrders = await Order.count({ where: { status: 'pending_payment' } });
+    const completedOrders = await Order.count({ where: { status: 'delivered' } }); // у тебя финальный статус 'delivered'
+  
+    // 2. Статистика выручки по дням за последние 7 дней
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  
+    const revenueByDay = await Order.findAll({
+      attributes: [
+        // Используем правильное имя поля 'createdAt' (Sequelize сам переведет его в created_at из-за underscored: true)
+        [fn('DATE', col('Order.created_at')), 'date'], 
+        [fn('SUM', col('total_amount')), 'total']
+      ],
+      where: {
+        status: { [Op.in]: paidStatuses },
+        delivery_time: { [Op.gte]: sevenDaysAgo } // Здесь пишем имя свойства из модели (createdAt)
+      },
+      // Группируем строго по тому же выражению, что и в attributes
+      group: [fn('DATE', col('Order.created_at'))],
+      order: [[fn('DATE', col('Order.created_at')), 'ASC']],
+      raw: true
+    });
+  
+    // 3. Топ-5 популярных товаров
+    const topProducts = await OrderItem.findAll({
+      attributes: [
+        'product_id',
+        [fn('SUM', col('quantity')), 'total_quantity']
+      ],
+      include: [{
+        model: Product,
+        as: 'product',
+        attributes: ['name_ru'],
+        // Внутренний include для фильтрации по статусу самого заказа
+      }, {
+        model: Order,
+        as: 'order', // Убедись, что связь OrderItem -> Order называется так
+        attributes: [],
+        where: { status: { [Op.in]: paidStatuses } } 
+      }],
+      group: ['product_id', 'product.id'],
+      order: [[fn('SUM', col('quantity')), 'DESC']],
+      limit: 5,
+      raw: true,
+      nest: true
+    });
+  
+    return {
+      summary: {
+        total_orders: totalOrders,
+        total_revenue: totalRevenue,
+        pending_orders: pendingOrders,
+        completed_orders: completedOrders
+      },
+      // Безопасный маппинг дат
+      revenueData: revenueByDay.map((item: any) => {
+        const rawDate = item.date;
+        const formattedDate = rawDate 
+          ? new Date(rawDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+          : 'Неизвестно';
+          
+        return {
+          date: formattedDate,
+          'Выручка (₽)': parseFloat(item.total) || 0
+        };
+      }),
+      topProductsData: topProducts.map((item: any) => ({
+        name: item.product?.name_ru || `Товар #${item.product_id}`,
+        value: parseInt(item.total_quantity, 10) || 0
+      }))
+    };
+  }
+
 }
 
 export const orderService = new OrderService();
