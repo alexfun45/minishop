@@ -60,7 +60,7 @@ export class ProductService {
       order: [['name_ru', 'ASC']],
     });
     console.log('categoryId', categoryId);
-    //return products;
+    console.log('products', products);
 
     return products.map((product: any) => ({
       id: product.id,
@@ -69,6 +69,7 @@ export class ProductService {
       price: product.price,
       //old_price: product.old_price,
       image_url: product.image_url,
+      available: product.available
       //weight: product.weight,
       //category: product.category ? {
       //  id: product.category.id,

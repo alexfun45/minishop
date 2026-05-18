@@ -103,10 +103,10 @@ async function showCategoryProducts(ctx: BotContext, categoryId: number): Promis
 
     //let message = getProductsListText(session.language) + '\n\n';
     let message = '';
-
-    products.forEach(async (product: any, index: number) => {
+    console.log('products', products);
+    let availableProducts = products.filter(item=>item.available);
+    availableProducts.forEach(async (product: any, index: number) => {
       const keyboard = [];
-      
       message = `${index + 1}. ${product.name} - ${product.price} ₽\n`;
       //if (product.description) {
       //  message += `   ${product.description}\n`;
@@ -122,7 +122,6 @@ async function showCategoryProducts(ctx: BotContext, categoryId: number): Promis
         callback_data: `add_to_cart_${product.id}`
       }]);
       try {
-        
         if(product.image_url.includes('localhost') || product.image_url.includes('127.0.0.1')){
           await sendPhotoAsBuffer(ctx, product.image_url, message, keyboard);
         }
