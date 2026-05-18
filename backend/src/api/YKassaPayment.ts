@@ -25,7 +25,8 @@ export async function checkout(order: any, order_id: number){
         return_url: `https://t.me/bakeryshop_bot`
       },
       metadata: {
-        order_id: order_id.toString()
+        order_id: order_id.toString(),
+        user_id: order.user_id
       },
       description: `Оплата заказа №${order_id}`,
       capture: true

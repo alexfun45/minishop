@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { orderService } from "../services/OrderService.js";
 
 export async function getPayment(req: Request, res: Response){
   try {
@@ -11,21 +12,14 @@ export async function getPayment(req: Request, res: Response){
 
       if (orderId) {
         console.log(`🟢 Получено уведомление! Заказ №${orderId} успешно оплачен.`);
-
-        // 1. Изменяем статус заказа в твоей базе данных
-        // Пример для условного db:
-        // await db.order.update({ where: { id: Number(orderId) }, data: { status: 'paid' } });
-        
-        // 2. Отправляем уведомление пользователю в Телеграм-бот
         const userId = payment.metadata?.user_id; // Если ты добавишь user_id (chatId) в metadata при создании платежа
         if (userId) {
-          // Здесь вызываешь метод отправки сообщения твоего бота:
-          // await bot.sendMessage(userId, `🎉 Отличные новости! Ваш заказ #${orderId} успешно оплачен и передан в обработку! 🥖`);
+          // отправка уведомления в телегарм об успешной оплате
+          await orderService.updateStatus(orderId, "payment_success");
         }
       }
     }
 
-    // ЮKassa строго требует вернуть статус 200 OK, иначе она будет присылать этот вебхук повторно каждые несколько минут
     res.status(200).send('OK');
   } catch (error) {
     console.error('Ошибка при обработке вебхука ЮKassa:', error);
