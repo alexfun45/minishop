@@ -21,6 +21,26 @@ class OrderController {
     }
   }
 
+  async getOrder(req: Request, res: Response){
+
+    try{
+      const orderId = parseInt(req.params?.orderId || '');
+      //console.log('получаю заказ', orderId);
+      const order = await orderService.findById(orderId);
+      console.log('получен', order);
+      res.json({
+        success: true,
+        data: order,
+      });
+    } catch(error){
+      console.error('Getting user orders error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to getting user orders',
+      });
+    }
+  }
+
   async getUserOrders(req: Request, res: Response){
     try{
       const userId = parseInt(req.params?.userId || '');
@@ -41,8 +61,6 @@ class OrderController {
   async update(req: Request, res: Response){
     try{
       const id = parseInt(req.params?.id || '');
-      console.log('Update category - id:', id);
-      console.log('Update category - body:', req.body);
       LogEvent('update order', id.toString());
       if (!id) {
         return res.status(400).json({
@@ -51,7 +69,6 @@ class OrderController {
         });
       }
       const currentCategory = await orderService.findById(id);
-      console.log('req.body', req.body);
       const updatedStatus = req.body.status;
       const Order = await orderService.updateStatus(id, updatedStatus);
 
@@ -80,6 +97,7 @@ class OrderController {
       
       if(order && order.payment_method == 'online'){
         const payment: any = await checkout(newOrder, order.id);
+        await orderService.update(order.id, "payment_url", payment.confirmation.confirmation_url);
         return res.status(201).json({
           success: true,
           data: {

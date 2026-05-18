@@ -18,6 +18,7 @@ interface OrderAttribute{
   notes: string;
   delivery_lat: string;
   delivery_lng: string;
+  payment_url: string;
 }
 
 interface OrderCreationAttribute extends Optional<OrderAttribute,
@@ -38,6 +39,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   declare notes: string;
   declare delivery_lat: string;
   declare delivery_lng: string;
+  declare payment_url: string;
  }
 
  Order.init({
@@ -64,7 +66,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
     defaultValue: 0.00,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'pending_payment', 'ready', 'delivered', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'pending_payment', 'payment_success', 'ready', 'delivered', 'cancelled'),
     defaultValue: 'pending',
   },
   delivery_address: {
@@ -83,6 +85,10 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   customer_name: {
     type: DataTypes.STRING(255),
     allowNull: false,
+  },
+  payment_url: {
+    type: DataTypes.STRING(512),
+    allowNull: true,
   },
   payment_method: {
     type: DataTypes.ENUM('cash', 'card', 'online'),

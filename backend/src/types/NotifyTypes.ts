@@ -1,5 +1,5 @@
 
-const notify = ['confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] as const; 
+const notify = ['confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'payment_success'] as const; 
 
 export type NotifiesType = (typeof notify)[number];
 

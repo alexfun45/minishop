@@ -25,6 +25,15 @@ export class OrderService {
     }));
   }
 
+  async update(orderId: number, key: string, newValue: any) {
+    const order: any = await Order.findByPk(orderId);
+    if (!order) {
+      throw new Error('Product not found');
+    }
+    order[key] = newValue;
+    await order.save();
+  }
+
   // Создать заказ
   async create(orderData: any) {
     const { items, user_id, ...orderMainData } = orderData;
@@ -69,7 +78,7 @@ export class OrderService {
 
   // Найти заказ по ID
   async findById(orderId: number) {
-    return await Order.findByPk(orderId, {
+    const orderInstance = await Order.findByPk(orderId, {
       include: [
         {
           model: User,
@@ -87,6 +96,32 @@ export class OrderService {
         },
       ],
     });
+
+    if (!orderInstance) return null;
+
+    // Превращаем в простой JSON-объект
+    const order = orderInstance.get({ plain: true }) as any;
+
+    // Преобразуем структуру под нужды бота (чтобы items был простым плоским массивом)
+    return {
+      id: order.id,
+      user_id: order.user_id,
+      telegram_id: order.telegram_id,
+      total_amount: order.total_amount,
+      status: order.status,
+      delivery_time: order.delivery_time,
+      delivery_address: order.delivery_address,
+      customer_name: order.customer_name,
+      customer_phone: order.customer_phone,
+      payment_method: order.payment_method,
+      payment_url: order.payment_url, // Убедись, что это поле есть в твоей модели БД для хранения ссылок ЮKassa
+      items: (order.order_items || []).map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.product ? item.product.name_ru : 'Товар',
+        quantity: item.quantity,
+        price: item.price
+      }))
+    };
   }
 
   // Найти заказы пользователя
@@ -113,7 +148,9 @@ export class OrderService {
     if (!order) {
       throw new Error('Order not found');
     }
-    sendStatusUpdateNotification(order.telegram_id, orderId, status);
+    console.log('order service', order);
+    console.log(`отправляю в чат ${order.telegram_id}`);
+    await sendStatusUpdateNotification(order.telegram_id, orderId, status);
     order.status = status;
     await order.save();
 

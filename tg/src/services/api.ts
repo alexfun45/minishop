@@ -95,7 +95,7 @@ class ApiClient {
 
   async getOrderById(orderId: number) {
     try {
-      const response = await axios.get(`${this.baseURL}/api/orders/${orderId}`);
+      const response = await axios.get(`${this.baseURL}/api/order/${orderId}`);
       return response.data.data || null;
     } catch (error) {
       console.error('Get order by id error:', error);

@@ -24,8 +24,11 @@ router.get('/product/:id', productController.getById);
 router.use('/products/:catId/:lang', productController.getByCategory);
 router.use('/categories/:lang', categoryController.getCategories);
 
+
 router.use('/orders/create', orderController.createOrder);
 router.use('/orders/:userId', orderController.getUserOrders);
+router.use('/order/:orderId', orderController.getOrder);
 
-router.post('/payment/webhook', getPayment);
+
+router.use('/payment/webhook', getPayment);
 export default router;

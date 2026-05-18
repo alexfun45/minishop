@@ -410,6 +410,16 @@ export function getOrderStatusText(status: string, language: string): string {
       tj: '🎉 Расид',
       uz: '🎉 Yetkazib berildi'
     },
+    'pending_payment': {
+      ru: '🔄 Ожидает оплаты',
+      tj: '🔄 Интизори пардохт',
+      uz: '🔄 Тўловни кутиш'
+    },
+    'payment_success':{
+      ru: '✨ Оплачен',
+      tj: '✨ Пардохтшуда',
+      uz: '✨ Учун тўланган'
+    },
     cancelled: {
       ru: '❌ Отменен',
       tj: '❌ Бекор шуд',

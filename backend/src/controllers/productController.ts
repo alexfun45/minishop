@@ -22,7 +22,7 @@ class ProductController{
 
   // Получить все товары категории
   async getByCategory(req: Request, res: Response) {
-    console.log('req', req);
+
     try {
       const categoryId = parseInt(req.params.catId || '');
       const language = (req.query.lang as string) || 'ru';

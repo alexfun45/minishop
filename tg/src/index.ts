@@ -144,6 +144,9 @@ bot.on('callback_query', async (callbackQuery) => {
     else if (data?.startsWith('profile_')) {
       await profileHandler(ctx, data);
     }
+    else if(data?.startsWith('order_')){
+      await orderHandler(ctx, data);
+    }
     else if (data === 'categories') {
       await categoriesHandler(ctx);
     }

@@ -7,7 +7,7 @@ import { getTranslation } from '../types.js';
 
 export async function orderHandler(ctx: BotContext, data?: string): Promise<void> {
   //const { bot, chatId, session } = ctx;
-
+  console.log('callback', data);
   if (data && data.startsWith('order_')) {
     await handleOrderAction(ctx, data);
     return;
@@ -18,11 +18,9 @@ export async function orderHandler(ctx: BotContext, data?: string): Promise<void
 
 async function showOrderHistory(ctx: BotContext): Promise<void> {
   const { bot, chatId, session } = ctx;
-  console.log('showOrderHistory', chatId);
   try {
     // Получаем заказы по Telegram ID
     const orders = await apiClient.getUserOrders(chatId);
-    console.log('orders111', orders);
     if (orders.length === 0) {
       await showNoOrders(ctx);
       return;
@@ -188,50 +186,83 @@ function formatDateSimple(dateStr: string): string {
 async function showOrdersList(ctx: BotContext, orders: any[]): Promise<void> {
   const { bot, chatId, session } = ctx;
 
-  let message = `📦 *${multi.getOrderHistoryText(session.language)}*\n\n`;
-  message += `👤 *Пользователь:* ${ctx.message?.chat.first_name || 'Пользователь'}\n`;
-  message += `🆔 *Telegram ID:* ${chatId}\n\n`;
-  
-  orders.forEach((order, index) => {
+  // 1. Отправляем заголовок истории
+  let headerMessage = `📦 *${multi.getOrderHistoryText(session.language)}*\n\n`;
+  headerMessage += `👤 *Пользователь:* ${ctx.message?.chat.first_name || 'Пользователь'}\n`;
+  headerMessage += `🆔 *Telegram ID:* ${chatId}\n`;
+  headerMessage += `───────────────────`;
 
-    //const orderDate = formatDateSimple(order.createdAt);
+  await bot.sendMessage(chatId, headerMessage, { parse_mode: 'Markdown' });
+
+  // Если заказов нет
+  if (!orders || orders.length === 0) {
+    const noOrdersText = {
+      ru: 'У вас пока нет заказов.',
+      tj: 'Шумо ҳанӯз фармоиш надоред.',
+      uz: 'Sizda hali buyurtmalar yo\'q.'
+    };
+    await bot.sendMessage(chatId, (noOrdersText as any)[session.language] || noOrdersText.ru);
+    return;
+  }
+
+  // 2. Цикл по заказам
+  for (const order of orders) {
     const orderDate = new Date(order.createdAt).toLocaleDateString('ru-RU');
     const status = multi.getOrderStatusText(order.status, session.language);
     
-    message += `${index + 1}. Заказ #${order.id}* (${orderDate})\n`;
-    message += `   💰 ${multi.getTotalAmountText(session.language)}: ${order.total_amount} ₽\n`;
-    message += `   📍 ${multi.getStatusText(session.language)}: ${status}\n`;
+    let message = `🛍️ *Заказ #${order.id}* (${orderDate})\n`;
+    message += `💰 ${multi.getTotalAmountText(session.language)}: *${order.total_amount} ₽*\n`;
+    message += `📍 ${multi.getStatusText(session.language)}: _${status}_\n`;
     
     if (order.items && order.items.length > 0) {
       const itemCount = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      message += `   🛍️ Товаров: ${itemCount}\n`;
+      message += `📦 Товаров в заказе: ${itemCount} шт.\n`;
     }
-    
-    message += `   └─ /order_${order.id}\n\n`;
-  });
-  console.log('message', message);
-  
-  const keyboard = orders.map(order => [
-    {
-      text: `📋 ${multi.getOrderText(session.language)} #${order.id} - ${order.total_amount} ₽`,
-      callback_data: `order_details_${order.id}`
-    }
-  ]);
 
-  // Добавляем кнопки навигации
-  keyboard.push([
-    { text: '🔄 ' + multi.getRefreshText(session.language), callback_data: 'orders_refresh' },
-    { text: '🏠 ' + multi.getMainMenuText(session.language), callback_data: 'main_menu' }
-  ]);
-  console.log('keyboard', keyboard);
- 
-  await bot.sendMessage(chatId, message, {
-    parse_mode: 'HTML',
+    // Инициализируем инлайн-клавиатуру для этого конкретного заказа
+    const inlineKeyboard: any[] = [];
+
+    // Кнопка подробностей
+    inlineKeyboard.push([
+      {
+        text: `🔍 Подробнее о заказе #${order.id}`,
+        callback_data: `order_details_${order.id}`
+      }
+    ]);
+
+    // Если заказ не оплачен, добавляем под неё широкую кнопку оплаты
+    if (order.status === 'pending_payment' && order.payment_url) {
+      inlineKeyboard.push([
+        {
+          text: '💳 Оплатить заказ через ЮKassa',
+          url: order.payment_url
+        }
+      ]);
+    }
+
+    // Отправляем сообщение заказа с его персональным блоком кнопок
+    await bot.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: inlineKeyboard
+      }
+    });
+  }
+
+  // 3. Системная панель управления в самом конце списка
+  const navigationKeyboard = [
+    [
+      { text: '🔄 ' + multi.getRefreshText(session.language), callback_data: 'orders_refresh' },
+      { text: '🏠 ' + multi.getMainMenuText(session.language), callback_data: 'main_menu' }
+    ]
+  ];
+
+  await bot.sendMessage(chatId, '⚙️ *Управление списком:*', {
+    parse_mode: 'Markdown',
     reply_markup: {
-      inline_keyboard: keyboard
+      inline_keyboard: navigationKeyboard
     }
   });
-  
 }
 
 async function handleOrderAction(ctx: BotContext, data: string): Promise<void> {
@@ -257,29 +288,28 @@ async function handleOrderAction(ctx: BotContext, data: string): Promise<void> {
 
 async function showOrderDetails(ctx: BotContext, orderId: number): Promise<void> {
   const { bot, chatId, session } = ctx;
-
   try {
     const order = await apiClient.getOrderById(orderId);
-    
+    console.log('получить заказ по id', orderId);
     if (!order) {
       await bot.sendMessage(chatId, multi.getOrderNotFoundText(session.language));
       return;
     }
 
     // Проверяем, что заказ принадлежит пользователю
-    if (order.telegram_id !== chatId) {
+    if (parseInt(order.telegram_id) !== chatId) {
       await bot.sendMessage(chatId, multi.getOrderAccessDeniedText(session.language));
       return;
     }
 
-    const orderDate = new Date(order.created_at).toLocaleString('ru-RU');
+    const orderDate = new Date(order.delivery_time).toLocaleString('ru-RU');
     const status = multi.getOrderStatusText(order.status, session.language);
 
     let message = `📋 *${multi.getOrderDetailsText(session.language)} #${order.id}*\n\n`;
     message += `📅 ${multi.getDateText(session.language)}: ${orderDate}\n`;
     message += `👤 ${multi.getCustomerText(session.language)}: ${order.customer_name}\n`;
     message += `📞 ${multi.getPhoneText(session.language)}: ${order.customer_phone}\n`;
-    message += `🏠 ${multi.getAddressText(session.language)}: ${order.customer_address}\n`;
+    message += `🏠 ${multi.getAddressText(session.language)}: ${order.delivery_address}\n`;
     message += `💰 ${multi.getTotalAmountText(session.language)}: ${order.total_amount} ₽\n`;
     message += `📊 ${multi.getStatusText(session.language)}: ${status}\n\n`;
     
@@ -288,7 +318,7 @@ async function showOrderDetails(ctx: BotContext, orderId: number): Promise<void>
     if (order.items && order.items.length > 0) {
       order.items.forEach((item: any, index: number) => {
         const itemTotal = item.price * item.quantity;
-        message += `${index + 1}. ${item.name}\n`;
+        message += `${index + 1}. ${item.product_name}\n`;
         message += `   ${item.quantity} x ${item.price} ₽ = ${itemTotal} ₽\n`;
       });
     } else {
