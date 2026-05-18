@@ -103,8 +103,7 @@ async function showCategoryProducts(ctx: BotContext, categoryId: number): Promis
 
     //let message = getProductsListText(session.language) + '\n\n';
     let message = '';
-    console.log('products', products);
-    let availableProducts = products.filter(item=>item.available);
+    let availableProducts = products.filter((item: any)=>item.available);
     availableProducts.forEach(async (product: any, index: number) => {
       const keyboard = [];
       message = `${index + 1}. ${product.name} - ${product.price} ₽\n`;
