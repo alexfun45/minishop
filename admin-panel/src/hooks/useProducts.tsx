@@ -29,8 +29,9 @@ export const useProducts = () => {
       try {
         const res: any = await apiClient.get('/products/');
         setProducts(res.data);
-      } catch (err) {
+      } catch (err: any) {
         setError('Ошибка загрузки продукта');
+        throw Error(err);
       }
     }
     fetchProducts();
@@ -64,10 +65,9 @@ export const useProducts = () => {
       const newProduct: Product = response.data;
       setProducts([...products, newProduct]);
       
-    } catch(err){
-      console.log('err', err);
+    } catch(err: any){
       setError('Ошибка загрузки категорий');
-      setLoading(false); 
+      throw err;
     }
   }
 

@@ -25,6 +25,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   }, [existingImageUrl]);
 
   const handleImageChange = (file: File) => {
+
     if (!file.type.startsWith('image/')) {
       alert('Пожалуйста, выберите файл изображения');
       return;
@@ -32,6 +33,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     
     if (file.size > 5 * 1024 * 1024) {
       alert('Размер файла не должен превышать 5MB');
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Разрешены только изображения форматов JPEG, PNG и WEBP.");
       return;
     }
     

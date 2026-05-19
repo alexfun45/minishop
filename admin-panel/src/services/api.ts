@@ -38,7 +38,22 @@ class ApiClient {
     const response = await fetch(url, config);
     
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      let serverErrorData;
+      try {
+        // Пытаемся прочитать JSON с ошибкой, который прислал бэкенд
+        serverErrorData = await response.json();
+      } catch (e) {
+        // Если бэк вернул ошибку не в формате JSON
+        serverErrorData = null;
+      }
+    
+      // Создаем объект ошибки
+      const error: any = new Error(`API error: ${response.status}`);
+      // Кладим внутрь данные от сервера, чтобы их можно было прочитать на фронте
+      error.responseData = serverErrorData; 
+      error.status = response.status;
+    
+      throw error;
     }
 
     return response.json();

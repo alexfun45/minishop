@@ -7,6 +7,7 @@ import { ImageUpload } from '../../components/ImageUpload'
 import { useProducts } from '../../hooks/useProducts';
 
 export const NewProduct: React.FC = () => {
+  const [error, setError] = useState<string | null>(null);
   const { categories, loading } = useCategories();
   const {createProduct} = useProducts();
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -52,6 +53,7 @@ export const NewProduct: React.FC = () => {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     try {
       const submitData = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
@@ -72,15 +74,21 @@ export const NewProduct: React.FC = () => {
         
       await createProduct(submitData);
       resetForm();
-    } catch (error) {
+      navigate("/products");
+    } catch (error: any) {
+      console.log('Полный объект ошибки на фронте:', error);
+      const serverError = error?.responseData?.error || 'Произошла ошибка при создании товара';
+      setError(serverError);
       console.error('Error saving category:', error);
+      return true;
     }
     //apiClient.post('/products/create', formData);
-    navigate("/products");
+    
   };
 
   const handleImageChange = (file: File | null, previewUrl: string | null) => {
     setImageFile(file);
+    setError(null);
     if (previewUrl && !file) {
       // Если это URL, а не файл
       setFormData(prev => ({ ...prev, image_url: previewUrl }));
@@ -302,7 +310,23 @@ export const NewProduct: React.FC = () => {
               </div>
             </div>
           </div>
-
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  {/* Иконка крестика (Tailwind/Heroicons) */}
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700 font-medium">
+                    {error}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Кнопки действий */}
           <div className="flex justify-end space-x-3">
             <button

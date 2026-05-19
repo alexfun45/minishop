@@ -1,6 +1,13 @@
 import {productService} from '../services/ProductService.js'
 import type { Request, Response } from 'express';
+import { fileURLToPath } from 'url';
 import LogEvent from '../utils/LogEvents.js'
+import path from 'path';
+import sharp from 'sharp';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class ProductController{
 
@@ -119,10 +126,63 @@ class ProductController{
         ingredients_uz: req.body.ingredients_uz,
         available: req.body.is_active === 'true',
       }
-      if (req.file) {
+      /*if (req.file) {
+        const tempFilePath = req.file.path;
+        const targetFilename = `prod-${Date.now()}-${Math.round(Math.random() * 1E9)}.webp`;
+        const finalOutputPath = path.join(__dirname, '../../uploads/products', targetFilename);
         newProduct.image_url = `${process.env.BASE_PATH}/uploads/products/${req.file.filename}`;
       } else if (req.body.image_url !== undefined) {
         // Если указан URL изображения (может быть пустой строкой)
+        newProduct.image_url = req.body.image_url || null;
+      }*/
+      if (req.file) {
+        const fileBuffer = req.file.buffer;
+        const tempFilePath = req.file.path; // Путь к временному файлу, который сохранил multer
+        
+        // Имя для нового оптимизированного файла
+        const targetFilename = `prod-${Date.now()}-${Math.round(Math.random() * 1E9)}.webp`;
+        const targetDir = path.join(process.cwd(), 'uploads', 'products');
+        const finalOutputPath = path.join(targetDir, targetFilename);
+        
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+
+        try {
+          // 1. Получаем метаданные изображения для валидации размеров
+          const metadata = await sharp(fileBuffer).metadata();
+          
+          const minWidth = 600;
+          const minHeight = 600;
+  
+          if (!metadata.width || !metadata.height || metadata.width < minWidth || metadata.height < minHeight) {
+            // Если картинка слишком маленькая, удаляем временный файл и возвращаем ошибку
+            fs.unlinkSync(tempFilePath);
+            return res.status(400).json({
+              success: false,
+              error: `Изображение слишком маленькое. Минимальное разрешение: ${minWidth}x${minHeight}px.`
+            });
+          }
+  
+          // 2. Обрезаем картинку по центру (умный кроп), ресайзим до 800x800 и переводим в webp
+          await sharp(fileBuffer)
+            .resize(800, 800, {
+              fit: 'cover',        // Заполнить квадрат 800x800, излишки обрезать
+              position: 'center'   // Центрировать обрезку
+            })
+            .webp({ quality: 80 }) // Конвертируем в WebP с качеством 80% (визуально неотличимо от 100%)
+            .toFile(finalOutputPath);
+  
+          // Сохраняем путь к уже обработанному webp-файлу
+          newProduct.image_url = `${process.env.BASE_PATH}/uploads/products/${targetFilename}`;
+  
+        } catch (sharpError) {
+          // Если во время обработки что-то пошло не так (например, файл битый)
+          if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+          throw sharpError;
+        }
+  
+      } else if (req.body.image_url !== undefined) {
         newProduct.image_url = req.body.image_url || null;
       }
       const product = await productService.create(newProduct); 
