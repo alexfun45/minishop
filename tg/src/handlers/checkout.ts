@@ -220,7 +220,6 @@ async function placeOrder(ctx: BotContext): Promise<void> {
     console.log('🟢 Order created successfully, session cleared');
 
     if (isOnlinePayment) {
-      console.log('result payment', result);
       // Сценарий 1: Онлайн оплата (Выдаем ссылку на ЮKassa)
       const payText = {
         ru: `✨ *Заказ #${result.data.id} успешно сформирован!*\n\nДля завершения оформления необходимо оплатить его онлайн по кнопке ниже.`,

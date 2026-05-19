@@ -42,11 +42,31 @@ export const OrdersManagement: React.FC = () => {
     cancelled: 'Отменен'
   };
 
+  type TabType = 'active' | 'delivered' | 'cancelled';
+
+  const [activeTab, setActiveTab] = useState<TabType>('active');
+
   // Логика фильтрации заказов по статусу
-  const filteredOrders = useMemo(() => {
+  /*const filteredOrders = useMemo(() => {
     if (filter === 'all') return orders;
     return orders.filter(order => order.status === filter);
   }, [orders, filter]);
+  */
+
+  const filteredOrders = orders.filter(order => {
+      if (activeTab === 'active') {
+        // Показываем ВСЁ, что требует внимания админа
+        return order.status !== 'delivered' && order.status !== 'cancelled';
+      }
+      if (activeTab === 'delivered') {
+        return order.status === 'delivered';
+      }
+      if (activeTab === 'cancelled') {
+        return order.status === 'cancelled';
+      }
+      return true;
+  });
+
 
   const handleStatusChange = async (orderId: number, newStatus: Order['status']) => {
     try {
@@ -82,7 +102,47 @@ export const OrdersManagement: React.FC = () => {
             </select>
           </div>
         </div>
+        <div className="orders-manager">
+    {/* Панель вкладок */}
+    <div className="flex space-x-2 border-b border-gray-200 mb-6">
+      <button
+        onClick={() => setActiveTab('active')}
+        className={`py-2 px-4 font-medium text-sm transition-all ${
+          activeTab === 'active' 
+            ? 'border-b-2 border-blue-600 text-blue-600' 
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        Активные 
+        {/* Счетчик активных заказов */}
+        <span className="ml-2 bg-blue-100 text-blue-600 py-0.5 px-2 rounded-full text-xs font-bold">
+          {orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length}
+        </span>
+      </button>
 
+      <button
+        onClick={() => setActiveTab('delivered')}
+        className={`py-2 px-4 font-medium text-sm transition-all ${
+          activeTab === 'delivered' 
+            ? 'border-b-2 border-blue-600 text-blue-600' 
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        Выполненные
+      </button>
+
+      <button
+        onClick={() => setActiveTab('cancelled')}
+        className={`py-2 px-4 font-medium text-sm transition-all ${
+          activeTab === 'cancelled' 
+            ? 'border-b-2 border-blue-600 text-blue-600' 
+            : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        Отмененные
+      </button>
+    </div>
+    <div className="space-y-4">
         {loading ? (
           <div className="flex justify-center py-20 italic text-gray-500">Загрузка данных...</div>
         ) : (
@@ -240,6 +300,8 @@ export const OrdersManagement: React.FC = () => {
             )}
           </div>
         )}
+        </div>
+        </div>
       </main>
 
       {/* Модалка с доп. данными (ID, координаты и т.д.) */}
