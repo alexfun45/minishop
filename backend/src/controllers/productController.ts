@@ -5,6 +5,7 @@ import LogEvent from '../utils/LogEvents.js'
 import path from 'path';
 import sharp from 'sharp';
 import fs from 'fs';
+import { AiService } from '../services/AiService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -186,6 +187,9 @@ class ProductController{
         newProduct.image_url = req.body.image_url || null;
       }
       const product = await productService.create(newProduct); 
+      await AiService.indexProduct(product).catch(err => {
+        console.error("Фоновая индексация ИИ дала сбой:", err);
+     });
       LogEvent('create new product', product.id.toString());
       res.status(201).json({
         success: true,
@@ -207,6 +211,7 @@ class ProductController{
       LogEvent('delete product', productId.toString());
       if(productId){
         await productService.delete(productId);
+        await AiService.deleteProduct(productId);
         res.json({
           success: true,
           data: productId,
@@ -234,6 +239,9 @@ class ProductController{
         productData.image_url = req.body.image_url || null;
       }
       const product = await productService.update(productId, productData);
+      await AiService.indexProduct(product).catch(err => {
+        console.error("Фоновая индексация ИИ дала сбой:", err);
+     });
       LogEvent('update product', productId.toString());
       res.json({
         success: true,
