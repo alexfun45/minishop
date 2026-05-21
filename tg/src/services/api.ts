@@ -52,8 +52,6 @@ class ApiClient {
 
   async createOrder(orderData: any) {
     try {
-      console.log('🟡 API Client: Sending order to backend');
-      console.log('🟡 Order data:', JSON.stringify(orderData, null, 2));
       const response = await axios.post(`${this.baseURL}/api/orders/create`, orderData, {
         timeout: 30000,
         headers: {
@@ -100,6 +98,24 @@ class ApiClient {
     } catch (error) {
       console.error('Get order by id error:', error);
       return null;
+    }
+  }
+
+  async sendAi(userId: number, message: string){
+    const req = JSON.stringify({
+      userId,
+      message
+    });
+    try{
+      const response = await axios.post(`${this.baseURL}/api/ai/`, req, {
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data.data || null;
+    } catch(error){
+      console.log('Error with AI', error);
     }
   }
 }

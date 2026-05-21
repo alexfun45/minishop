@@ -7,7 +7,7 @@ export async function startHandler(ctx: BotContext): Promise<void> {
   const { bot, chatId, session } = ctx;
 
   // Сбрасываем сессию при старте
-  const newSession = SessionService.updateSession(chatId, {
+  const newSession = await SessionService.updateSession(chatId, {
     cart: [], 
     language: 'ru',
     checkoutStep: undefined,

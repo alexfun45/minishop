@@ -130,4 +130,39 @@ export class AiService {
     }
   }
 
+  handleUserMessage = async (ctx) => {
+    const userId = ctx.message.from.id;
+    // (Логика сессий Redis остается без изменений)
+    const sessionData = await redis.get(`session:${userId}`);
+    const session = sessionData ? JSON.parse(sessionData) : { state: STATES.IDLE, cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
+       
+    const userQuery = ctx.message.text;
+    const chatHistory = this.getChatHistoryString(session);
+    
+    // Формируем промпт, подмешивая инструкции от парсера
+    const prompt = await template.invoke({
+      context: priceContext, // Твоя переменная с прайсом
+      chat_history: chatHistory,
+      question: userQuery,
+      format_instructions: parser.getFormatInstructions(), // Парсер сам объяснит Яндексу, как выглядит схема
+    });
+
+    try {
+      // Отправляем запрос в Яндекс
+      const aiResRaw = await model.invoke(prompt);
+      
+      // Парсим ответ Яндекса в JS-объект, валидируя через Zod
+      const aiRes = await parser.parse(aiResRaw.content.toString());
+      
+      session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
+      
+      // Дальше твоя логика работает как раньше
+      return this.handleIntent(session, aiRes);
+      
+    } catch (error) {
+      console.error("Ошибка парсинга или вызова модели:", error);
+      return { message: "Извините, произошла ошибка при обработке запроса." };
+    }
+  }
+
 }

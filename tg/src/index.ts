@@ -11,6 +11,7 @@ import  'dotenv/config'
 import { orderHandler } from './handlers/orders.js';
 import { profileHandler } from './handlers/profile.js';
 import { searchHandler } from './handlers/search.js';
+import {aiService} from './services/aiService.js'
 import type { BotContext } from './types.js';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
@@ -59,13 +60,6 @@ async function createContext(chatId: number, message?: any, callbackQuery?: any)
     bot
   }
   return botContext;
-  /*return {
-    chatId,
-    message,
-    callbackQuery,
-    session: (async () => await SessionService.getUserSession(chatId))(),
-    bot
-  };*/
 }
 
 // Обработчик команды /start
@@ -122,11 +116,12 @@ bot.on('message', async (msg: any) => {
       await bot.sendMessage(chatId, multi.getAboutText(ctx.session.language));
       break;
     default:
-      // Если это не команда, считаем что это поиск
-      if (text && !['⬅️ Назад', '⬅️ Бозгашт', '⬅️ Orqaga'].includes(text)) {
-        await searchHandler(ctx, text);
+      // Если это не команда, считаем что это 
+      const answer = aiService.handleUserMessage(chatId, text);
+      await bot.sendMessage(chatId, answer);
+      //if (text && !['⬅️ Назад', '⬅️ Бозгашт', '⬅️ Orqaga'].includes(text)) {
+        //await searchHandler(ctx, text);
       }
-  }
 });
 
 // Обработчик callback запросов
