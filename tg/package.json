@@ -8,11 +8,14 @@
     "dev": "cross-env NODE_ENV=dev npx tsx --watch ./src/index.ts"
   },
   "dependencies": {
+    "@langchain/yandex": "^1.0.3",
     "axios": "^1.6.2",
     "dotenv": "^17.2.3",
     "https-proxy-agent": "^9.0.0",
+    "langchain": "^1.4.1",
     "node-cache": "^5.1.2",
     "node-telegram-bot-api": "^0.64.0",
+    "redis": "^5.12.1",
     "sharp": "^0.34.5"
   },
   "devDependencies": {

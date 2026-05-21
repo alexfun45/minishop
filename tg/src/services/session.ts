@@ -1,30 +1,54 @@
 
 import NodeCache from 'node-cache';
+import { createClient } from 'redis';
 import type { UserSession } from '../types.ts';
 
-const userCache = new NodeCache({ stdTTL: 3600 }); // 1 час
+//const userCache = new NodeCache({ stdTTL: 3600 }); // 1 час
+const redisClient = createClient();
+
+redisClient.on('error', (err) => console.error('Redis Client Error', err));
+
+if (!redisClient.isOpen) {
+  redisClient.connect();
+}
+
+const SESSION_TTL = 3600*24;
 
 export class SessionService {
-  static getUserSession(chatId: number): UserSession {
-    let session: any = userCache.get<UserSession>(chatId.toString());
-    if (!session) {
-      session = {
+
+  private static getKey(chatId: number): string {
+    return `session:${chatId}`;
+  }
+
+  static async getUserSession(chatId: number): Promise<UserSession> {
+    const key = this.getKey(chatId);
+    const data = await redisClient.get(key);
+
+    if (!data) {
+      const defaultSession: UserSession = {
         cart: [],
+        userPhone: '',
+        userId: 0,
         language: 'ru'
       };
-      userCache.set(chatId.toString(), session);
+      // Сохраняем и сразу задаем TTL (время жизни кэша)
+      await redisClient.setEx(key, SESSION_TTL, JSON.stringify(defaultSession));
+      return defaultSession;
     }
-    return session;
+
+    return JSON.parse(data) as UserSession;
   }
 
-  static saveUserSession(chatId: number, session: UserSession): void {
-    userCache.set(chatId.toString(), session);
+  static async saveUserSession(chatId: number, session: UserSession): Promise<void> {
+    const key = this.getKey(chatId);
+    await redisClient.setEx(key, SESSION_TTL, JSON.stringify(session));
   }
 
-  static updateSession(chatId: number, updates: Partial<UserSession>): UserSession {
-    const session = this.getUserSession(chatId);
+  static async updateSession(chatId: number, updates: Partial<UserSession>): Promise<UserSession> {
+    const session = await this.getUserSession(chatId);
     const updatedSession = { ...session, ...updates };
-    this.saveUserSession(chatId, updatedSession);
+    await this.saveUserSession(chatId, updatedSession);
     return updatedSession;
   }
+  
 }

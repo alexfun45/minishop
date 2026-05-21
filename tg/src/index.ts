@@ -49,27 +49,36 @@ if (process.env.USE_PROXY === 'true') {
 }
 
 // Создание контекста для обработчиков
-function createContext(chatId: number, message?: any, callbackQuery?: any): BotContext {
-  return {
+async function createContext(chatId: number, message?: any, callbackQuery?: any): Promise<BotContext> {
+  const session = await SessionService.getUserSession(chatId);
+  let botContext: BotContext = {
     chatId,
     message,
     callbackQuery,
-    session: SessionService.getUserSession(chatId),
+    session, 
     bot
-  };
+  }
+  return botContext;
+  /*return {
+    chatId,
+    message,
+    callbackQuery,
+    session: (async () => await SessionService.getUserSession(chatId))(),
+    bot
+  };*/
 }
 
 // Обработчик команды /start
-bot.onText(/\/start/, async (msg) => {
-  const ctx = createContext(msg.chat.id, msg);
+bot.onText(/\/start/, async (msg: any) => {
+  const ctx = await createContext(msg.chat.id, msg);
   await startHandler(ctx);
 });
 
 // Обработчик текстовых сообщений
-bot.on('message', async (msg) => {
+bot.on('message', async (msg: any) => {
   const chatId = msg.chat.id;
   const text = msg.text || '';
-  const ctx = createContext(chatId, msg);
+  const ctx = await createContext(chatId, msg);
   const session = ctx.session;
 
   if (session.checkoutStep) {
@@ -121,11 +130,11 @@ bot.on('message', async (msg) => {
 });
 
 // Обработчик callback запросов
-bot.on('callback_query', async (callbackQuery) => {
+bot.on('callback_query', async (callbackQuery: any) => {
   const message = callbackQuery.message;
   const chatId = message?.chat.id || 0;
   const data = callbackQuery.data;
-  const ctx = createContext(chatId, undefined, callbackQuery);
+  const ctx = await createContext(chatId, undefined, callbackQuery);
   
 
   try {
