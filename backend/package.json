@@ -39,8 +39,10 @@
     "openai": "^6.38.0",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
+    "redis": "^5.12.1",
     "sequelize": "^6.37.7",
     "sharp": "^0.34.5",
-    "yookassa-sdk-node": "^0.6.0"
+    "yookassa-sdk-node": "^0.6.0",
+    "zod": "^4.4.3"
   }
 }

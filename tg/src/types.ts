@@ -1,6 +1,7 @@
 export interface UserSession {
   cart: CartItem[];
   userPhone: string;
+  chat?: string[];
   userId: number;
   awaitingPhoneForOrders?: boolean;
   currentCategory?: number;

@@ -1,21 +1,68 @@
 // services/aiService.ts
 import * as lancedb from "@lancedb/lancedb";
+import type { Request, Response } from 'express';
 import { YandexGPTEmbeddings } from "@langchain/yandex";
+import redis from './RedisService.js'
 import path from "path";
-import fs from "fs";
+import fs from "fs"
+import {productService} from '../services/ProductService.js'
+import { StructuredOutputParser } from "@langchain/core/output_parsers";
+import type {UserSession} from '../types/Common.js'
+import { YandexGPT } from "@langchain/yandex/llms";
+import { z } from "zod";
+import { PromptTemplate } from '@langchain/core/prompts';
 
-if (!process.env.YANDEX_API_KEY || !process.env.YANDEX_FOLDER_ID) {
+if (!process.env.YC_API_KEY || !process.env.YC_FOLDER_ID) {
   throw new Error("Missing Yandex API configuration in environment variables");
 }
 
+const responseSchema = z.object({
+  intent: z.enum(["search", "add_to_cart", "confirm", "cancel", "greeting", "view_cart"])
+    .describe("Классификация намерения..."),
+  productId: z.string().optional()
+    .describe("Артикул товара из прайса (только цифры/ID)"),
+  quantity: z.number().optional().default(1)
+    .describe("Количество товара, которое упомянул пользователь"),
+  text: z.string()
+    .describe("Твой вежливый ответ пользователю на русском языке")
+});
+
+// 1. Создаем парсер на основе твоей Zod-схемы
+const parser = StructuredOutputParser.fromZodSchema(responseSchema);
+
+const model = new YandexGPT({
+  model: "yandexgpt-lite",
+  temperature: 0.2
+});
+
+const template = PromptTemplate.fromTemplate(`
+Ты — ядро системы «Умный Склад». Ответь вежливо, используя данные из контекста. 
+Твоя задача: анализировать запрос и возвращать данные строго по схеме.
+
+Если пользователь ищет подходящий товар назови название подходящего товара, его стоимость и артикул товара. Спроси: Добавить в корзину? 
+Если подходящего товара нет, можешь предложить наиболее близкий аналог но только из существующих позиций в контексте, указав что по данным критериям среди текущих позиций ты найти не смог, но можешь предложить наиболее подходящий вариант. 
+Если похожих аналогов нет, то скажи что по заданному запросу ничего не можешь найти.
+Если пользователь подтверждает добавление товара, но не называет артикул заново, используй артикул из предыдущего сообщения AI в истории диалога и овтеть что товар добавлен в корзину
+
+Контекст Прайса: {context}
+
+История последних сообщений:
+{chat_history}
+
+Текущий запрос пользователя: {question}
+
+{format_instructions}
+`);
+
 const embeddings = new YandexGPTEmbeddings({
-  apiKey: process.env.YANDEX_API_KEY, 
-  folderID: process.env.YANDEX_FOLDER_ID,
+  apiKey: process.env.YC_API_KEY, 
+  folderID: process.env.YC_FOLDER_ID,
   model: "text-search-doc",
 });
 
 const DB_PATH = path.join(process.cwd(), "data", "lancedb");
 const TABLE_NAME = "products_vectors";
+
 export class AiService {
   private static dbInstance: lancedb.Connection | null = null;
 
@@ -37,12 +84,11 @@ export class AiService {
    */
   private static createProductContext(product: any): string {
     return `
+      артикул: ${product.id}
       Название (RU): ${product.name_ru || ''}
-      Название (TJ): ${product.name_tj || ''}
-      Название (UZ): ${product.name_uz || ''}
       Описание: ${product.description_ru || ''}
       Ингредиенты: ${product.ingredients_ru || ''}
-      Цена: ${product.price} TJS
+      Цена: ${product.price} руб
       Категория ID: ${product.category_id}
     `.trim().replace(/\s+/g, ' '); // убираем лишние пробелы
   }
@@ -130,18 +176,30 @@ export class AiService {
     }
   }
 
-  handleUserMessage = async (ctx) => {
-    const userId = ctx.message.from.id;
+  getChatHistoryString(userSession: UserSession){
+    if (!userSession) return "История пуста.";
+    // Берем последние 6 реплик, чтобы не раздувать контекст
+    return userSession.chat.slice(-6).join("\n");
+  };
+
+
+  handleUserMessage = async (req: Request, res: Response) => {
+    const postdata = req.body;
+
+    const userId = postdata.userId;
+    const userQuery = postdata.message;
     // (Логика сессий Redis остается без изменений)
     const sessionData = await redis.get(`session:${userId}`);
-    const session = sessionData ? JSON.parse(sessionData) : { state: STATES.IDLE, cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
-       
-    const userQuery = ctx.message.text;
-    const chatHistory = this.getChatHistoryString(session);
+    const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
     
+    const context = await AiService.searchProducts(userQuery);
+    console.log('search', context);
+
+    const chatHistory = this.getChatHistoryString(session);
+    console.log('chatHistory', chatHistory);
     // Формируем промпт, подмешивая инструкции от парсера
     const prompt = await template.invoke({
-      context: priceContext, // Твоя переменная с прайсом
+      context: context, // Твоя переменная с прайсом
       chat_history: chatHistory,
       question: userQuery,
       format_instructions: parser.getFormatInstructions(), // Парсер сам объяснит Яндексу, как выглядит схема
@@ -150,18 +208,81 @@ export class AiService {
     try {
       // Отправляем запрос в Яндекс
       const aiResRaw = await model.invoke(prompt);
-      
+      console.log('aiResRaw', aiResRaw);
       // Парсим ответ Яндекса в JS-объект, валидируя через Zod
-      const aiRes = await parser.parse(aiResRaw.content.toString());
+      const aiRes = await parser.parse(aiResRaw.toString());
       
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
       
+      const intentResult = await this.handleIntent(session, aiRes);
+
+      await redis.set(`session:${userId}`, JSON.stringify(session));
       // Дальше твоя логика работает как раньше
-      return this.handleIntent(session, aiRes);
+      res.json({
+        success: true,
+        data: {
+          ...aiRes,
+          text: intentResult?.message || aiRes.text
+        },
+      });
+      //return this.handleIntent(session, aiRes);
       
     } catch (error) {
       console.error("Ошибка парсинга или вызова модели:", error);
       return { message: "Извините, произошла ошибка при обработке запроса." };
+    }
+  }
+
+  async handleIntent(session: UserSession, aiRes: any) {
+    const { intent, productId, quantity, text } = aiRes;
+    // Если бот что-то нашел, запоминаем это "на всякий случай"
+    if (productId) {
+      session.lastViewedProductId = productId;
+    }
+    switch (intent) {
+      case 'add_to_cart':
+        // Запоминаем, что пользователь ХОЧЕТ добавить, но ждем подтверждения
+        const productInfo = await productService.findById(productId);
+        if(productInfo!==null){
+        session.pendingAction = { type: 'ADD', productId, name: productInfo.name_ru, price: productInfo.price, quantity: quantity || 1 };
+        session.cart.push(session.pendingAction);
+        session.pendingAction = null;
+        return { message: text };
+        }
+
+      case 'confirm':
+        if (session.pendingAction?.type === 'ADD') {
+          const item = session.pendingAction;
+          session.cart.push(item); // Добавляем в реальную корзину
+          session.pendingAction = null;
+          return { message: "✅ Добавлено в расчет! " + text };
+        }
+        return { message: text };
+
+      case 'cancel':
+        session.pendingAction = null;
+        return { message: "Хорошо, отменил. " + text };
+
+      case 'view_cart':
+          if (!session.cart || session.cart.length === 0) {
+            return { message: "Ваша корзина пока пуста. Найти что-нибудь?" };
+          }
+        
+          let totalSum = 0;
+          // Формируем текстовый список
+          const cartLines = session.cart.map((item, index) => {
+            const itemTotal = item.price * item.quantity;
+            totalSum += itemTotal;
+            return `${index + 1}. ${item.name} — ${item.quantity} шт. x ${item.price} руб. = ${itemTotal} руб.`;
+          });
+        
+          const report = `🛒 **Ваш текущий расчет:**\n\n${cartLines.join('\n')}\n\n**Итого: ${totalSum} руб.**\n\nСформировать КП в PDF или добавим что-то еще?`;
+          
+          return { message: report };
+
+      case 'search':
+      default:
+        return { message: text };
     }
   }
 

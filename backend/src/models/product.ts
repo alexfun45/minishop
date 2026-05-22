@@ -2,7 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import type {Optional } from 'sequelize';
 import sequelize from '../config/database.js';
 
-interface ProductAttribute{
+export interface ProductAttribute{
   id: number;
   name_ru: string | null;
   name_tj: string | null;
@@ -92,15 +92,15 @@ Product.init({
     allowNull: true,
   },
   ingredients_ru: {
-    type: DataTypes.STRING(1500),
+    type: DataTypes.STRING(2500),
     allowNull: true,
   },
   ingredients_tj: {
-    type: DataTypes.STRING(1500),
+    type: DataTypes.STRING(2500),
     allowNull: true,
   },
   ingredients_uz: {
-    type: DataTypes.STRING(1500),
+    type: DataTypes.STRING(2500),
     allowNull: true,
   }
 }, {

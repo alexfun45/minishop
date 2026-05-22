@@ -117,8 +117,9 @@ bot.on('message', async (msg: any) => {
       break;
     default:
       // Если это не команда, считаем что это 
-      const answer = aiService.handleUserMessage(chatId, text);
-      await bot.sendMessage(chatId, answer);
+      const answer = await aiService.handleUserMessage(chatId, text);
+      console.log('answer', answer);
+      await bot.sendMessage(chatId, answer.text);
       //if (text && !['⬅️ Назад', '⬅️ Бозгашт', '⬅️ Orqaga'].includes(text)) {
         //await searchHandler(ctx, text);
       }

@@ -1,5 +1,6 @@
 // services/ProductService.ts
 import { Product, Category } from '../models/index.js';
+import type {ProductAttribute} from '../models/product.js'
 import {categoryService} from './CategoryService.js'
 import { Op } from 'sequelize';
 
@@ -79,7 +80,7 @@ export class ProductService {
   }
 
   // Найти товар по ID
-  async findById(productId: number, language: string = 'ru') {
+  async findById(productId: number, language: string = 'ru'): Promise<ProductAttribute | null> {
     const product = await Product.findByPk(productId, {
       include: [{
         model: Category,

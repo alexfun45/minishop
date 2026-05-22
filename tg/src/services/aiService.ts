@@ -3,7 +3,7 @@ import {apiClient} from '../services/api'
 class AiService{
 
   async handleUserMessage(userId: number, message: string){
-    //return apiClient.sendAi();
+    return apiClient.sendAi(userId, message);
   } 
 
 }

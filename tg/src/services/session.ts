@@ -1,5 +1,5 @@
 
-import NodeCache from 'node-cache';
+//import NodeCache from 'node-cache';
 import { createClient } from 'redis';
 import type { UserSession } from '../types.ts';
 
@@ -27,6 +27,7 @@ export class SessionService {
     if (!data) {
       const defaultSession: UserSession = {
         cart: [],
+        chat: [],
         userPhone: '',
         userId: 0,
         language: 'ru'
