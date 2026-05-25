@@ -45,8 +45,15 @@ if (process.env.USE_PROXY === 'true') {
 
   console.log('Запуск бота через прокси...');
 } else{
-  bot = new TelegramBot(BOT_TOKEN!);
-  console.log('Запуск бота напрямую (без прокси)...');
+  try{
+    bot = new TelegramBot(BOT_TOKEN!, { 
+      polling: true
+    });
+    console.log('Запуск бота напрямую (без прокси)...');
+  }
+  catch(error){
+    console.log('error', error);
+  }
 }
 
 // Создание контекста для обработчиков
