@@ -103,7 +103,7 @@ export const StatisticsPage: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`${value} ₽`]} />
+                <Tooltip formatter={(value: any) => [`${value} ₽`]} />
                 <Legend />
                 <Line type="monotone" dataKey="Выручка (₽)" stroke="#10B981" strokeWidth={3} activeDot={{ r: 8 }} />
               </LineChart>
