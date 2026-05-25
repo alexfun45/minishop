@@ -9,16 +9,17 @@
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd admin-panel && npm run dev",
     "prod:start": "pm2 start ecosystem.config.js",
-    "prod:stop":"pm2 delete ecosystem.config.js",
-    "prod:restart":"pm2 restart ecosystem.config.js",
+    "prod:stop": "pm2 delete ecosystem.config.js",
+    "prod:restart": "pm2 restart ecosystem.config.js",
     "prod:status": "pm2 status",
-    "prod:tg":"cd tg && npm start",
+    "prod:tg": "cd tg && npm start",
     "prod:backend": "cd backend && npm start",
     "start": "npm-run-all --parallel prod:backend prod:tg",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5"
+    "npm-run-all": "^4.1.5",
+    "typescript": "^6.0.3"
   },
   "author": "",
   "license": "ISC",
