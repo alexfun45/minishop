@@ -196,7 +196,6 @@ export class AiService {
     console.log('search', context);
 
     const chatHistory = this.getChatHistoryString(session);
-    console.log('chatHistory', chatHistory);
     // Формируем промпт, подмешивая инструкции от парсера
     const prompt = await template.invoke({
       context: context, // Твоя переменная с прайсом
