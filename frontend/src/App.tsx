@@ -89,6 +89,7 @@ export default function App() {
   // Отправка в RAG бэкенд
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('inputMessage', inputMessage);
     if (!inputMessage.trim()) return;
 
     const userText = inputMessage;
@@ -97,7 +98,7 @@ export default function App() {
     setIsAiTyping(true);
 
     const response = await apiClient.sendAi(DEMO_USER_ID, userText);
-    
+    console.log('response', response);
     setAiMessages(prev => [...prev, { 
       sender: 'ai', 
       text: response?.text || 'Я немного отвлекся на аромат свежих булочек. Повторите, пожалуйста!' 
@@ -285,10 +286,10 @@ export default function App() {
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h4 className="font-serif font-bold text-sm leading-tight">Нейро-Шеф Пекарни</h4>
+                  <h4 className="font-serif font-bold text-sm leading-tight">Нейро-помощник</h4>
                   <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
-                    База знаний LanceDB активна
+                    Онлайн
                   </span>
                 </div>
               </div>
