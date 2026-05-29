@@ -52,6 +52,6 @@
   "ts-node": {
     "esm": true
   },
-  "include": ["src/**/*.ts", "dist/typings.d.ts"],
+  "include": ["src/**/*.ts", "dist/typings.d.ts", "types/**/*.d.ts"],
   "exclude": ["node_modules"]
 }

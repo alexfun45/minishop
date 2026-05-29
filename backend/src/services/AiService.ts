@@ -11,6 +11,11 @@ import type {UserSession} from '../types/Common.js'
 import { YandexGPT } from "@langchain/yandex/llms";
 import { z } from "zod";
 import { PromptTemplate } from '@langchain/core/prompts';
+import multer from 'multer';
+import { removeBackground } from '@imgly/background-removal-node';
+import axios from 'axios';
+import sharp from 'sharp';
+import { fileURLToPath } from 'url';
 
 if (!process.env.YC_API_KEY || !process.env.YC_FOLDER_ID) {
   throw new Error("Missing Yandex API configuration in environment variables");
@@ -292,6 +297,85 @@ export class AiService {
       case 'search':
       default:
         return { message: text };
+    }
+  }
+
+  private async waitForYandexArtResult(operationId: any) {
+    const checkUrl = `https://llm.api.cloud.yandex.net/operations/${operationId}`;
+    
+    for (let i = 0; i < 30; i++) { // Проверяем 30 раз с паузой
+      const response = await axios.get(checkUrl, {
+        headers: { Authorization: `Api-Key ${process.env.YC_API_KEY}` }
+      });
+      
+      if (response.data.done) {
+        if (response.data.response?.image) {
+          return response.data.response.image; // Возвращает base64
+        }
+        throw new Error('YandexART не вернул изображение');
+      }
+      await new Promise(res => setTimeout(res, 2000)); // Ждем 2 секунды
+    }
+    throw new Error('Таймаут генерации YandexART');
+  }
+
+  public async generateCard(req: Request, res: Response){
+
+    try{
+      const prompt = req.body.prompt;
+      if(!req.file) return false;
+      const tempFilePath = req.file.path;
+      // --- 1. Удаляем фон с исходного фото товара ---
+    const imageBuffer = fs.readFileSync(tempFilePath);
+    const transparentBlob = await removeBackground(imageBuffer);
+    const transparentBuffer = Buffer.from(await transparentBlob.arrayBuffer());
+
+    // Изменяем размер товара, чтобы он хорошо вписался в фон (например, 600x600)
+    const resizedForeground = await sharp(transparentBuffer)
+      .resize(600, 600, { fit: 'inside' })
+      .toBuffer();
+
+    // --- 2. Генерируем фон в YandexART ---
+    const yandexArtUrl = 'https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync';
+    const generationReq = await axios.post(yandexArtUrl, {
+      modelUri: `art://${process.env.YC_FOLDER_ID}/yandex-art/latest`,
+      messages: [{ text: prompt, weight: 1 }],
+      generationOptions: { mimeType: "image/jpeg", aspectRatio: { widthRatio: 1, heightRatio: 1 } }
+    }, {
+      headers: { Authorization: `Api-Key ${process.env.YC_API_KEY}` }
+    });
+
+    const operationId = generationReq.data.id;
+    
+    // Ждем результат генерации (в base64)
+    const backgroundBase64 = await this.waitForYandexArtResult(operationId);
+    const backgroundBuffer = Buffer.from(backgroundBase64, 'base64');
+
+    // --- 3. Склеиваем фон и товар ---
+    const outputFileName = `banner_${Date.now()}.jpg`;
+    const outputPath = path.join(process.cwd(), 'uploads', 'products', outputFileName);
+
+    await sharp(backgroundBuffer)
+      .resize(1024, 1024) // Приводим фон к стандартному квадрату
+      .composite([
+        {
+          input: resizedForeground,
+          gravity: 'center' // Размещаем товар по центру сгенерированного фона
+        }
+      ])
+      .jpeg({ quality: 90 })
+      .toFile(outputPath);
+
+    // Удаляем временный файл загрузки
+    //await fs.unlink(tempFilePath);
+
+    // --- 4. Возвращаем URL фронтенду ---
+    // Убедись, что папка /uploads отдается как статика в Express (express.static)
+    const publicUrl = `/uploads/products/${outputFileName}`;
+    res.json({ imageUrl: publicUrl });
+    } catch (error) {
+      console.error('Ошибка пайплайна генерации:', error);
+      res.status(500).json({ error: 'Не удалось сгенерировать баннер' });
     }
   }
 
