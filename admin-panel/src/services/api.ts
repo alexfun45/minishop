@@ -67,7 +67,7 @@ class ApiClient {
    
     const body = (data) ? (data instanceof FormData ? data : JSON.stringify(data)) : "";
    
-    return this.request(endpoint, {
+    return await this.request(endpoint, {
       method: 'POST',
       body: body,
       ...options

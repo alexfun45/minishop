@@ -323,56 +323,78 @@ export class AiService {
 
     try{
       const prompt = req.body.prompt;
-      if(!req.file) return false;
-      const tempFilePath = req.file.path;
-      // --- 1. Удаляем фон с исходного фото товара ---
-    const imageBuffer = fs.readFileSync(tempFilePath);
-    const transparentBlob = await removeBackground(imageBuffer);
+    if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+
+    const tempFilePath = req.file.path;
+
+    // --- Шаг 1. Удаляем фон с исходного фото товара ---
+    console.log('[AI Pipeline] Удаляем фон...');
+    const transparentBlob = await removeBackground(tempFilePath);
     const transparentBuffer = Buffer.from(await transparentBlob.arrayBuffer());
 
-    // Изменяем размер товара, чтобы он хорошо вписался в фон (например, 600x600)
-    const resizedForeground = await sharp(transparentBuffer)
-      .resize(600, 600, { fit: 'inside' })
-      .toBuffer();
-
-    // --- 2. Генерируем фон в YandexART ---
+    // --- Шаг 2. Sharp: Готовим правильный холст для YandexART ---
+    // Уменьшаем товар (например, до 500px), чтобы вокруг него было пространство для фона
+    // --- Шаг 3. Отправляем запрос на Inpainting в YandexART ---
+    console.log('[AI Pipeline] Отправляем запрос в YandexART...');
     const yandexArtUrl = 'https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync';
     const generationReq = await axios.post(yandexArtUrl, {
       modelUri: `art://${process.env.YC_FOLDER_ID}/yandex-art/latest`,
-      messages: [{ text: prompt, weight: 1 }],
-      generationOptions: { mimeType: "image/jpeg", aspectRatio: { widthRatio: 1, heightRatio: 1 } }
+      messages: [
+        { text: prompt, weight: 1 } // Прокачанный промпт с упором на "пустой стол"
+      ],
+      generationOptions: {
+        mimeType: "image/jpeg",
+        aspectRatio: { widthRatio: 1, heightRatio: 1 }
+      }
     }, {
       headers: { Authorization: `Api-Key ${process.env.YC_API_KEY}` }
     });
 
     const operationId = generationReq.data.id;
+    console.log(`[AI Pipeline] Задача создана. Operation ID: ${operationId}. Ждем генерации...`);
     
-    // Ждем результат генерации (в base64)
+    // Ждем результат генерации от Яндекса (вызов твоего метода)
     const backgroundBase64 = await this.waitForYandexArtResult(operationId);
-    const backgroundBuffer = Buffer.from(backgroundBase64, 'base64');
+    const finalImageBuffer = Buffer.from(backgroundBase64, 'base64');
 
-    // --- 3. Склеиваем фон и товар ---
+    const productLayer = await sharp(transparentBuffer)
+  .resize(600, 600, { fit: 'inside' })
+  .toBuffer();
+
+  // 3.2 Накладываем товар на фон от Яндекса
+  const finalProductCard = await sharp(finalImageBuffer) // Основа — сгенерированный фон 1024x1024
+    .composite([
+      { 
+        input: productLayer, 
+        gravity: 'center' // Размещаем строго по центру
+        // Если стол кажется низковато, можно использовать абсолютные координаты:
+        // top: 300, left: 212 
+      }
+    ])
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+    // --- Шаг 4. Сохраняем готовый шедевр ---
     const outputFileName = `banner_${Date.now()}.jpg`;
     const outputPath = path.join(process.cwd(), 'uploads', 'products', outputFileName);
 
-    await sharp(backgroundBuffer)
-      .resize(1024, 1024) // Приводим фон к стандартному квадрату
-      .composite([
-        {
-          input: resizedForeground,
-          gravity: 'center' // Размещаем товар по центру сгенерированного фона
-        }
-      ])
-      .jpeg({ quality: 90 })
+    await sharp(finalProductCard)
+      .jpeg({ quality: 95 })
       .toFile(outputPath);
 
-    // Удаляем временный файл загрузки
-    //await fs.unlink(tempFilePath);
+    // Удаляем временный файл загрузки, чтобы не забивать диск
+    //if (fs.existsSync(tempFilePath)) {
+    //  fs.unlinkSync(tempFilePath);
+   // }
 
-    // --- 4. Возвращаем URL фронтенду ---
-    // Убедись, что папка /uploads отдается как статика в Express (express.static)
+    console.log(`[AI Pipeline] Успех! Баннер сохранен: ${outputFileName}`);
+
     const publicUrl = `/uploads/products/${outputFileName}`;
-    res.json({ imageUrl: publicUrl });
+    res.json({
+      success: true,
+      data: publicUrl,
+      imageUrl: publicUrl 
+      });
     } catch (error) {
       console.error('Ошибка пайплайна генерации:', error);
       res.status(500).json({ error: 'Не удалось сгенерировать баннер' });

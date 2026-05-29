@@ -5,6 +5,7 @@ import orderRouter from './orders_router.js'
 import activityRouter from './activity.js'
 import Stats from './stats.js'
 import AuthRoute from './auth.js'
+import aiRouter from './ai_router.js'
 const router = express.Router();
 
 // Все роуты требуют админских прав
@@ -23,6 +24,7 @@ router.use(categoryRouter);
 router.use(orderRouter);
 router.use(activityRouter);
 router.use(Stats);
+router.use(aiRouter);
 //router.get('/categories', categoryController.getCategories);
 //router.post('/categories/create',  upload.single('image'), categoryController.create);
 //router.post('/categories/update/:id', upload.single('image'), categoryController.update);

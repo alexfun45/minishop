@@ -126,16 +126,15 @@ export const NewProduct: React.FC = () => {
       bannerData.append('prompt', finalPrompt);
 
       // Отправка на разработанный нами эндпоинт
-      const response = await apiClient.post('http://localhost:3001/api/ai/generate-banner', bannerData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const response = await apiClient.post('/ai/generate-banner', bannerData);
 
-      if (!response.ok) throw new Error('Ошибка сервера при обработке изображения');
-      const data = await response.json();
+      //if (!response.ok) throw new Error('Ошибка сервера при обработке изображения');
+      //const data = await response.json();
 
-      setFormData(prev => ({ ...prev, image_url: data.imageUrl }));
+      setFormData(prev => ({ ...prev, image_url: response.imageUrl }));
       setImageFile(null); // Переключаемся на использование сгенерированного URL
     } catch (err) {
+      console.log('err', err);
       setError("Не удалось сгенерировать студийный фон. Проверьте соединение с сервером.");
     } finally {
       setIsGeneratingBanner(false);
@@ -208,7 +207,7 @@ export const NewProduct: React.FC = () => {
     <div className="min-h-screen bg-gray-50 pb-12">
       <Header />
       
-      <main className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
             Добавить новый товар
@@ -249,8 +248,8 @@ export const NewProduct: React.FC = () => {
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
               Визуальное оформление
             </h3>
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="flex-1">
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+              <div className="w-full md:flex-[1.8]">
                 <ImageUpload
                   onImageChange={handleImageChange}
                   existingImageUrl={formData.image_url}
@@ -259,7 +258,7 @@ export const NewProduct: React.FC = () => {
               </div>
 
               {/* Настройки генерации фона YandexART */}
-              <div className="flex-1 bg-gradient-to-br from-indigo-50 to-blue-50 p-4 rounded-lg border border-indigo-100 flex flex-col justify-between">
+              <div className="w-full md:flex-1 bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-lg border border-indigo-100 flex flex-col justify-between min-h-[350px]">
                 <div>
                   <h4 className="text-sm font-semibold text-indigo-900 mb-1 flex items-center">
                     <span className="mr-2">🎨</span> Улучшение фона через YandexART
@@ -276,7 +275,7 @@ export const NewProduct: React.FC = () => {
                       className="block w-full border border-indigo-200 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
                     >
                       <option value="">Выберите стилистику подложки...</option>
-                      <option value="На светлом деревянном столе в пекарне, на заднем плане размытая чашка кофе, теплое утреннее солнце">🪵 Деревянный стол (Пекарня)</option>
+                      <option value="Пустой светлый деревянный стол в пекарне, на столе ничего нет, много свободного места по центру для предмета, теплое утреннее солнце, размытый задний план пекарни, профессиональное фото товара">🪵 Деревянный стол (Пекарня)</option>
                       <option value="На идеально чистой белой мраморной поверхности, минималистичный премиальный фон, рассеянный студийный свет">🪨 Минималистичный мрамор</option>
                       <option value="На черной сланцевой доске, ресторанная подача, темный изысканный фон, контрастные тени">⬛ Стильный темный сланец</option>
                       <option value="custom">✍️ Свой вариант оформления...</option>
