@@ -16,6 +16,12 @@ import { removeBackground } from '@imgly/background-removal-node';
 import axios from 'axios';
 import sharp from 'sharp';
 import { fileURLToPath } from 'url';
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.AITUNNEL_API_KEY,
+  baseURL: "https://api.aitunnel.ru/v1/",
+});
 
 if (!process.env.YC_API_KEY || !process.env.YC_FOLDER_ID) {
   throw new Error("Missing Yandex API configuration in environment variables");
@@ -319,82 +325,98 @@ export class AiService {
     throw new Error('Таймаут генерации YandexART');
   }
 
+  public async downloadProductCard(imageUrl: string, outputFileName: string): Promise<string> {
+    try {
+      // 1. Делаем запрос к серверу агрегатора
+      const response = await fetch(imageUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Не удалось скачать изображение: ${response.statusText} (код: ${response.status})`);
+      }
+  
+      // 2. Получаем бинарные данные в виде ArrayBuffer и оборачиваем в NodeJS Buffer
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+  
+      // 3. Определяем путь для сохранения (например, в папку public/uploads)
+      const uploadDir = path.join(process.cwd(), 'uploads', 'products');
+      
+      // На всякий случай проверяем/создаем папку, если её нет
+      //fs.mkdirSync(uploadDir);
+      
+      const finalPath = path.join(uploadDir, outputFileName);
+  
+      // 4. Записываем файл на диск
+      fs.writeFileSync(finalPath, buffer);
+      
+      console.log(`[Storage] Файл успешно сохранен: ${finalPath}`);
+      
+      // Возвращаем локальный путь или относительный URL для базы данных
+      return `/uploads/products/${outputFileName}`;
+  
+    } catch (error) {
+      console.error('[Storage Error] Ошибка при сохранении картинки на сервер:', error);
+      throw error;
+    }
+  }
+
   public async generateCard(req: Request, res: Response){
 
     try{
       const prompt = req.body.prompt;
-    if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+      if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
 
-    const tempFilePath = req.file.path;
+      const tempFilePath = req.file.path;
 
-    // --- Шаг 1. Удаляем фон с исходного фото товара ---
-    console.log('[AI Pipeline] Удаляем фон...');
-    const transparentBlob = await removeBackground(tempFilePath);
-    const transparentBuffer = Buffer.from(await transparentBlob.arrayBuffer());
+      // --- Шаг 1. Удаляем фон с исходного фото товара ---
+      console.log('[AI Pipeline] Удаляем фон...');
+      const imageBlob = await removeBackground(tempFilePath);
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      const transparentBuffer = Buffer.from(arrayBuffer);
+      //const transparentBuffer = Buffer.from(await transparentBlob.arrayBuffer());
 
-    // --- Шаг 2. Sharp: Готовим правильный холст для YandexART ---
-    // Уменьшаем товар (например, до 500px), чтобы вокруг него было пространство для фона
-    // --- Шаг 3. Отправляем запрос на Inpainting в YandexART ---
-    console.log('[AI Pipeline] Отправляем запрос в YandexART...');
-    const yandexArtUrl = 'https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync';
-    const generationReq = await axios.post(yandexArtUrl, {
-      modelUri: `art://${process.env.YC_FOLDER_ID}/yandex-art/latest`,
-      messages: [
-        { text: prompt, weight: 1 } // Прокачанный промпт с упором на "пустой стол"
-      ],
-      generationOptions: {
-        mimeType: "image/jpeg",
-        aspectRatio: { widthRatio: 1, heightRatio: 1 }
-      }
-    }, {
-      headers: { Authorization: `Api-Key ${process.env.YC_API_KEY}` }
-    });
-
-    const operationId = generationReq.data.id;
-    console.log(`[AI Pipeline] Задача создана. Operation ID: ${operationId}. Ждем генерации...`);
+      const finalPngBuffer = await sharp(transparentBuffer)
+      .resize({
+        width: 1024,
+        height: 1024,
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 } // Гарантируем прозрачный фон вокруг товара
+      })
+      .png()
+      .toBuffer();
     
-    // Ждем результат генерации от Яндекса (вызов твоего метода)
-    const backgroundBase64 = await this.waitForYandexArtResult(operationId);
-    const finalImageBuffer = Buffer.from(backgroundBase64, 'base64');
-
-    const productLayer = await sharp(transparentBuffer)
-  .resize(600, 600, { fit: 'inside' })
-  .toBuffer();
-
-  // 3.2 Накладываем товар на фон от Яндекса
-  const finalProductCard = await sharp(finalImageBuffer) // Основа — сгенерированный фон 1024x1024
-    .composite([
-      { 
-        input: productLayer, 
-        gravity: 'center' // Размещаем строго по центру
-        // Если стол кажется низковато, можно использовать абсолютные координаты:
-        // top: 300, left: 212 
-      }
-    ])
-    .jpeg({ quality: 90 })
-    .toBuffer();
-
-    // --- Шаг 4. Сохраняем готовый шедевр ---
-    const outputFileName = `banner_${Date.now()}.jpg`;
-    const outputPath = path.join(process.cwd(), 'uploads', 'products', outputFileName);
-
-    await sharp(finalProductCard)
-      .jpeg({ quality: 95 })
-      .toFile(outputPath);
-
-    // Удаляем временный файл загрузки, чтобы не забивать диск
-    //if (fs.existsSync(tempFilePath)) {
-    //  fs.unlinkSync(tempFilePath);
-   // }
-
-    console.log(`[AI Pipeline] Успех! Баннер сохранен: ${outputFileName}`);
-
-    const publicUrl = `/uploads/products/${outputFileName}`;
-    res.json({
-      success: true,
-      data: publicUrl,
-      imageUrl: publicUrl 
+      const imageFile = await OpenAI.toFile(finalPngBuffer, "product_transparent.png", {
+        type: "image/png",
       });
+
+      const response = await client.images.edit({
+        // ВАЖНО: Проверь в поддержке или документации AITunnel, 
+        // можно ли сюда вместо "gpt-image-1" подставить "flux.2-pro".
+        // Если Flux.2 поддерживает этот эндпоинт — качество теней будет максимальным.
+        model: "flux.2-klein-4b", 
+        
+        image: imageFile,
+        
+        // Описываем финальную желаемую сцену БОЛЕЕ детально
+        prompt: `Professional product photography. ${prompt}, highly detailed, photorealistic, 4k, realistic shadows under the object, commercial lighting`,
+        n: 1,
+        size: "1024x1024",
+      });
+      if(response.data){
+        const finalImageUrl = response?.data[0]?.url;
+        const outputFileName = `banner_${Date.now()}.jpg`;
+        let publicUrl = "";
+        if(finalImageUrl !== undefined){
+          publicUrl = await this.downloadProductCard(finalImageUrl, outputFileName);
+        }
+        else{
+          publicUrl = "";
+        }
+        res.json({
+          success: true,
+          imageUrl: publicUrl 
+        });
+    }
     } catch (error) {
       console.error('Ошибка пайплайна генерации:', error);
       res.status(500).json({ error: 'Не удалось сгенерировать баннер' });

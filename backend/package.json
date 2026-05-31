@@ -39,7 +39,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "onnxruntime-node": "^1.26.0",
-    "openai": "^6.38.0",
+    "openai": "^6.39.1",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "redis": "^5.12.1",
