@@ -28,6 +28,7 @@
     "@imgly/background-removal-node": "^1.4.5",
     "@lancedb/lancedb": "^0.29.0",
     "@langchain/core": "^1.1.47",
+    "@langchain/openai": "^1.4.7",
     "@langchain/yandex": "^1.0.3",
     "@types/axios": "^0.9.36",
     "apache-arrow": "^21.1.0",

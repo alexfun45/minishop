@@ -1,4 +1,3 @@
-// services/aiService.ts
 import * as lancedb from "@lancedb/lancedb";
 import type { Request, Response } from 'express';
 import { YandexGPTEmbeddings } from "@langchain/yandex";
@@ -11,12 +10,10 @@ import type {UserSession} from '../types/Common.js'
 import { YandexGPT } from "@langchain/yandex/llms";
 import { z } from "zod";
 import { PromptTemplate } from '@langchain/core/prompts';
-import multer from 'multer';
 import { removeBackground } from '@imgly/background-removal-node';
-import axios from 'axios';
 import sharp from 'sharp';
-import { fileURLToPath } from 'url';
 import OpenAI from "openai";
+import { ChatOpenAI } from "@langchain/openai";
 
 const client = new OpenAI({
   apiKey: process.env.AITUNNEL_API_KEY,
@@ -41,9 +38,13 @@ const responseSchema = z.object({
 // 1. Создаем парсер на основе твоей Zod-схемы
 const parser = StructuredOutputParser.fromZodSchema(responseSchema);
 
-const model = new YandexGPT({
-  model: "yandexgpt-lite",
-  temperature: 0.2
+const model = new ChatOpenAI({
+  apiKey: process.env.AITUNNEL_API_KEY,
+  configuration: {
+    baseURL: "https://api.aitunnel.ru/v1/",
+  },
+  model: "deepseek-chat",
+  temperature: 0.2,
 });
 
 const template = PromptTemplate.fromTemplate(`
@@ -230,7 +231,11 @@ export class AiService {
       const aiResRaw = await model.invoke(prompt);
       console.log('aiResRaw', aiResRaw);
       // Парсим ответ Яндекса в JS-объект, валидируя через Zod
-      const aiRes = await parser.parse(aiResRaw.toString());
+      const textContent = typeof aiResRaw.text === 'string' 
+        ? aiResRaw.text 
+        : JSON.stringify(aiResRaw.content);
+
+      const aiRes = await parser.parse(textContent);
       
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
       
@@ -306,24 +311,6 @@ export class AiService {
     }
   }
 
-  private async waitForYandexArtResult(operationId: any) {
-    const checkUrl = `https://llm.api.cloud.yandex.net/operations/${operationId}`;
-    
-    for (let i = 0; i < 30; i++) { // Проверяем 30 раз с паузой
-      const response = await axios.get(checkUrl, {
-        headers: { Authorization: `Api-Key ${process.env.YC_API_KEY}` }
-      });
-      
-      if (response.data.done) {
-        if (response.data.response?.image) {
-          return response.data.response.image; // Возвращает base64
-        }
-        throw new Error('YandexART не вернул изображение');
-      }
-      await new Promise(res => setTimeout(res, 2000)); // Ждем 2 секунды
-    }
-    throw new Error('Таймаут генерации YandexART');
-  }
 
   public async downloadProductCard(imageUrl: string, outputFileName: string): Promise<string> {
     try {
