@@ -4,6 +4,7 @@ import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
 import { apiClient } from '../../services/api';
 import { ImageUpload } from '../../components/ImageUpload'
+import { useProducts } from '../../hooks/useProducts';
 
 interface Product {
   id: string;
@@ -25,8 +26,10 @@ interface Product {
 }
 
 export const EditProduct: React.FC = () => {
+  const [error, setError] = useState<string | null>(null);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { updateProduct } = useProducts();
   const { categories, loading: categoriesLoading } = useCategories();
   //const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,7 +80,7 @@ export const EditProduct: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    
+    setError(null);
     try {
       const submitData = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
@@ -95,11 +98,14 @@ export const EditProduct: React.FC = () => {
       } else if (formData.image_url && !imageFile) {
         submitData.append('image_url', formData.image_url);
       }
-      await apiClient.post('/product/update/'+formData.id, submitData);
+      //await apiClient.post('/product/update/'+formData.id, submitData);
       // После успешного сохранения - редирект
+      await updateProduct(formData.id, submitData);
       navigate('/products');
-    } catch (error) {
-      console.error('Error updating product:', error);
+    } catch (error: any) {
+      const serverError = error?.responseData?.error || 'Произошла ошибка при создании товара';
+      console.error('Error updating product:', serverError);
+      setError(serverError);
     } finally {
       setSaving(false);
     }
@@ -357,6 +363,22 @@ export const EditProduct: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* ХЕНДЛЕР ОШИБОК СЕРВЕРА */}
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-sm">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Кнопки действий */}
           <div className="flex justify-end space-x-3">

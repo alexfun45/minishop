@@ -1,8 +1,5 @@
 // middleware/uploadProduct.ts
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-
 
 // Используем память вместо диска. Настроек destination и filename здесь нет,
 // так как файл временно хранится в RAM в виде Buffer.

@@ -73,7 +73,7 @@ export const useProducts = () => {
 
   const updateProduct = async (id: string, productData: FormData  | Omit<Product, 'id' | 'created_at' | 'product_count'>) => {
     try{
-      let response = await apiClient.post(`/products/update/${id}`, productData);
+      let response = await apiClient.post(`/product/update/${id}`, productData);
       const newProduct: Product = response.data;
       setProducts(prev => [...prev, newProduct]);
       const updatedProduct = response.data;
@@ -82,9 +82,9 @@ export const useProducts = () => {
       ));
       return updatedProduct;
     } catch(err){
-      console.log('err', err);
       setError('Ошибка создания продукта');
       setLoading(false); 
+      throw err;
     }
   }
 

@@ -1,13 +1,13 @@
 import * as lancedb from "@lancedb/lancedb";
 import type { Request, Response } from 'express';
 import { YandexGPTEmbeddings } from "@langchain/yandex";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import redis from './RedisService.js'
 import path from "path";
 import fs from "fs"
 import {productService} from '../services/ProductService.js'
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import type {UserSession} from '../types/Common.js'
-import { YandexGPT } from "@langchain/yandex/llms";
 import { z } from "zod";
 import { PromptTemplate } from '@langchain/core/prompts';
 import { removeBackground } from '@imgly/background-removal-node';
@@ -43,20 +43,20 @@ const model = new ChatOpenAI({
   configuration: {
     baseURL: "https://api.aitunnel.ru/v1/",
   },
-  model: "deepseek-chat",
-  temperature: 0.2,
+  model: "gemini-2.5-flash-lite",
+  temperature: 0,
 });
 
 const template = PromptTemplate.fromTemplate(`
-Вы — умный ИИ-продавец в чате интернет-магазина. 
+Вы — умный ИИ-продавец в чате интернет-магазина. Отвечай строго по заданнму контексту ничего не придумывая
 Ваша задача — внимательно изучить товары в Контексте и ответить на вопрос пользователя.
+Прежде чем отвечать, просканируй список товаров. Если товара, который ищет пользователь нет в спсике товаров, вежливо сообщи что такого товара нет.
 
 КРИТИЧЕСКИЕ ПРАВИЛА:
 1. Если пользователь ищет продукт с отрицанием или определенным свойством (например: "без сахара", "без лактозы", "постный"), вы обязаны проверить как состав (ингредиенты), так и строку "Особенности".
 2. Если в поле "Особенности" ЯВНО написано "без сахара", этот товар ИДЕАЛЬНО подходит под запрос "без сахара". Внимательно посмотри на товар "Улитка слоеная сырная" — у неё в Особенностях это написано!
 3. Если пользователь указывает условие цены, то ищи соответствие в строчке цена
 4. Ответ оборачивайте строго в формат JSON, указанный ниже.
-
 Если подходящего товара нет, можешь предложить наиболее близкий аналог но только из существующих позиций в контексте, указав что по данным критериям среди текущих позиций ты найти не смог, но можешь предложить наиболее подходящий вариант. 
 Если похожих аналогов нет, то скажи что по заданному запросу ничего не можешь найти.
 Если пользователь подтверждает добавление товара, но не называет артикул заново, используй артикул из предыдущего сообщения AI в истории диалога и овтеть что товар добавлен в корзину
@@ -71,10 +71,18 @@ const template = PromptTemplate.fromTemplate(`
 {format_instructions}
 `);
 
-const embeddings = new YandexGPTEmbeddings({
+/*const embeddings = new YandexGPTEmbeddings({
   apiKey: process.env.YC_API_KEY, 
   folderID: process.env.YC_FOLDER_ID,
   model: "text-search-doc",
+});*/
+
+const embeddings = new OpenAIEmbeddings({
+  apiKey: process.env.AITUNNEL_API_KEY,
+  model: "gemini-embedding-001",
+  configuration: {
+    baseURL: "https://api.aitunnel.ru/v1/"
+  }
 });
 
 const DB_PATH = path.join(process.cwd(), "data", "lancedb");
@@ -116,12 +124,19 @@ export class AiService {
       const db = await this.getDb();
       const contextText = this.createProductContext(product);
       //const vector = await this.generateEmbedding(contextText);
-      const vectors = await embeddings.embedDocuments([contextText]);
-      const vector = vectors[0];
+      //const vectors = await embeddings.embedDocuments([contextText]);
+      let embedding: number[] = [];
+      const response  = await client.embeddings.create({
+        model: 'gemini-embedding-001',
+        input: contextText
+      });
+      if(response?.data[0])
+        embedding = response?.data[0].embedding;
+      //const vector = vectors[0];
 
       const record = {
         id: product.id.toString(), // LanceDB любит строковые ID
-        vector: vector,
+        vector: embedding,
         text: contextText,
         productId: product.id,
         price: product.price,
