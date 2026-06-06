@@ -225,14 +225,14 @@ export class AiService {
     const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
     
     const context = await AiService.searchProducts(userQuery);
-    console.log('search', context);
+    //console.log('search', context);
 
     const chatHistory = this.getChatHistoryString(session);
-
+    console.log('chatHistory', chatHistory);
     const formattedContext = Array.isArray(context)
       ? context.map(item => item.text).join('\n\n---\n\n')
       : '';
-    console.log('formattedContext', formattedContext);
+    //console.log('formattedContext', formattedContext);
     // Формируем промпт, подмешивая инструкции от парсера
     const prompt = await template.invoke({
       context: formattedContext,
@@ -242,9 +242,9 @@ export class AiService {
     });
 
     try {
-      // Отправляем запрос в Яндекс
+      
       const aiResRaw = await model.invoke(prompt);
-      console.log('aiResRaw', aiResRaw);
+      //console.log('aiResRaw', aiResRaw);
       // Парсим ответ Яндекса в JS-объект, валидируя через Zod
       const textContent = typeof aiResRaw.text === 'string' 
         ? aiResRaw.text 
@@ -283,6 +283,10 @@ export class AiService {
       case 'add_to_cart':
         // Запоминаем, что пользователь ХОЧЕТ добавить, но ждем подтверждения
         const productInfo = await productService.findById(productId);
+        if (productInfo === null) {
+          // Обязательно возвращаем ответ, что товар заблокирован или отсутствует
+          return { message: "К сожалению, этот товар сейчас недоступен для заказа." };
+        }
         if(productInfo!==null){
         session.pendingAction = { type: 'ADD', productId, name: productInfo.name_ru, price: productInfo.price, quantity: quantity || 1 };
         session.cart.push(session.pendingAction);
