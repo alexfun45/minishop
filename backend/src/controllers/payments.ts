@@ -13,7 +13,7 @@ export async function getPayment(req: Request, res: Response){
 
       if (orderId) {
         console.log(`🟢 Получено уведомление! Заказ №${orderId} успешно оплачен.`);
-        const userId = payment.metadata?.user_id; // Если ты добавишь user_id (chatId) в metadata при создании платежа
+        const userId = payment.metadata?.user_id;
         if (userId) {
           // отправка уведомления в телегарм об успешной оплате
           await orderService.updateStatus(orderId, "payment_success");

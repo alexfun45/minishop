@@ -41,12 +41,13 @@ export class OrderService {
 
     try {
       // Сначала находим или создаем пользователя
-      let user = await User.findOne({ where: { telegram_id: user_id } });
+      let user = await User.findOne({ where: { user_id: user_id } });
       
       if (!user) {
         // Создаем нового пользователя
         user = await User.create({
-          telegram_id: user_id,
+          user_id: user_id,
+          telegram_id: (orderMainData.telegram_id) ? orderMainData.telegram_id : null, 
           role: 'user',
           username: orderData.customer_name || 'Пользователь',
           phone: orderData.customer_phone,
@@ -84,7 +85,7 @@ export class OrderService {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'telegram_id', 'username', 'first_name', 'phone'],
+          attributes: ['id', 'user_id', 'username', 'first_name', 'phone'],
         },
         {
           model: OrderItem,
@@ -151,7 +152,9 @@ export class OrderService {
     }
     console.log('order service', order);
     console.log(`отправляю в чат ${order.telegram_id}`);
-    await sendStatusUpdateNotification(order.telegram_id, orderId, status);
+    // научиться отправлять на telegram_id если он есть
+    //if(order.telegram_id)
+      //await sendStatusUpdateNotification(order.telegram_id, orderId, status);
     order.status = status;
     await order.save();
 

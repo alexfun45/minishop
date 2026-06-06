@@ -5,6 +5,7 @@ import sequelize from '../config/database.js';
 interface UserAttributes {
   id: number;
   telegram_id: number;
+  user_id: number;
   role: 'user' | 'admin' | 'manager';
   username: string | null;
   password: string | null;
@@ -24,6 +25,7 @@ interface UserCreationAttributes extends Optional<UserAttributes,
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: number;
+  declare user_id: number;
   declare telegram_id: number;
   declare password: string;
   declare role: 'user' | 'admin' | 'manager';
@@ -43,6 +45,11 @@ User.init({
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
+  },
+  user_id: {
+    type: DataTypes.BIGINT,
+    unique: true,
+    allowNull: true,
   },
   telegram_id: {
     type: DataTypes.BIGINT,

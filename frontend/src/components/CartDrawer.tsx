@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ShoppingBag, X, Trash2, Minus, Plus, ChevronRight } from 'lucide-react';
+import { apiClient } from '../services/api';
 
 // Описываем типы для пропсов, которые компонент ожидает получить от App.tsx
 interface Product {
@@ -44,23 +45,68 @@ export default function CartDrawer({
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
+  const [paymentUrl, setPaymentUrl] = useState<string>('');
 
   // Если шторка закрыта, ничего не рендерим
   if (!isOpen) return null;
 
   const handlePlaceOrder = async () => {
+    setIsSubmitting(false); // Сброс стейта на старте
+  
+  // 1. Формируем тело запроса один в один как в ТГ-боте
+  // Так как у нас демо, в качестве user_id можно передать токен из localStorage
+  const rawUserId = localStorage.getItem('bakery_ai_user_id');
+
+  const numericUserId = rawUserId 
+    ? Number(rawUserId) 
+    : Number(Date.now().toString() + Math.floor(100 + Math.random() * 900).toString());
+  
+  const orderData = {
+    customer_name: name,
+    customer_phone: phone,
+    delivery_address: deliveryType === 'delivery' ? address : 'Самовывоз (ул. Коричная, д. 12)',
+    user_id: numericUserId,
+    total_amount: totalPrice,
+    payment_method: paymentMethod, // 'online' или 'cash'
+    items: cartItems.map(item => ({
+      product_id: item.product.id,
+      quantity: item.count,
+      price: item.product.price
+    }))
+  };
+
+  try {
     setIsSubmitting(true);
+    console.log('🟡 Sending order data to API:', JSON.stringify(orderData, null, 2));
     
-    // Имитируем отправку на бэкенд
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const generatedOrderNum = Math.floor(100000 + Math.random() * 900000).toString();
-    setOrderNumber(generatedOrderNum);
+    // Вызываем реальный метод вашего API
+    const result = await apiClient.createOrder(orderData);
+    console.log('🟡 API response received:', result);
+
+    if (result && result.success) {
+      setOrderNumber(result.data.id.toString());
+      
+      // Проверяем сценарий онлайн-оплаты
+      if (paymentMethod === 'online' && result.data.payment_url) {
+        // Сохраняем ссылку во временный стейт компонента (добавьте его к остальным useState вверху)
+        setPaymentUrl(result.data.payment_url);
+      } else {
+        setPaymentUrl(''); // Сброс для налички
+      }
+
+      // Очищаем корзину в App.tsx
+      onClearCart();
+      // Переходим на финальный экран
+      setCheckoutStep('success');
+    } else {
+      alert(`❌ Ошибка API: ${result?.error || 'Неизвестная ошибка'}`);
+    }
+  } catch (error) {
+    console.error('Place order error:', error);
+    alert('❌ Произошла ошибка при оформлении заказа. Проверьте консоль или статус бэкенда.');
+  } finally {
     setIsSubmitting(false);
-    setCheckoutStep('success');
-    
-    // Очищаем корзину в главном компоненте App
-    onClearCart();
+  }
   };
 
   const handleClose = () => {
@@ -244,26 +290,53 @@ export default function CartDrawer({
 
           {/* ШАГ 4: УСПЕХ */}
           {checkoutStep === 'success' && (
-            <div className="text-center py-12 space-y-6 animate-in zoom-in-95 duration-300">
+            <div className="text-center py-8 space-y-6 animate-in zoom-in-95 duration-300">
               <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 text-stone-950 rounded-full flex items-center justify-center text-4xl font-black mx-auto shadow-[0_0_30px_rgba(217,119,6,0.4)]">
                 ✓
               </div>
-              <div className="space-y-2">
-                <h4 className="font-serif text-2xl font-black text-white">Спасибо за заказ!</h4>
-                <p className="text-sm text-stone-400 font-light px-6">Мы уже передали ваш чек пекарям. Выпечка начинает готовиться.</p>
-              </div>
               
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 max-w-xs mx-auto">
-                <span className="text-xs uppercase text-stone-500 font-bold tracking-widest block">Номер вашего заказа</span>
-                <span className="text-3xl font-serif font-black text-amber-400 mt-1 block tracking-wider">#{orderNumber}</span>
+              <div className="space-y-2">
+                <h4 className="font-serif text-2xl font-black text-white">
+                  Заказ #{orderNumber} сформирован!
+                </h4>
+                
+                {/* Условный рендеринг текста в зависимости от платежки */}
+                {paymentUrl ? (
+                  <p className="text-sm text-stone-400 font-light px-6">
+                    Для завершения оформления необходимо оплатить его онлайн по кнопке ниже. После успешной транзакции мы передадим чек на кухню.
+                  </p>
+                ) : (
+                  <p className="text-sm text-stone-400 font-light px-6">
+                    Мы уже передали ваш чек пекарям. Выпечка начинает готовиться, ожидайте звонка для подтверждения!
+                  </p>
+                )}
               </div>
 
-              <button 
-                onClick={handleClose}
-                className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-8 py-3 rounded-xl text-sm font-bold transition-all"
-              >
-                Вернуться на витрину
-              </button>
+              {/* ЕСЛИ ОНЛАЙН-ОПЛАТА: Выводим кнопку ЮKassa */}
+              {paymentUrl && (
+                <div className="px-6 animate-in fade-in slide-in-from-bottom-3 delay-150 duration-300">
+                  <a 
+                    href={paymentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-stone-950 py-4 px-6 rounded-xl font-black text-lg transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] flex items-center justify-center gap-3 decoration-0"
+                  >
+                    💳 Оплатить заказ онлайн
+                  </a>
+                  <span className="text-[11px] text-stone-500 block mt-2 font-light">
+                    Ссылка откроется в новой вкладке через безопасный шлюз ЮKassa
+                  </span>
+                </div>
+              )}
+
+              <div className="border-t border-white/5 pt-4">
+                <button 
+                  onClick={handleClose}
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 px-8 py-3 rounded-xl text-sm font-bold transition-all"
+                >
+                  Вернуться на витрину
+                </button>
+              </div>
             </div>
           )}
 

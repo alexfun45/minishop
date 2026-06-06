@@ -14,7 +14,7 @@ export async function checkout(order: any, order_id: number){
 
     const requestBody = {
       amount: {
-        value: order.total_amount.toFixed(2),
+        value: parseInt(order.total_amount).toFixed(2),
         currency: 'RUB'
       },
       payment_method_data: {

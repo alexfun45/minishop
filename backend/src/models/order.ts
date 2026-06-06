@@ -58,7 +58,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   },*/
   telegram_id:{
     type: DataTypes.BIGINT,
-    allowNull: false,
+    allowNull: true,
   },
   total_amount: {
     type: DataTypes.DECIMAL(10, 2),

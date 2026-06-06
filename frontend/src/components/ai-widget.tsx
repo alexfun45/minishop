@@ -20,13 +20,10 @@ export default function AiWidget() {
     let storedId = localStorage.getItem(LOCAL_STORAGE_KEY);
 
     if (!storedId) {
-      // Генерируем стандартный UUID v4 через встроенный браузерный Crypto API
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        storedId = crypto.randomUUID();
-      } else {
-        // Запасной вариант (fallback) на случай старых браузеров
-        storedId = 'user_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-      }
+      const timestamp = Date.now().toString(); 
+      const randomTail = Math.floor(100 + Math.random() * 900).toString();
+      
+      storedId = timestamp + randomTail; // Строка, состоящая только из цифр (например, "1717658400123")
       localStorage.setItem(LOCAL_STORAGE_KEY, storedId);
     }
 

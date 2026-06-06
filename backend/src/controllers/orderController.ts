@@ -94,9 +94,9 @@ class OrderController {
       const order = await orderService.create(newOrder);
       if(order)
         LogEvent('create new order', order.id.toString());
-      
+      console.log('order', order);
       if(order && order.payment_method == 'online'){
-        const payment: any = await checkout(newOrder, order.id);
+        const payment: any = await checkout(order, order.id);
         await orderService.update(order.id, "payment_url", payment.confirmation.confirmation_url);
         return res.status(201).json({
           success: true,
