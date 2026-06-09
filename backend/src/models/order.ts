@@ -22,7 +22,7 @@ interface OrderAttribute{
 }
 
 interface OrderCreationAttribute extends Optional<OrderAttribute,
- 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'payment_method' | 'payment_status' | 'notes' | 'delivery_lat' | 'delivery_lng'> {}
+ 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'telegram_id' | 'payment_method' | 'payment_status' | 'notes' | 'delivery_lat' | 'delivery_lng'> {}
 
  class Order extends Model<OrderAttribute, OrderCreationAttribute> implements OrderAttribute{
   declare id: number;
@@ -66,7 +66,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
     defaultValue: 0.00,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'pending_payment', 'payment_success', 'ready', 'delivered', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'pending_payment', 'ready', 'delivered', 'cancelled'),
     defaultValue: 'pending',
   },
   delivery_address: {
@@ -95,7 +95,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
     defaultValue: 'cash',
   },
   payment_status: {
-    type: DataTypes.ENUM('pending', 'paid', 'failed'),
+    type: DataTypes.ENUM('pending', 'paid', 'failed', 'payment_success'),
     defaultValue: 'pending',
   },
   notes: {

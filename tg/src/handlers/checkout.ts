@@ -183,13 +183,14 @@ async function placeOrder(ctx: BotContext): Promise<void> {
       console.log('🔴 No tempOrder in session');
       throw new Error('No temporary order data found');
     }
-
+    const numericUserId = Number(Date.now().toString() + Math.floor(100 + Math.random() * 900).toString());
     // Отправляем заказ на бэкенд
     const orderData = {
       customer_name: order.customer_name,
       customer_phone: order.phone,
       delivery_address: order.address,
-      user_id: chatId,
+      user_id: numericUserId,
+      telegram_id: chatId,
       total_amount: order.total,
       payment_method: order.payment_method, // Передаем метод оплаты на бэкенд
       items: order.items.map((item: any) => ({

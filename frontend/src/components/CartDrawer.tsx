@@ -66,6 +66,7 @@ export default function CartDrawer({
     customer_phone: phone,
     delivery_address: deliveryType === 'delivery' ? address : 'Самовывоз (ул. Коричная, д. 12)',
     user_id: numericUserId,
+    telegram_id: null,
     total_amount: totalPrice,
     payment_method: paymentMethod, // 'online' или 'cash'
     items: cartItems.map(item => ({

@@ -16,7 +16,7 @@ export async function getPayment(req: Request, res: Response){
         const userId = payment.metadata?.user_id;
         if (userId) {
           // отправка уведомления в телегарм об успешной оплате
-          await orderService.updateStatus(orderId, "payment_success");
+          await orderService.updatePaymentStatus(orderId, "payment_success");
           //await sendStatusUpdateNotification(userId, orderId, status);
         }
       }

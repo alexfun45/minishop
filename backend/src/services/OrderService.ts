@@ -6,7 +6,13 @@ import { Op, fn, col } from 'sequelize';
 export class OrderService {
 
   async getOrders(){
-    const orders = await Order.findAll();
+    const orders = await Order.findAll({
+      include: [
+        {
+          model: OrderItem,
+          as: 'order_items'
+        }]
+    });
     return orders;
     return orders.map((order: any) => ({
       id: order.id,
@@ -21,6 +27,12 @@ export class OrderService {
       payment_method: order.payment_method,
       payment_status: order.payment_status,
       notes: order.notes,
+      items: (order.order_items || []).map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.product ? item.product.name_ru : 'Товар',
+        quantity: item.quantity,
+        price: item.price
+      })),
       created_at: order.created_at
       //product_count: await this.getProductCount(category.id),
     }));
@@ -37,12 +49,19 @@ export class OrderService {
 
   // Создать заказ
   async create(orderData: any) {
-    const { items, user_id, ...orderMainData } = orderData;
+    const { items, user_id, telegram_id, ...orderMainData } = orderData;
 
     try {
       // Сначала находим или создаем пользователя
-      let user = await User.findOne({ where: { user_id: user_id } });
-      
+      let user = await User.findOne({
+        where: {
+          [Op.or]: [
+            { user_id: user_id },       // Условие 1: совпадает внутренний ID
+            { telegram_id: telegram_id } // Условие 2: совпадает Telegram ID
+          ]
+        }
+      });
+     
       if (!user) {
         // Создаем нового пользователя
         user = await User.create({
@@ -53,18 +72,49 @@ export class OrderService {
           phone: orderData.customer_phone,
           //created_at: new Date()
         });
+      } else{
+        if (user.username !== orderMainData.name || user.phone !== orderMainData.phone) {
+          user.username = orderMainData.name;
+          user.phone = orderMainData.phone;
+          if (telegram_id && !user.telegram_id) {
+              user.telegram_id = telegram_id;
+          }
+          await user.save();
+        }
       }
   
       // Создаем заказ с user_id из найденного/созданного пользователя
       const order = await Order.create({
         ...orderMainData,
         user_id: user.id, // Используем id из таблицы users
-        telegram_id: user_id // Сохраняем также telegram_id для быстрого поиска
+        telegram_id: (telegram_id) ? telegram_id : null,
       });
-  
+      
+      console.log('items', items);
+      const itemsToCreate = [];
+
+      for (const item of orderData.items) {
+        // Находим продукт в базе данных по его id, чтобы взять имя и картинку
+        const product = await Product.findByPk(item.product_id);
+        
+        if (!product) {
+          throw new Error(`Продукт с ID ${item.product_id} не найден`);
+        }
+
+        itemsToCreate.push({
+          order_id: order.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: item.price, 
+          product_name: product.name_ru,
+          product_image: product.image_url
+        });
+
+      }
       // Добавляем товары в заказ
-      if (items && items.length > 0) {
-        await orderItemService.addItemsToOrder(order.id, items);
+      if (itemsToCreate && itemsToCreate.length > 0) {
+        await OrderItem.bulkCreate(itemsToCreate);
+        //await orderItemService.addItemsToOrder(order.id, items);
       }
   
       // Пересчитываем общую сумму
@@ -144,6 +194,16 @@ export class OrderService {
     });
   }
 
+  async updatePaymentStatus(orderId: number, status: string){
+    const order = await Order.findByPk(orderId);
+    if (!order) {
+      throw new Error('Order not found');
+    }
+    order.payment_status = status;
+    await order.save();
+
+  }
+
   // Обновить статус заказа
   async updateStatus(orderId: number, status: string) {
     const order = await Order.findByPk(orderId);
@@ -152,9 +212,9 @@ export class OrderService {
     }
     console.log('order service', order);
     console.log(`отправляю в чат ${order.telegram_id}`);
-    // научиться отправлять на telegram_id если он есть
-    //if(order.telegram_id)
-      //await sendStatusUpdateNotification(order.telegram_id, orderId, status);
+
+    if(order.telegram_id)
+      await sendStatusUpdateNotification(order.telegram_id, orderId, status);
     order.status = status;
     await order.save();
 
