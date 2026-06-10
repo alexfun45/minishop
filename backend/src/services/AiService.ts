@@ -372,7 +372,7 @@ export class AiService {
     const completion: any = await client.chat.completions.create({
       model: 'gemini-2.5-flash-lite',
       messages: [
-        { role: "system", content: "Ты — помощник для заполнения карточек товаров. Верни вкусное описание товара по его названию и ингредиентам" },
+        { role: "system", content: "Ты — помощник для заполнения карточек товаров. Верни вкусное описание товара по его названию и ингредиентам. Напиши один вариант без вводного текста, только описание" },
         { role: "user", content: `Придумай описание на основе: ${name}, ${ingrd}` }
       ]
     });

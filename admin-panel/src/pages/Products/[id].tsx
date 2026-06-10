@@ -115,8 +115,8 @@ export const EditProduct: React.FC = () => {
     setIsGeneratingDesc(true);
     setError(null);
     try {
-      const newDescription = `Эксклюзивный продукт "${formData.name_ru}" приготовлен по проверенным рецептам. Обладает богатым вкусом и натуральным составом, в который входят: ${formData.ingredients_ru || 'лучшие отобранные компоненты'}.`;
-      
+      const response = await apiClient.post('/ai/generate-description', { name: formData.name_ru, ingredients: formData.ingredients_ru });
+      const newDescription = response.data;
       setFormData(prev => ({ ...prev, description_ru: newDescription }));
     } catch (err) {
       setError("Ошибка при создании маркетингового описания.");
