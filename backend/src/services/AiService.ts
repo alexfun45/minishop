@@ -14,6 +14,7 @@ import { removeBackground } from '@imgly/background-removal-node';
 import sharp from 'sharp';
 import OpenAI from "openai";
 import { ChatOpenAI } from "@langchain/openai";
+import axios from "axios";
 
 const client = new OpenAI({
   apiKey: process.env.AITUNNEL_API_KEY,
@@ -366,66 +367,151 @@ export class AiService {
     }
   }
 
-  public async generateCard(req: Request, res: Response){
+  public async genDescription(name: string, ingredients: string) {
+    const ingrd = (ingredients) ? ingredients : '';
+    const completion: any = await client.chat.completions.create({
+      model: 'gemini-2.5-flash-lite',
+      messages: [
+        { role: "system", content: "Ты — помощник для заполнения карточек товаров. Верни вкусное описание товара по его названию и ингредиентам" },
+        { role: "user", content: `Придумай описание на основе: ${name}, ${ingrd}` }
+      ]
+    });
 
-    try{
+    if(completion.choices[0]){
+      return completion.choices[0].message.content;
+    }
+    else{
+      return '';
+    }
+  }
+
+  public async fillProductFields(prompt: string) {
+    const completion: any = await client.chat.completions.create({
+      model: 'gemini-2.5-flash-lite',
+      messages: [
+        { role: "system", content: "Ты — помощник для заполнения карточек товаров. Верни результат строго в JSON формате с ключами: name_ru, price, weight, ingredients_ru, description_ru." },
+        { role: "user", content: `Заполни данные товара на основе: ${prompt}` }
+      ],
+      response_format: { type: "json_object" }
+    });
+    
+    //return JSON.parse(completion.choices[0].message.content);
+    if(completion.choices[0]){
+      return JSON.parse(completion.choices[0].message.content);
+    }
+    else{
+      return false;
+    }
+  }
+
+  public async generateCard(req: Request, res: Response) {
+    let tempFilePath: string | null = null;
+    let isTempFileDownloaded = false;
+
+    try {
       const prompt = req.body.prompt;
-      if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+      const imageUrl = req.body.image_url;
 
-      const tempFilePath = req.file.path;
+      // Проверяем, что нам передали хоть какой-то источник изображения
+      if (!req.file && !imageUrl) {
+        return res.status(400).json({ error: 'Изображение не найдено. Загрузите файл или передайте image_url' });
+      }
+
+      // --- Шаг 0. Определяем источник файла ---
+      if (req.file) {
+        // Случай А: Юзер загрузил новый файл
+        tempFilePath = req.file.path;
+      } else if (imageUrl) {
+        // Случай Б: Передан URL уже существующего фото
+        console.log('[AI Pipeline] Скачиваем исходное фото по URL:', imageUrl);
+        
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        // Можно вытащить расширение из URL или по дефолту поставить .jpg
+        const ext = path.extname(new URL(imageUrl).pathname) || '.jpg';
+        tempFilePath = path.join('uploads/temp/', `downloaded-${uniqueSuffix}${ext}`);
+
+        // Скачиваем файл и сохраняем на диск
+        const response = await axios({
+          url: imageUrl,
+          method: 'GET',
+          responseType: 'stream'
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          const writer = fs.createWriteStream(tempFilePath!);
+          response.data.pipe(writer);
+          writer.on('finish', resolve);
+          writer.on('error', reject);
+        });
+
+        isTempFileDownloaded = true;
+      }
+
+      if (!tempFilePath) {
+        return res.status(500).json({ error: 'Ошибка инициализации файла для обработки' });
+      }
 
       // --- Шаг 1. Удаляем фон с исходного фото товара ---
       console.log('[AI Pipeline] Удаляем фон...');
       const imageBlob = await removeBackground(tempFilePath);
       const arrayBuffer = await imageBlob.arrayBuffer();
       const transparentBuffer = Buffer.from(arrayBuffer);
-      //const transparentBuffer = Buffer.from(await transparentBlob.arrayBuffer());
 
+      // --- Шаг 2. Ресайз и подготовка прозрачного PNG через Sharp ---
       const finalPngBuffer = await sharp(transparentBuffer)
-      .resize({
-        width: 1024,
-        height: 1024,
-        fit: 'contain',
-        background: { r: 0, g: 0, b: 0, alpha: 0 } // Гарантируем прозрачный фон вокруг товара
-      })
-      .png()
-      .toBuffer();
+        .resize({
+          width: 1024,
+          height: 1024,
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 } // Гарантируем прозрачный фон вокруг товара
+        })
+        .png()
+        .toBuffer();
     
       const imageFile = await OpenAI.toFile(finalPngBuffer, "product_transparent.png", {
         type: "image/png",
       });
 
+      // --- Шаг 3. Генерация нового окружения ---
+      console.log('[AI Pipeline] Отправляем в нейросеть для генерации фона...');
       const response = await client.images.edit({
-        // ВАЖНО: Проверь в поддержке или документации AITunnel, 
-        // можно ли сюда вместо "gpt-image-1" подставить "flux.2-pro".
-        // Если Flux.2 поддерживает этот эндпоинт — качество теней будет максимальным.
         model: "flux.2-klein-4b", 
-        
         image: imageFile,
-        
-        // Описываем финальную желаемую сцену БОЛЕЕ детально
         prompt: `Professional product photography. ${prompt}, highly detailed, photorealistic, 4k, realistic shadows under the object, commercial lighting`,
         n: 1,
         size: "1024x1024",
       });
-      if(response.data){
+
+      if (response.data) {
         const finalImageUrl = response?.data[0]?.url;
         const outputFileName = `banner_${Date.now()}.jpg`;
         let publicUrl = "";
-        if(finalImageUrl !== undefined){
+
+        if (finalImageUrl !== undefined) {
           publicUrl = await this.downloadProductCard(finalImageUrl, outputFileName);
         }
-        else{
-          publicUrl = "";
-        }
+
         res.json({
           success: true,
           imageUrl: publicUrl 
         });
-    }
+      } else {
+        res.status(500).json({ error: 'Нейросеть не вернула данные' });
+      }
+
     } catch (error) {
       console.error('Ошибка пайплайна генерации:', error);
       res.status(500).json({ error: 'Не удалось сгенерировать баннер' });
+    } finally {
+      // --- Шаг 4. Подчищаем временные файлы, чтобы не забивать диск ---
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+          console.log('[AI Pipeline] Временный файл успешно удален:', tempFilePath);
+        } catch (unlinkError) {
+          console.error('Не удалось удалить временный файл:', unlinkError);
+        }
+      }
     }
   }
 

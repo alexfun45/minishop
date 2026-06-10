@@ -64,17 +64,20 @@ export const NewProduct: React.FC = () => {
     setError(null);
     try {
       // Пример интеграции с твоим apiClient:
-      // const response = await apiClient.post('/api/ai/parse-product', { prompt: aiTextPrompt });
-      // const generatedFields = response.data;
-      
+       const response = await apiClient.post('/ai/fill-product', { prompt: aiTextPrompt });
+       const generatedFields = response.data;
+       if(generatedFields.price)
+        generatedFields.price = parseInt(generatedFields.price);
+       if(generatedFields.weight)
+        generatedFields.weight = parseInt(generatedFields.weight);
       // Имитация ответа от бэкенда для теста:
-      const generatedFields = {
+      /*const generatedFields = {
         name_ru: 'Сырная улитка',
         price: '150',
         weight: '120г',
         ingredients_ru: 'Слоеное тесто, сыр сулугуни, яйцо, соль.',
         description_ru: 'Хрустящая выпечка из слоеного теста с сочной начинкой из традиционного сыра сулугуни. Идеальный перекус.',
-      };
+      };*/
 
       setFormData(prev => ({ ...prev, ...generatedFields }));
     } catch (err) {
@@ -93,10 +96,10 @@ export const NewProduct: React.FC = () => {
     setIsGeneratingDesc(true);
     setError(null);
     try {
-      // const response = await apiClient.post('/api/ai/generate-description', { name: formData.name_ru, ingredients: formData.ingredients_ru });
-      // const newDescription = response.data.description;
+       const response = await apiClient.post('/ai/generate-description', { name: formData.name_ru, ingredients: formData.ingredients_ru });
+       const newDescription = response.data.description;
       
-      const newDescription = `Эксклюзивный продукт "${formData.name_ru}" приготовлен по проверенным рецептам. Обладает богатым вкусом и натуральным составом, в который входят: ${formData.ingredients_ru || 'лучшие отобранные компоненты'}.`;
+      //const newDescription = `Эксклюзивный продукт "${formData.name_ru}" приготовлен по проверенным рецептам. Обладает богатым вкусом и натуральным составом, в который входят: ${formData.ingredients_ru || 'лучшие отобранные компоненты'}.`;
       
       setFormData(prev => ({ ...prev, description_ru: newDescription }));
     } catch (err) {
@@ -106,7 +109,7 @@ export const NewProduct: React.FC = () => {
     }
   };
 
-  // 3. Генерация баннера (удаление фона + YandexART подложка)
+  // 3. Генерация баннера (удаление фона + ИИ подложка)
   const handleGenerateBanner = async () => {
     if (!imageFile) {
       setError("Загрузите исходное фото товара в блок слева, чтобы ИИ мог заменить фон.");
@@ -257,11 +260,11 @@ export const NewProduct: React.FC = () => {
                 />
               </div>
 
-              {/* Настройки генерации фона YandexART */}
+              {/* Настройки генерации фона */}
               <div className="w-full md:flex-1 bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-lg border border-indigo-100 flex flex-col justify-between min-h-[350px]">
                 <div>
                   <h4 className="text-sm font-semibold text-indigo-900 mb-1 flex items-center">
-                    <span className="mr-2">🎨</span> Улучшение фона через YandexART
+                    <span className="mr-2">🎨</span> Генерация карточки товара
                   </h4>
                   <p className="text-xs text-indigo-700 mb-4">
                     Вырежем объект из кадра и сгенерируем красивую коммерческую сцену вокруг.

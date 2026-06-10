@@ -72,11 +72,11 @@ async function showCartContents(ctx: BotContext): Promise<void> {
   cart.forEach(item => {
     keyboard.push([
       {
-        text: `${item.name} ➖ ${getDecreaseText(session.language)}`,
+        text: `${item.name.substring(0, 10)} ➖ ${getDecreaseText(session.language)}`,
         callback_data: `cart_update_${item.productId}_-1`
       },
       {
-        text: `${item.name} ➕ ${getIncreaseText(session.language)}`,
+        text: `${item.name.substring(0, 10)} ➕ ${getIncreaseText(session.language)}`,
         callback_data: `cart_update_${item.productId}_1`
       }
     ]);
