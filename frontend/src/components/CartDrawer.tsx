@@ -5,7 +5,7 @@ import { apiClient } from '../services/api';
 // Описываем типы для пропсов, которые компонент ожидает получить от App.tsx
 interface Product {
   id: number;
-  name: string;
+  name_ru: string;
   description: string;
   price: number;
   image_url?: string;
@@ -173,9 +173,9 @@ export default function CartDrawer({
               ) : (
                 cartItems.map(({ product, count }) => (
                   <div key={product.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex gap-4 items-center">
-                    <img src={product.image_url || 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=200'} alt={product.name} className="w-16 h-16 rounded-xl object-cover border border-white/5" />
+                    <img src={product.image_url || 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=200'} alt={product.name_ru} className="w-16 h-16 rounded-xl object-cover border border-white/5" />
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-white font-medium truncate text-sm">{product.name}</h4>
+                      <h4 className="text-white font-medium truncate text-sm">{product.name_ru}</h4>
                       <div className="text-amber-400 font-bold text-sm mt-1">{product.price * count} ₽</div>
                     </div>
                     <div className="flex flex-col items-end gap-2">

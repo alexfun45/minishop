@@ -102,8 +102,8 @@ class ApiClient {
   }
 
 
-  async sendAi(userId: string, message: string){
-    const req = JSON.stringify({ userId, message });
+  async sendAi(userId: string, message: string, payload?: any){
+    const req = JSON.stringify({ userId, message, payload });
     try{
       const response = await axios.post(`${this.baseURL}/api/ai/`, req, {
         timeout: 30000,

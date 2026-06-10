@@ -16,11 +16,6 @@ interface Product {
   image_url?: string;
 }
 
-interface CartItem {
-  product: Product;
-  count: number;
-}
-
 export default function App() {
   // Базовые стейты
   const [categories, setCategories] = useState<any[]>([]);
@@ -37,28 +32,102 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Стейт корзины (теперь хранит полные данные товара)
-  const [cart, setCart] = useState<{ [key: number]: CartItem }>({});
+  const [cart, setCart] = useState<any[]>(() => {
+    const savedCart = localStorage.getItem('bakery_shop_cart');
+    return savedCart ? JSON.parse(savedCart) : [];
+  });
 
   // Логика управления корзиной для каталога
-  const addToCart = (product: Product) => {
-    setCart(prev => ({ ...prev, [product.id]: { product, count: (prev[product.id]?.count || 0) + 1 } }));
-  };
-
-  const removeFromCart = (id: number, removeAll = false) => {
-    setCart(prev => {
-      const updated = { ...prev };
-      if (removeAll || updated[id].count === 1) delete updated[id];
-      else updated[id].count--;
-      return updated;
+  const addToCart = (incomingProduct: any) => {
+    if (!incomingProduct) return;
+  
+    // Разруливаем структуру: если товар пришел из каталога, он уже может быть оберткой,
+    // а если из чат-бота — это чистый объект товара.
+    const product = incomingProduct.product ? incomingProduct.product : incomingProduct;
+    
+    // Берем количество: из чата может прийти quantity, из каталога count, или дефолт 1
+    const initialCount = incomingProduct.count || incomingProduct.quantity || 1;
+  
+    if (product.id === undefined || product.price === undefined) {
+      console.error("Некорректный формат товара:", incomingProduct);
+      return;
+    }
+  
+    setCart((prevCart) => {
+      // На всякий случай проверяем, массив у нас или объект
+      const currentCartArray = Array.isArray(prevCart) ? prevCart : Object.values(prevCart);
+      
+      // Ищем, есть ли уже этот товар в корзине
+      const existingItemIndex = currentCartArray.findIndex(
+        (item) => item && item.product && item.product.id === product.id
+      );
+  
+      if (existingItemIndex > -1) {
+        // Если товар найден, увеличиваем его count
+        const newCart = [...currentCartArray];
+        newCart[existingItemIndex] = {
+          ...newCart[existingItemIndex],
+          count: newCart[existingItemIndex].count + initialCount
+        };
+        return newCart;
+      } else {
+        // Если товара нет, создаем структуру, которую ожидает ваш App.tsx
+        const newCartItem = {
+          count: initialCount,
+          product: {
+            id: product.id,
+            name_ru: product.name_ru || product.name || 'Товар без названия',
+            price: Number(product.price),
+            image_url: product.image_url || ''
+          }
+        };
+        return [...currentCartArray, newCartItem];
+      }
     });
   };
 
-  const clearCart = () => setCart({}); // Метод очистки для стейта
+  const removeFromCart = (id: number, removeAll = false) => {
+    setCart((prevCart) => {
+      // Гарантируем, что работаем с массивом
+      const currentCartArray = Array.isArray(prevCart) ? prevCart : Object.values(prevCart);
+  
+      // Ищем индекс элемента, у которого внутри объекта product совпадает id
+      const existingItemIndex = currentCartArray.findIndex(
+        (item) => item && item.product && item.product.id === id
+      );
+  
+      // Если товар почему-то не найден, ничего не делаем
+      if (existingItemIndex === -1) return currentCartArray;
+  
+      const newCart = [...currentCartArray];
+      const currentItem = newCart[existingItemIndex];
+  
+      if (removeAll || currentItem.count <= 1) {
+        // Удаляем позицию из массива полностью
+        newCart.splice(existingItemIndex, 1);
+      } else {
+        // Уменьшаем количество на 1
+        newCart[existingItemIndex] = {
+          ...currentItem,
+          count: currentItem.count - 1
+        };
+      }
+  
+      return newCart;
+    });
+  };
+
+  const clearCart = () => setCart([]); // Метод очистки для стейта
 
   // Вычисляемые данные для передачи в дочерний компонент корзины
-  const cartItemsArray = Object.values(cart);
-  const totalCartItems = cartItemsArray.reduce((acc, item) => acc + item.count, 0);
-  const totalCartPrice = cartItemsArray.reduce((acc, item) => acc + (item.product.price * item.count), 0);
+  let cartItemsArray = [];
+  let totalCartItems = 0;
+  let totalCartPrice = 0;
+  if(cart.length>0){
+    cartItemsArray = Object.values(cart);
+    totalCartItems = cartItemsArray.reduce((acc, item) => acc + item.count, 0);
+    totalCartPrice = cartItemsArray.reduce((acc, item) => acc + (item.product.price * item.count), 0);
+  }
 
   // Инициализация
   useEffect(() => {
@@ -95,6 +164,10 @@ export default function App() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
+  useEffect(() => {
+    localStorage.setItem('bakery_shop_cart', JSON.stringify(cart));
+  }, [cart]);
+
   const handleCategoryClick = async (id: number) => {
     setSearchQuery('');
     setCurrentView('home');
@@ -117,7 +190,7 @@ export default function App() {
     setCurrentView('home');
   };
 
-  
+  const currentProductInCart = Array.isArray(cart) ? cart.find(item => item?.product?.id === selectedProduct?.id) : null;
   return (
     <div className="min-h-screen bg-[url('https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center bg-fixed text-stone-200 antialiased font-sans selection:bg-amber-600 selection:text-white">
       <div className="min-h-screen bg-stone-950/80 backdrop-blur-[4px] flex flex-col">
@@ -224,7 +297,8 @@ export default function App() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                   {products.map(product => {
                     const demoImg = product.image_url || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80`;
-                    const count = cart[product.id]?.count || 0;
+                    const cartItem = Array.isArray(cart) ? cart.find(item => item?.product?.id === product.id) : null;
+                    const count = cartItem ? cartItem.count : 0;
 
                     return (
                       <div key={product.id} className="bg-stone-900/40 backdrop-blur-xl rounded-3xl border border-white/10 hover:border-amber-500/30 shadow-2xl hover:shadow-[0_10px_40px_rgba(217,119,6,0.15)] transition-all duration-500 flex flex-col overflow-hidden relative group cursor-pointer" onClick={() => openProduct(product)}>
@@ -340,8 +414,8 @@ export default function App() {
                         <span className="text-stone-400 text-sm uppercase tracking-wider mb-1">Итоговая стоимость</span>
                         <span className="text-4xl font-black text-white">{selectedProduct.price} ₽</span>
                       </div>
-
-                      {(!cart[selectedProduct.id] || cart[selectedProduct.id].count === 0) ? (
+                      
+                      {(!currentProductInCart || currentProductInCart.count === 0) ? (
                         <button 
                           onClick={() => addToCart(selectedProduct)}
                           className="flex-1 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 py-4 px-8 rounded-2xl text-lg font-black transition-all shadow-[0_0_20px_rgba(217,119,6,0.3)] hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] transform hover:-translate-y-1"
@@ -375,7 +449,7 @@ export default function App() {
             onClearCart={clearCart}
         />
       {(!isCartOpen) && (
-        <AiWidget />
+        <AiWidget addToCart={addToCart} />
       )}
     </div>
   );

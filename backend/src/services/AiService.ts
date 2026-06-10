@@ -218,20 +218,53 @@ export class AiService {
 
   handleUserMessage = async (req: Request, res: Response) => {
     const postdata = req.body;
-
+    let productsForFrontend: any[] = [];
     const userId = postdata.userId;
     const userQuery = postdata.message;
-    // (Логика сессий Redis остается без изменений)
+    const directIntent = postdata.payload?.directIntent; 
+    const directProductId = postdata.payload?.productId;
+    
+    console.log('postdata', postdata);
+
     const sessionData = await redis.get(`session:${userId}`);
     const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
     
+    if (directIntent === 'add_to_cart' && directProductId) {
+      // Формируем фейковый ответ ИИ-структуризатора, имитируя, что сеть сама всё поняла
+      const fakeAiRes = {
+        intent: 'add_to_cart',
+        productId: directProductId,
+        quantity: 1,
+        text: `Конечно! Добавляю в корзину.`
+      };
+  
+      // Вызываем вашу стандартную бизнес-логику добавления
+      const intentResult = await this.handleIntent(session, fakeAiRes);
+      
+      // Сохраняем лог в историю чата
+      session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message || fakeAiRes.text}`);
+      await redis.set(`session:${userId}`, JSON.stringify(session));
+  
+      // Вытягиваем инфо о товаре, чтобы вернуть карточку обратно на фронтенд
+      const productInfo = await productService.findById(directProductId);
+  
+      return res.json({
+        success: true,
+        data: {
+          intent: 'add_to_cart',
+          text: intentResult?.message || fakeAiRes.text,
+          products: productInfo ? [productInfo] : []
+        },
+      });
+    }
+
     const context = await AiService.searchProducts(userQuery);
     //console.log('search', context);
 
     const chatHistory = this.getChatHistoryString(session);
-    console.log('chatHistory', chatHistory);
+    //console.log('chatHistory', chatHistory);
     const formattedContext = Array.isArray(context)
-      ? context.map(item => item.text).join('\n\n---\n\n')
+      ? context.map(item => ('text:'+item.text+' productId:' + item.id)).join('\n\n---\n\n')
       : '';
     //console.log('formattedContext', formattedContext);
     // Формируем промпт, подмешивая инструкции от парсера
@@ -245,7 +278,7 @@ export class AiService {
     try {
       
       const aiResRaw = await model.invoke(prompt);
-      //console.log('aiResRaw', aiResRaw);
+      console.log('aiResRaw', aiResRaw);
       // Парсим ответ Яндекса в JS-объект, валидируя через Zod
       const textContent = typeof aiResRaw.text === 'string' 
         ? aiResRaw.text 
@@ -253,9 +286,41 @@ export class AiService {
 
       const aiRes = await parser.parse(textContent);
       
+
+
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
       
       const intentResult = await this.handleIntent(session, aiRes);
+
+      if (aiRes.productId) {
+        // Если модель вернула конкретный productId (нашла или добавляет)
+        const productInfo = await productService.findById(parseInt(aiRes.productId));
+        if (productInfo) {
+          productsForFrontend.push({
+            id: productInfo.id,
+            name_ru: productInfo.name_ru,
+            price: productInfo.price,
+            image_url: productInfo.image_url,
+            description_ru: productInfo.description_ru
+          });
+        }
+      } else if (aiRes.intent === 'search' && Array.isArray(context)) {
+        // Если это был поиск, но модель не выбрала один конкретный ID, 
+        // выкатим топ-2 товара из векторного поиска LanceDB, которые мы передавали в контекст
+        // Предполагается, что в LanceDB лежат нужные поля или мы добираем их через productService
+        for (const item of context.slice(0, 2)) {
+          const pInfo = await productService.findById(item.productId);
+          if (pInfo) {
+            productsForFrontend.push({
+              id: pInfo.id,
+              name_ru: pInfo.name_ru,
+              price: pInfo.price,
+              image_url: pInfo.image_url,
+              description_ru: pInfo.description_ru
+            });
+          }
+        }
+      }
 
       await redis.set(`session:${userId}`, JSON.stringify(session));
       // Дальше твоя логика работает как раньше
@@ -263,7 +328,8 @@ export class AiService {
         success: true,
         data: {
           ...aiRes,
-          text: intentResult?.message || aiRes.text
+          text: intentResult?.message || aiRes.text,
+          products: productsForFrontend
         },
       });
       //return this.handleIntent(session, aiRes);
