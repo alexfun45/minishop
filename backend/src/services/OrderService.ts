@@ -90,7 +90,6 @@ export class OrderService {
         telegram_id: (telegram_id) ? telegram_id : null,
       });
       
-      console.log('items', items);
       const itemsToCreate = [];
 
       for (const item of orderData.items) {

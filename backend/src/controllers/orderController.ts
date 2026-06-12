@@ -44,7 +44,6 @@ class OrderController {
   async getUserOrders(req: Request, res: Response){
     try{
       const userId = parseInt(req.params?.userId || '');
-      console.log('getUserOrders', userId);
       const orders = await orderService.findByUserId(userId);
       res.json({
         success: true,

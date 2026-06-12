@@ -1,79 +1,83 @@
-// components/dashboard/RecentOrders.tsx
 import React from 'react';
-import type {Order} from '../../types/index' 
+import type { Order } from '../../types/index';
 
 interface RecentOrdersProps {
   orders: Order[];
 }
 
-export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders }) => {
-  const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    confirmed: 'bg-blue-100 text-blue-800',
-    preparing: 'bg-orange-100 text-blue-800',
-    delivered: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    pending_payment: 'bg-yellow-200 text-yellow-800',
-    payment_success: 'bg-green-100 text-green-800',
-    ready: 'bg-green-50 text-green-500'
-  };
-
-  const statusLabels = {
-    pending: 'Ожидает',
-    confirmed: 'Подтвержден', 
-    delivered: 'Доставлен',
-    preparing: 'Собирается',
-    pending_payment: 'Ожидает оплаты',
-    payment_success: 'Оплачен',
-    ready: 'Готов',
-    cancelled: 'Отменен'
+export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders = [] }) => {
+  
+  // Хелпер для отрисовки красивых статусов
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return (
+          <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Delivered
+          </span>
+        );
+      case 'pending':
+        return (
+          <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Pending
+          </span>
+        );
+      default:
+        return (
+          <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+            {status}
+          </span>
+        );
+    }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">Последние заказы</h3>
+    <div className="bg-white dark:bg-[#1E293B] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors duration-300">
+      <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+        <h4 className="font-bold text-lg text-slate-900 dark:text-white">Order Status</h4>
+        <button className="text-teal-600 dark:text-teal-400 text-sm font-bold hover:underline">
+          View All Orders
+        </button>
       </div>
-      <div className="overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead className="bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest font-bold">
             <tr>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Заказ
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Клиент
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Сумма
-              </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Статус
-              </th>
+              <th className="px-8 py-4">Order ID</th>
+              <th className="px-8 py-4">Buyer Name</th>
+              <th className="px-8 py-4">Status</th>
+              <th className="px-8 py-4">Amount</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {orders.slice(0, 6).map((order) => (
-              <tr key={order.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">#{order.id}</div>
-                  <div className="text-sm text-gray-500">
-                    {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{order.customer_name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{order.total_amount} ₽</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusColors[order.status]}`}>
-                    {statusLabels[order.status]}
-                  </span>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {orders.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-8 py-8 text-center text-sm text-slate-400">
+                  Активные заказы не найдены
                 </td>
               </tr>
-            ))}
+            ) : (
+              orders.slice(0, 5).map((order, idx) => (
+                <tr 
+                  key={order.id || idx} 
+                  className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors duration-150"
+                >
+                  <td className="px-8 py-5 text-sm font-bold text-slate-900 dark:text-white">
+                    #ORD-{order.id ? order.id.toString().slice(-4) : idx + 9024}
+                  </td>
+                  <td className="px-8 py-5 text-sm text-slate-600 dark:text-slate-300">
+                    {order.customer_name || 'Inconnu'}
+                  </td>
+                  <td className="px-8 py-5">
+                    {renderStatusBadge(order.payment_status)}
+                  </td>
+                  {/*<td className="px-8 py-5 text-sm font-black text-slate-900 dark:text-white">
+                    {order.total_price ? `${order.total_price.toLocaleString()} ₽` : '0 ₽'}
+                  </td>*/}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
