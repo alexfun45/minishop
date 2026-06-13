@@ -21,6 +21,21 @@ class OrderController {
     }
   }
 
+  async getBasicStats(req: Request, res: Response) {
+    try{
+      const stats = await orderService.getBasicStats();
+      res.json({
+        success: true,
+        data: stats
+      })
+    } catch(error){
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch current orders info',
+      });
+    }
+  }
+
   async getOrder(req: Request, res: Response){
 
     try{

@@ -55,3 +55,17 @@ export interface ActivityType{
   event_name: string;
   created_at: string; 
 }
+
+export interface statItem {
+  productId: number;
+  name: string;
+  image: string;
+  price: number;
+  salesCount: number;
+}
+
+export interface BasicStats {
+  totalRevenue: number,
+  current_items: number,
+  pending_processing: number
+} 

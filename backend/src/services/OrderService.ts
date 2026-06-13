@@ -2,6 +2,7 @@ import { Order, OrderItem, User, Product } from '../models/index.js';
 import { orderItemService } from './OrderItemService.js';
 import {sendStatusUpdateNotification} from '../api/telegramNotification.js'
 import { Op, fn, col } from 'sequelize';
+import sequelize from '../config/database.js';
 
 export class OrderService {
 
@@ -233,6 +234,63 @@ export class OrderService {
     return total;
   }
 
+  async getPopularProducts() {
+    try {
+      const popularItems = await OrderItem.findAll({
+        attributes: [
+          'product_id',
+          // Суммируем количество купленных штук
+          [fn('SUM', col('quantity')), 'total_sales']
+        ],
+        include: [
+          {
+            model: Order,
+            as: 'order', // Название связи OrderItem -> Order
+            attributes: [], // Из самого заказа поля в селект не берем
+            where: {
+              // Только успешные и неоплаченные/оплаченные, исключая отмены
+              status: { [Op.ne]: 'cancelled' },
+              payment_status: { [Op.in]: ['paid', 'payment_success'] }
+            }
+          },
+          {
+            model: Product,
+            as: 'product', // Название связи OrderItem -> Product
+            // Вытягиваем нужные для фронтенда поля из таблицы продуктов
+            attributes: ['name_ru', 'image_url', 'price']
+          }
+        ],
+        // Группируем по ID товара и по всем полям из Product, которые участвуют в выборке
+        group: [
+          'OrderItem.product_id', 
+          'product.id', 
+          'product.name_ru', 
+          'product.image_url', 
+          'product.price'
+        ],
+        // Сортируем по сумме проданного от большего к меньшему
+        order: [[fn('SUM', col('quantity')), 'DESC']],
+        limit: 10,
+        // Убираем nesting, чтобы получить плоский или удобно вложенный объект
+        nest: true,
+        raw: true
+      });
+      
+      // Мапим данные в чистый и понятный формат для фронтенд-панели
+      return popularItems.map((item: any) => ({
+        productId: item.product_id,
+        name: item.product?.name_ru || 'Без названия',
+        image: item.product?.image_url || '',
+        price: item.product?.price ? Number(item.product.price) : Number(item.price), // Фолбэк на историческую цену из OrderItem, если в Product она изменилась
+        salesCount: Number(item.total_sales)
+      }));
+  
+    } catch (error) {
+      console.error('Ошибка при получении популярных товаров:', error);
+      return [];
+    }
+  }
+
   // Получить статистику заказов
   async getStats() {
     const totalOrders = await Order.count();
@@ -244,6 +302,32 @@ export class OrderService {
       total_revenue: totalRevenue || 0,
       pending_orders: pendingOrders,
     };
+  }
+
+  async getBasicStats() {
+    let totalRevenue = await Order.sum('total_amount', {
+      where: {
+        // Исключаем отмененные заказы и берем только успешные статусы оплаты
+        status: { [Op.ne]: 'cancelled' },
+        [Op.or]: [
+          {
+            payment_status: { [Op.in]: ['payment_success'] }
+          },
+          {
+            status: {[Op.in]: ['delivered']}
+          }
+      ]
+      }
+    });
+    
+    totalRevenue = totalRevenue ? Number(totalRevenue) : 0;
+    const popularProducts: any = await this.getPopularProducts();
+    console.log('popularProducts', popularProducts);
+    // Если заказов нет, sum вернет NaN или null, поэтому приводим к числу
+    return {
+      totalRevenue: totalRevenue,
+      popularProducts: popularProducts
+    }
   }
 
   async getAdvancedStats() {
@@ -266,7 +350,6 @@ export class OrderService {
   
     const revenueByDay = await Order.findAll({
       attributes: [
-        // Используем правильное имя поля 'createdAt' (Sequelize сам переведет его в created_at из-за underscored: true)
         [fn('DATE', col('Order.created_at')), 'date'], 
         [fn('SUM', col('total_amount')), 'total']
       ],
@@ -274,7 +357,6 @@ export class OrderService {
         status: { [Op.in]: paidStatuses },
         delivery_time: { [Op.gte]: sevenDaysAgo } // Здесь пишем имя свойства из модели (createdAt)
       },
-      // Группируем строго по тому же выражению, что и в attributes
       group: [fn('DATE', col('Order.created_at'))],
       order: [[fn('DATE', col('Order.created_at')), 'ASC']],
       raw: true

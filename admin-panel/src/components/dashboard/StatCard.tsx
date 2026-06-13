@@ -37,7 +37,7 @@ export const StatCard: React.FC<StatCardProps> = ({ title, value, change, icon, 
         <div className={`flex items-center gap-1 text-sm font-bold ${change > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
           {change > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
           <span>{change > 0 ? '+' : ''} {change}%</span>
-          <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">from last month</span>
+          <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">за последний месяц</span>
         </div>
       )}
     </div>

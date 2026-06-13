@@ -24,7 +24,6 @@ export const StatisticsPage: React.FC = () => {
   useEffect(() => {
     // Подставь сюда свой метод запроса к API бэкенда
     apiClient.get('/stats')
-      //.then(res => res.json())
       .then(res => {
         setStats(res.data);
         setLoading(false);
@@ -40,7 +39,7 @@ export const StatisticsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       <h1 className="text-3xl font-bold text-gray-800">📊 Аналитика магазина</h1>
 

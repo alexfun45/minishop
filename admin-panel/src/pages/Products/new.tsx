@@ -206,9 +206,7 @@ export const NewProduct: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
-      <Header />
-      
+    <div className="min-h-screen bg-gray-50 pb-12">      
       <main className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
