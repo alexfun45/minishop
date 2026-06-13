@@ -7,7 +7,7 @@ import { ImageUpload } from '../../components/ImageUpload';
 import { useProducts } from '../../hooks/useProducts';
 import { apiClient } from '../../services/api';
 
-export const NewProduct: React.FC = () => {
+export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any}) => {
   const [error, setError] = useState<string | null>(null);
   const { categories, loading } = useCategories();
   const { createProduct } = useProducts();
@@ -167,7 +167,7 @@ export const NewProduct: React.FC = () => {
         
       await createProduct(submitData);
       resetForm();
-      navigate("/products");
+      onSuccess();
     } catch (error: any) {
       console.log('Полный объект ошибки на фронте:', error);
       const serverError = error?.responseData?.error || 'Произошла ошибка при создании товара';
@@ -186,7 +186,7 @@ export const NewProduct: React.FC = () => {
   };
 
   const handleCancel = () => {
-    navigate("/products");
+    onClose();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -459,7 +459,7 @@ export const NewProduct: React.FC = () => {
               <textarea
                 name="ingredients_ru"
                 id="ingredients_ru"
-                rows={2}
+                rows={5}
                 value={formData.ingredients_ru}
                 onChange={handleChange}
                 placeholder="Перечислите основные компоненты через запятую..."
@@ -485,7 +485,7 @@ export const NewProduct: React.FC = () => {
               <textarea
                 name="description_ru"
                 id="description_ru"
-                rows={3}
+                rows={6}
                 value={formData.description_ru}
                 onChange={handleChange}
                 className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"

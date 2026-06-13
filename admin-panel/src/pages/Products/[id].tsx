@@ -26,7 +26,7 @@ interface Product {
   available: boolean;
 }
 
-export const EditProduct: React.FC = () => {
+export const EditProduct = ({productId, onClose, onSuccess}: {productId: string | null, onClose: any, onSuccess: any}) => {
   const [error, setError] = useState<string | null>(null);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ export const EditProduct: React.FC = () => {
     // Загрузка данных товара
     const fetchProduct = async () => {
       try {
-        const data = await apiClient.get('/product/' + id);
+        const data = await apiClient.get('/product/' + productId);
         const sanitizedData = { ...data.data };
         Object.keys(sanitizedData).forEach(key => {
           if (sanitizedData[key] === null) sanitizedData[key] = '';
@@ -79,7 +79,7 @@ export const EditProduct: React.FC = () => {
       }
     };
     fetchProduct();
-  }, [id]);
+  }, [productId]);
 
   // --- ИИ ОБРАБОТЧИКИ ---
 
@@ -188,8 +188,8 @@ export const EditProduct: React.FC = () => {
         submitData.append('image_url', formData.image_url);
       }
       console.log('Отправляем данные:', Object.fromEntries(submitData.entries())); 
-      await updateProduct(id!, submitData);
-      navigate("/products");
+      await updateProduct(productId!, submitData);
+      onSuccess();
     } catch (error: any) {
       console.log('Полный объект ошибки на фронте:', error);
       const serverError = error?.responseData?.error || 'Произошла ошибка при сохранении товара';
@@ -197,6 +197,7 @@ export const EditProduct: React.FC = () => {
     } finally {
       setSaving(false);
     }
+
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -221,7 +222,7 @@ export const EditProduct: React.FC = () => {
     if (window.confirm('Вы уверены, что хотите удалить этот товар?')) {
       try {
         // Предполагается, что в apiClient или hook есть метод удаления
-        await apiClient.delete('/product/' + id);
+        await apiClient.delete('/product/' + productId);
         navigate("/products");
       } catch (err) {
         setError("Не удалось удалить товар.");
@@ -230,7 +231,7 @@ export const EditProduct: React.FC = () => {
   };
 
   const handleCancel = () => {
-    navigate("/products");
+    onClose();
   };
 
   if (categoriesLoading) {
@@ -250,7 +251,7 @@ export const EditProduct: React.FC = () => {
               Редактировать товар
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              ID: {id}
+              ID: {productId}
             </p>
           </div>
           <div className="mt-4 flex space-x-3 md:mt-0 md:ml-4">
@@ -510,7 +511,7 @@ export const EditProduct: React.FC = () => {
               <textarea
                 name="ingredients_ru"
                 id="ingredients_ru"
-                rows={2}
+                rows={5}
                 value={formData.ingredients_ru}
                 onChange={handleChange}
                 placeholder="Перечислите основные компоненты через запятую..."
@@ -536,7 +537,7 @@ export const EditProduct: React.FC = () => {
               <textarea
                 name="description_ru"
                 id="description_ru"
-                rows={3}
+                rows={6}
                 value={formData.description_ru}
                 onChange={handleChange}
                 className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"

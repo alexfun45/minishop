@@ -1,9 +1,12 @@
 // pages/products/index.tsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { Header } from '../../components/header';
-import { Link } from 'react-router-dom';
 import { apiClient } from '../../services/api';
 import { useCategories } from '../../hooks/useCategories';
+
+// Импортируем твои готовые компоненты формы
+// Подправь пути импорта, если они лежат в другом месте
+import { NewProduct } from './new'; 
+import { EditProduct } from './[id]'; 
 
 interface Product {
   id: string;
@@ -20,11 +23,17 @@ interface Product {
   created_at: string;
 }
 
+// Заменяем тип view: 'list' (таблица), 'create' (создание), 'edit' (редактирование)
+type ViewMode = 'list' | 'create' | 'edit';
+
 export const ProductsList: React.FC = () => {
-
-
   const [products, setProducts] = useState<Product[]>([]);
   const { categories } = useCategories();
+  
+  // Ключевые стейты для управления отображением без смены URL
+  const [view, setView] = useState<ViewMode>('list');
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
   // Состояния для фильтрации, сортировки и пагинации
   const [filter, setFilter] = useState({
     category: '',
@@ -32,22 +41,16 @@ export const ProductsList: React.FC = () => {
     search: ''
   });
 
-  useEffect(()=>{
-    //apiClient.get('/categories').then(async (res) => {
-    //  setCategories(res.data);
-    //});
-
+  // Функция для обновления списка товаров после добавления или редактирования
+  const refreshProducts = () => {
     apiClient.get('/products/').then(async (res) => {
       setProducts(res.data);
     });
-  }, []);
+  };
 
-  useEffect(()=>{
-    //apiClient.get('/products/'+filter.category).then(async (res)=>{
-      //console.log('res', res.data);
-      //setProducts(res.data);
-    //})
-  }, [filter.category]);
+  useEffect(() => {
+    refreshProducts();
+  }, []);
 
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Product;
@@ -64,15 +67,15 @@ export const ProductsList: React.FC = () => {
 
   // Обработчик сортировки
   const handleSort = (key: keyof Product) => {
-    if(key!==undefined){
-    setSortConfig({
-      key,
-      direction: 
-        sortConfig.key === key && sortConfig.direction === 'asc' 
-          ? 'desc' 
-          : 'asc'
-    });
-  }
+    if (key !== undefined) {
+      setSortConfig({
+        key,
+        direction: 
+          sortConfig.key === key && sortConfig.direction === 'asc' 
+            ? 'desc' 
+            : 'asc'
+      });
+    }
   };
 
   // Обработчик изменения элементов на странице
@@ -85,7 +88,7 @@ export const ProductsList: React.FC = () => {
 
   // Функция для переключения доступности товара
   const toggleAvailability = (selectedProduct: Product) => {
-    apiClient.post('/product/update/'+selectedProduct.id, { ...selectedProduct, available: !selectedProduct.available});
+    apiClient.post('/product/update/' + selectedProduct.id, { ...selectedProduct, available: !selectedProduct.available });
     setProducts(prev => prev?.map(product => 
       product.id === selectedProduct.id 
         ? { ...product, available: !selectedProduct.available }
@@ -94,68 +97,92 @@ export const ProductsList: React.FC = () => {
   };
 
   // Фильтрация и сортировка товаров
-  // Замените блок useMemo с фильтрацией и сортировкой на этот:
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = products?.filter(product => {
+      const matchesCategory = !filter.category || product.category_id == filter.category;
+      const matchesAvailable = 
+        !filter.available || 
+        (filter.available === 'available' && product.available) ||
+        (filter.available === 'unavailable' && !product.available);
+      
+      const matchesSearch = !filter.search || 
+        product.name_ru.toLowerCase().includes(filter.search.toLowerCase()) ||
+        product.name_tj.toLowerCase().includes(filter.search.toLowerCase()) ||
+        product.name_uz.toLowerCase().includes(filter.search.toLowerCase());
 
-const filteredAndSortedProducts = useMemo(() => {
+      return matchesCategory && matchesAvailable && matchesSearch;
+    });
 
-  let filtered = products?.filter(product => {
-    const matchesCategory = !filter.category || product.category_id == filter.category;
-    const matchesAvailable = 
-      !filter.available || 
-      (filter.available === 'available' && product.available) ||
-      (filter.available === 'unavailable' && !product.available);
-    
-    const matchesSearch = !filter.search || 
-      product.name_ru.toLowerCase().includes(filter.search.toLowerCase()) ||
-      product.name_tj.toLowerCase().includes(filter.search.toLowerCase()) ||
-      product.name_uz.toLowerCase().includes(filter.search.toLowerCase());
+    filtered.sort((a, b) => {
+      const aValue = a[sortConfig.key]; 
+      const bValue = b[sortConfig.key];
+      
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (bValue == null) return sortConfig.direction === 'asc' ? 1 : -1;
 
-    return matchesCategory && matchesAvailable && matchesSearch;
-  });
-  // Сортировка с проверкой типов
-  filtered.sort((a, b) => {
-    const aValue = a[sortConfig.key]; 
-    const bValue = b[sortConfig.key];
-    
-    // Если значения undefined или null, обрабатываем их
-    if (aValue == null && bValue == null) return 0;
-    if (aValue == null) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (bValue == null) return sortConfig.direction === 'asc' ? 1 : -1;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
 
-    // Для строк
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortConfig.direction === 'asc' 
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
-    }
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      
+      return 0;
+    });
 
-    // Для чисел и boolean
-    if (aValue < bValue) {
-      return sortConfig.direction === 'asc' ? -1 : 1;
-    }
-    if (aValue > bValue) {
-      return sortConfig.direction === 'asc' ? 1 : -1;
-    }
-    
-    return 0;
-  });
-
-  return filtered;
-}, [products, filter, sortConfig]);
+    return filtered;
+  }, [products, filter, sortConfig]);
 
   // Пагинация
   const paginatedProducts = useMemo(() => {
     const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
-    //console.log('filteredAndSortedProducts', filteredAndSortedProducts);
     return filteredAndSortedProducts.slice(startIndex, startIndex + pagination.itemsPerPage);
   }, [filteredAndSortedProducts, pagination]);
 
-  // Общее количество страниц
   const totalPages = Math.ceil(filteredAndSortedProducts.length / pagination.itemsPerPage);
-
-  // Опции для количества элементов на странице
   const itemsPerPageOptions = [5, 10, 20, 50];
 
+  // --- УСЛОВНЫЙ РЕНДЕРИНГ КОМПОНЕНТОВ ФОРМЫ ---
+
+  // Если выбрали создание товара
+  if (view === 'create') {
+    return (
+      <NewProduct 
+        onClose={() => setView('list')} 
+        onSuccess={() => {
+          setView('list');
+          refreshProducts(); // Обновляем таблицу после создания
+        }} 
+      />
+    );
+  }
+
+  // Если выбрали редактирование товара
+  if (view === 'edit' && selectedProductId) {
+    return (
+      <EditProduct 
+        productId={selectedProductId} // Передаем id в компонент
+        onClose={() => {
+          setView('list');
+          setSelectedProductId(null);
+        }} 
+        onSuccess={() => {
+          setView('list');
+          setSelectedProductId(null);
+          refreshProducts(); // Обновляем таблицу после сохранения
+        }} 
+      />
+    );
+  }
+
+  // СТАНДАРТНЫЙ РЕНДЕРИНГ: ТАБЛИЦА С ТОВАРАМИ
   return (
     <div className="min-h-screen bg-gray-50">      
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -170,19 +197,19 @@ const filteredAndSortedProducts = useMemo(() => {
             </p>
           </div>
           <div className="mt-4 flex md:mt-0 md:ml-4">
-            <Link
-              to="/products/new"
+            {/* ИСПРАВЛЕНО: Вместо Link теперь кнопка меняющая стейт */}
+            <button
+              onClick={() => setView('create')}
               className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
             >
               Добавить товар
-            </Link>
+            </button>
           </div>
         </div>
 
         {/* Фильтры и поиск */}
         <div className="mb-6 bg-white p-4 rounded-lg shadow">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            {/* Поиск по названию */}
             <div className="sm:col-span-2">
               <label htmlFor="search" className="block text-sm font-medium text-gray-700">
                 Поиск по названию
@@ -197,7 +224,6 @@ const filteredAndSortedProducts = useMemo(() => {
               />
             </div>
             
-            {/* Фильтр по категории */}
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                 Категория
@@ -217,7 +243,6 @@ const filteredAndSortedProducts = useMemo(() => {
               </select>
             </div>
             
-            {/* Фильтр по доступности */}
             <div>
               <label htmlFor="available" className="block text-sm font-medium text-gray-700">
                 Доступность
@@ -238,7 +263,6 @@ const filteredAndSortedProducts = useMemo(() => {
 
         {/* Настройки отображения */}
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          {/* Количество элементов на странице */}
           <div className="flex items-center space-x-2 mb-4 sm:mb-0">
             <span className="text-sm text-gray-700">Показывать:</span>
             <select
@@ -257,7 +281,6 @@ const filteredAndSortedProducts = useMemo(() => {
             </span>
           </div>
 
-          {/* Информация о текущей странице */}
           <div className="text-sm text-gray-500">
             Страница {pagination.currentPage} из {totalPages}
           </div>
@@ -268,59 +291,35 @@ const filteredAndSortedProducts = useMemo(() => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('name_ru')}
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name_ru')}>
                   <div className="flex items-center">
                     Название
                     {sortConfig.key === 'name_ru' && (
-                      <span className="ml-1">
-                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                      </span>
+                      <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('category_name')}
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('category_name')}>
                   <div className="flex items-center">
                     Категория
                     {sortConfig.key === 'category_name' && (
-                      <span className="ml-1">
-                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                      </span>
+                      <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('price')}
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('price')}>
                   <div className="flex items-center">
                     Цена
                     {sortConfig.key === 'price' && (
-                      <span className="ml-1">
-                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                      </span>
+                      <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </th>
-                <th 
-                  scope="col" 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('available')}
-                >
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('available')}>
                   <div className="flex items-center">
                     Статус
                     {sortConfig.key === 'available' && (
-                      <span className="ml-1">
-                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                      </span>
+                      <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </th>
@@ -334,21 +333,19 @@ const filteredAndSortedProducts = useMemo(() => {
                 <tr key={product.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
-                    {(product.image_url) ?  
-                       (
+                      {product.image_url ? (
                         <div className="flex-shrink-0 h-10 w-10 rounded-md flex items-center justify-center mr-4">
-                              <img src={product.image_url} />
+                          <img src={product.image_url} alt="" className="h-10 w-10 object-cover rounded-md" />
                         </div>
-                        ) : 
-                      (
+                      ) : (
                         <div className="flex-shrink-0 h-10 w-10 bg-amber-100 rounded-md flex items-center justify-center mr-4">
                           <span className="text-amber-600">🍞</span>
                         </div>
-                        )}
+                      )}
                       
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm text-center font-medium text-gray-900">
-                          {product['name_ru']}
+                        <div className="text-sm font-medium text-gray-900">
+                          {product.name_ru}
                         </div>
                         <div className="text-sm text-gray-500">
                           {product.name_tj} / {product.name_uz}
@@ -396,12 +393,16 @@ const filteredAndSortedProducts = useMemo(() => {
                         {product.available ? 'Скрыть' : 'Включить'}
                       </button>
                       
-                      <Link
-                        to={`/products/${product.id}`}
-                        className="text-amber-600 hover:text-amber-900"
+                      {/* ИСПРАВЛЕНО: Вместо Link вызываем стейт 'edit' и сохраняем ID */}
+                      <button
+                        onClick={() => {
+                          setSelectedProductId(product.id);
+                          setView('edit');
+                        }}
+                        className="text-amber-600 hover:text-amber-900 bg-transparent border-none cursor-pointer"
                       >
                         Редактировать
-                      </Link>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -409,7 +410,6 @@ const filteredAndSortedProducts = useMemo(() => {
             </tbody>
           </table>
 
-          {/* Сообщение если товары не найдены */}
           {paginatedProducts.length === 0 && (
             <div className="text-center py-12">
               <div className="text-gray-400 text-lg">Товары не найдены</div>
@@ -425,20 +425,14 @@ const filteredAndSortedProducts = useMemo(() => {
           <div className="mt-6 flex items-center justify-between">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
-                onClick={() => setPagination(prev => ({ 
-                  ...prev, 
-                  currentPage: Math.max(1, prev.currentPage - 1) 
-                }))}
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}
                 disabled={pagination.currentPage === 1}
                 className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
                 Назад
               </button>
               <button
-                onClick={() => setPagination(prev => ({ 
-                  ...prev, 
-                  currentPage: Math.min(totalPages, prev.currentPage + 1) 
-                }))}
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.min(totalPages, prev.currentPage + 1) }))}
                 disabled={pagination.currentPage === totalPages}
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
@@ -459,18 +453,13 @@ const filteredAndSortedProducts = useMemo(() => {
               <div>
                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                   <button
-                    onClick={() => setPagination(prev => ({ 
-                      ...prev, 
-                      currentPage: Math.max(1, prev.currentPage - 1) 
-                    }))}
+                    onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}
                     disabled={pagination.currentPage === 1}
                     className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    <span className="sr-only">Предыдущая</span>
                     &larr;
                   </button>
                   
-                  {/* Номера страниц */}
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                     <button
                       key={page}
@@ -486,14 +475,10 @@ const filteredAndSortedProducts = useMemo(() => {
                   ))}
                   
                   <button
-                    onClick={() => setPagination(prev => ({ 
-                      ...prev, 
-                      currentPage: Math.min(totalPages, prev.currentPage + 1) 
-                    }))}
+                    onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.min(totalPages, prev.currentPage + 1) }))}
                     disabled={pagination.currentPage === totalPages}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    <span className="sr-only">Следующая</span>
                     &rarr;
                   </button>
                 </nav>
