@@ -1,6 +1,5 @@
 // pages/products/new.tsx
 import React, { useState } from 'react';
-import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
 import { useNavigate } from "react-router-dom";
 import { ImageUpload } from '../../components/ImageUpload';
@@ -12,7 +11,6 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
   const { categories, loading } = useCategories();
   const { createProduct } = useProducts();
   const [imageFile, setImageFile] = useState<File | null>(null);
-  let navigate = useNavigate();
 
   // --- СОСТОЯНИЯ ДЛЯ ИИ ФУНКЦИОНАЛА ---
   const [aiTextPrompt, setAiTextPrompt] = useState('');

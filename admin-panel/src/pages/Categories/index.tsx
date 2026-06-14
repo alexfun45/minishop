@@ -1,16 +1,19 @@
 // pages/categories/index.tsx
 import React, { useState, useRef } from 'react';
-import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
+import { NewCategory } from './new';
+
+type ViewMode = 'list' | 'create' | 'edit';
 
 export const CategoriesManagement: React.FC = () => {
-  const { categories, loading, createCategory, updateCategory, deleteCategory } = useCategories();
+  const { categories, loading, createCategory, updateCategory, deleteCategory, fetchCategories } = useCategories();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  
+  const [view, setView] = useState<ViewMode>('list');
+
   const [formData, setFormData] = useState({
     name_ru: '',
     name_tj: '',
@@ -136,6 +139,10 @@ export const CategoriesManagement: React.FC = () => {
     }
   };
 
+  const refreshCategories = () => {
+    fetchCategories();
+  } 
+
   const startEdit = (category: any) => {
     setEditingId(category.id);
     setFormData(category);
@@ -147,6 +154,18 @@ export const CategoriesManagement: React.FC = () => {
     resetForm();
     setIsCreating(true);
   };
+
+  if (view === 'create') {
+    return (
+      <NewCategory 
+        onClose={() => setView('list')} 
+        onSuccess={() => {
+          setView('list');
+          refreshCategories(); 
+        }} 
+      />
+    );
+  }
 
   if (loading) return <div>Загрузка...</div>;
 

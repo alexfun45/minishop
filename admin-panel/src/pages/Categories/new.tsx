@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
 
-export const NewCategory: React.FC = () => {
+export const NewCategory = ({onClose, onSuccess}: {onClose: any, onSuccess: any}) => {
   const { createCategory, loading } = useCategories();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Header } from '../../components/header';
 import { useCategories } from '../../hooks/useCategories';
 import { useNavigate, useParams } from "react-router-dom";
 import { ImageUpload } from '../../components/ImageUpload';
@@ -28,8 +27,6 @@ interface Product {
 
 export const EditProduct = ({productId, onClose, onSuccess}: {productId: string | null, onClose: any, onSuccess: any}) => {
   const [error, setError] = useState<string | null>(null);
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { updateProduct } = useProducts();
   const { categories, loading: categoriesLoading } = useCategories();
   const [saving, setSaving] = useState(false);
@@ -223,7 +220,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
       try {
         // Предполагается, что в apiClient или hook есть метод удаления
         await apiClient.delete('/product/' + productId);
-        navigate("/products");
+        onSuccess();
       } catch (err) {
         setError("Не удалось удалить товар.");
       }

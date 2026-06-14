@@ -30,7 +30,6 @@ export const ProductsList: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const { categories } = useCategories();
   
-  // Ключевые стейты для управления отображением без смены URL
   const [view, setView] = useState<ViewMode>('list');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 

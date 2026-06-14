@@ -22,7 +22,7 @@ export const useCategories = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    /*const fetchCategories = async () => {
       try {
         const _categories = await apiClient.get('/categories/');
         setCategories(_categories.data);
@@ -31,10 +31,21 @@ export const useCategories = () => {
         setError('Ошибка загрузки категорий');
         setLoading(false);
       }
-    };
+    };*/
 
     fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const _categories = await apiClient.get('/categories/');
+      setCategories(_categories.data);
+      setLoading(false);
+    } catch (err) {
+      setError('Ошибка загрузки категорий');
+      setLoading(false);
+    }
+  };
 
   const createCategory = async (categoryData: FormData  | Omit<Category, 'id' | 'created_at' | 'product_count'>) => {
     // Логика создания категории
@@ -113,6 +124,7 @@ export const useCategories = () => {
     error,
     createCategory,
     updateCategory,
+    fetchCategories,
     deleteCategory
   };
 };

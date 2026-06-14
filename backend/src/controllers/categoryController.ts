@@ -39,8 +39,8 @@ class CategoryController {
 
       // Если загружено новое изображение
       if (req.file) {
-        newData.image_url = `${process.env.BASE_PATH}/uploads/categories/${req.file.filename}`;
-        console.log(`Записал изображение ${process.env.BASE_PATH}/uploads/categories/${req.file.filename}`);
+        newData.image_url = `${process.env.SAVEDIR_PATH}/uploads/categories/${req.file.filename}`;
+        console.log(`Записал изображение ${process.env.SAVEDIR_PATH}/uploads/categories/${req.file.filename}`);
       } else if (req.body.image_url !== undefined) {
         // Если указан URL изображения (может быть пустой строкой)
         newData.image_url = req.body.image_url || null;
@@ -105,7 +105,7 @@ class CategoryController {
 
       // Если загружено новое изображение
       if (req.file) {
-        updateData.image_url = `http://localhost:3001/uploads/categories/${req.file.filename}`;
+        updateData.image_url = `${process.env.SAVEDIR_PATH}/uploads/categories/${req.file.filename}`;
         console.log('New image URL:', updateData.image_url);
         
         // Удаляем старое изображение если оно было и это локальный файл
