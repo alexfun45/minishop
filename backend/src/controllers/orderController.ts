@@ -56,6 +56,23 @@ class OrderController {
     }
   }
 
+  
+  async delete(req: Request, res: Response){
+    try{
+      const id = parseInt(req.params?.id || '');
+      await orderService.delete(id);
+      res.json({
+        success: true
+      });
+    } catch(error){
+      console.error('Getting user orders error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to getting user orders',
+      });
+    }
+  }
+
   async getUserOrders(req: Request, res: Response){
     try{
       const userId = parseInt(req.params?.userId || '');

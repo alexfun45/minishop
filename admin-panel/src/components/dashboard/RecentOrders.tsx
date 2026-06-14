@@ -34,9 +34,9 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders = [] }) => {
   return (
     <div className="bg-white dark:bg-[#1E293B] rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-colors duration-300">
       <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-        <h4 className="font-bold text-lg text-slate-900 dark:text-white">Order Status</h4>
+        <h4 className="font-bold text-lg text-slate-900 dark:text-white">Последние заказы</h4>
         <button className="text-teal-600 dark:text-teal-400 text-sm font-bold hover:underline">
-          View All Orders
+          Посмотреть все заказы
         </button>
       </div>
 

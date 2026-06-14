@@ -60,7 +60,7 @@ export const useOrders = () => {
 
   const deleteOrder = async (id: number) => {
     // Логика удаления категории
-    await apiClient.post(`/order/delete/${id}`);
+    await apiClient.get(`/order/delete/${id}`);
     setOrders(prev => prev.filter(order => order.id !== id));
   };
 

@@ -48,6 +48,7 @@ export class OrderService {
     await order.save();
   }
 
+
   // Создать заказ
   async create(orderData: any) {
     const { items, user_id, telegram_id, ...orderMainData } = orderData;
@@ -126,6 +127,14 @@ export class OrderService {
       console.error('Create order error:', error);
       throw error;
     }
+  }
+
+  async delete(orderId: number) {
+    return await Order.destroy({
+      where: {
+        id: orderId
+      },
+    });
   }
 
   // Найти заказ по ID
@@ -322,7 +331,6 @@ export class OrderService {
     
     totalRevenue = totalRevenue ? Number(totalRevenue) : 0;
     const popularProducts: any = await this.getPopularProducts();
-    console.log('popularProducts', popularProducts);
     // Если заказов нет, sum вернет NaN или null, поэтому приводим к числу
     return {
       totalRevenue: totalRevenue,

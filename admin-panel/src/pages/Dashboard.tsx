@@ -3,6 +3,7 @@ import { StatCard } from '../components/dashboard/StatCard';
 import { RecentOrders } from '../components/dashboard/RecentOrders';
 import { useOrders } from '../hooks/useOrders';
 import { useProducts } from '../hooks/useProducts';
+import {useCategories} from '../hooks/useCategories'
 import { Activity } from '../components/dashboard/Activity';
 import { apiClient } from '../services/api';
 import type { statItem } from '../types/index';
@@ -52,6 +53,7 @@ const salesData = [
 const Dashboard: React.FC = () => {
   const { orders = [] } = useOrders();
   const { products = [] } = useProducts();
+  const { categories = [] } = useCategories();
   const [stats, setStats] = useState({
     totalRevenue: 0,
     current_items: 0,
@@ -100,7 +102,7 @@ const Dashboard: React.FC = () => {
     { id: 'dashboard', label: 'Главная', icon: <LayoutGrid className="w-5 h-5" /> },
     { id: 'orders', label: 'Заказы', icon: <ShoppingCart className="w-5 h-5" />, count: orders.length },
     { id: 'products', label: 'Продукты', icon: <Package className="w-5 h-5" />, count: activeProductsCount },
-    { id: 'categories', label: 'Категории', icon: <Layers className="w-5 h-5" /> },
+    { id: 'categories', label: 'Категории', icon: <Layers className="w-5 h-5" />, count: categories.length },
     { id: 'analytics', label: 'Аналитика', icon: <BarChart3 className="w-5 h-5" /> },
     { id: 'ai-assistant', label: 'ИИ ассистент', icon: <MessageSquare className="w-5 h-5" /> },
   ];

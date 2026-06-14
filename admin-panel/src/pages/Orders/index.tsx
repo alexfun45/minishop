@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Header } from '../../components/header';
 import type { Order } from '../../types/index';
 import { useOrders } from '../../hooks/useOrders';
 
@@ -146,6 +145,9 @@ export const OrdersManagement: React.FC = () => {
               }`}
             >
               Отмененные
+              <span className="ml-2 bg-blue-100 text-blue-600 py-0.5 px-2 rounded-full text-xs font-bold">
+                {orders.filter(o => o.status === 'cancelled').length}
+              </span>
             </button>
           </div>
 
@@ -307,7 +309,13 @@ export const OrdersManagement: React.FC = () => {
                             onClick={() => handleOrderDelete(order.id)}
                             className="flex-1 sm:flex-none px-6 py-2.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 shadow-sm transition-all flex items-center justify-center gap-1"
                           >
-                            🗑 Удалить из базы данных
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M3 6h18"></path>
+                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg> Удалить из базы данных
                           </button>
                         )}
 
