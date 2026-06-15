@@ -4,6 +4,7 @@ import {categoryController} from '../controllers/categoryController.js'
 import {orderController} from '../controllers/orderController.js'
 import { getPayment } from '../controllers/payments.js';
 import {AiService} from '../services/AiService.js'
+import {AnalyticsController} from '../controllers/analyticsController.js'
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
@@ -30,6 +31,8 @@ router.use('/orders/:userId', orderController.getUserOrders);
 router.post('/ai/generate-banner', upload.single('image'), aiService.generateCard);
 router.post('/ai/', aiService.handleUserMessage);
 
-
 router.use('/payment/webhook', getPayment);
+
+// ротуер аналитики
+router.post('/analytics/track', AnalyticsController.track);
 export default router;

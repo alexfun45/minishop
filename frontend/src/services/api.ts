@@ -20,6 +20,16 @@ class ApiClient {
     }
   }
 
+  async track(payload: any) {
+    try {
+      axios.post(`${this.baseURL}/api/analytics/track`, payload).catch(err => {
+        console.error('Failed to send analytics', err);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   async getProductsByCategory(categoryId: number, language: string = 'ru') {
     try {
       const response = await axios.get(`${this.baseURL}/api/products/${categoryId}/${language}`);

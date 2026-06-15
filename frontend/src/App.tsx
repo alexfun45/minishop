@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { 
   ShoppingBag, X, Search, Star, 
-  Flame, Leaf, ArrowLeft, Plus, Minus 
+  Leaf, ArrowLeft, Plus, Minus 
 } from 'lucide-react';
+import ProductCard from './components/ProductCart'
 import { apiClient } from './services/api';
 import AiWidget from './components/ai-widget';
 import CartDrawer from './components/CartDrawer';
+import {AnalyticsService} from './services/AnalyticsService'
 
 // Типы для TypeScript (опционально, но полезно для структуры)
 interface Product {
@@ -38,20 +40,25 @@ export default function App() {
   });
 
   // Логика управления корзиной для каталога
-  const addToCart = (incomingProduct: any) => {
+  const addToCart = (incomingProduct: any, source: 'catalog' | 'ai_chat' | 'product_detail' = 'catalog') => {
     if (!incomingProduct) return;
   
-    // Разруливаем структуру: если товар пришел из каталога, он уже может быть оберткой,
-    // а если из чат-бота — это чистый объект товара.
     const product = incomingProduct.product ? incomingProduct.product : incomingProduct;
     
-    // Берем количество: из чата может прийти quantity, из каталога count, или дефолт 1
     const initialCount = incomingProduct.count || incomingProduct.quantity || 1;
   
     if (product.id === undefined || product.price === undefined) {
       console.error("Некорректный формат товара:", incomingProduct);
       return;
     }
+
+    AnalyticsService.track('add_to_cart', {
+      productId: product.id,
+      productName: product.name_ru || product.name || 'Товар без названия',
+      price: Number(product.price),
+      quantity: initialCount,
+      source: source
+    });
   
     setCart((prevCart) => {
       // На всякий случай проверяем, массив у нас или объект
@@ -168,6 +175,21 @@ export default function App() {
     localStorage.setItem('bakery_shop_cart', JSON.stringify(cart));
   }, [cart]);
 
+  useEffect(() => {
+    // Шлем аналитику только когда загрузка завершена и у нас есть товары
+    if (!isLoading && products.length > 0) {
+      // Собираем массив ID всех товаров, которые сейчас отрендерились на экране
+      const productIds = products.map(p => p.id);
+  
+      AnalyticsService.track('page_view', {
+        categoryActive: activeCategory ? categories.find(c => c.id === activeCategory)?.name : 'Поиск',
+        hasSearchQuery: !!searchQuery,
+        searchQuery: searchQuery || null,
+        viewed_products: productIds // Тот самый заветный массив ID!
+      });
+    }
+  }, [isLoading, products]);
+
   const handleCategoryClick = async (id: number) => {
     setSearchQuery('');
     setCurrentView('home');
@@ -183,6 +205,11 @@ export default function App() {
     setSelectedProduct(product);
     setCurrentView('product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    AnalyticsService.track('product_detail_open', {
+      productId: product.id,
+      productName: product.name
+    });
   };
 
   const closeProduct = () => {
@@ -296,59 +323,21 @@ export default function App() {
               ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                   {products.map(product => {
-                    const demoImg = product.image_url || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80`;
+                    //const demoImg = product.image_url || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80`;
                     const cartItem = Array.isArray(cart) ? cart.find(item => item?.product?.id === product.id) : null;
                     const count = cartItem ? cartItem.count : 0;
 
                     return (
-                      <div key={product.id} className="bg-stone-900/40 backdrop-blur-xl rounded-3xl border border-white/10 hover:border-amber-500/30 shadow-2xl hover:shadow-[0_10px_40px_rgba(217,119,6,0.15)] transition-all duration-500 flex flex-col overflow-hidden relative group cursor-pointer" onClick={() => openProduct(product)}>
-                        
-                        {product.price < 300 && (
-                          <div className="absolute top-4 left-4 z-10">
-                            <span className="bg-stone-950/80 border border-amber-500/30 text-amber-400 text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full backdrop-blur-md flex items-center gap-1.5">
-                              <Flame className="w-3 h-3 text-amber-500 fill-amber-500" /> Выбор шефа
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="h-60 overflow-hidden bg-stone-950 relative">
-                          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 to-transparent z-10" />
-                          <img src={demoImg} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-all duration-700 opacity-90 group-hover:opacity-100" />
-                        </div>
-
-                        <div className="p-6 flex-1 flex flex-col justify-between space-y-6 relative z-20 -mt-8 bg-gradient-to-b from-transparent to-stone-900/90 rounded-b-3xl">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-1 text-amber-400 text-xs font-semibold tracking-wide">
-                              <Star className="w-3.5 h-3.5 fill-amber-400" /> 4.9 <span className="text-stone-500 font-normal ml-1">Premium</span>
-                            </div>
-                            <h3 className="font-serif font-bold text-xl text-white leading-snug group-hover:text-amber-400 transition-colors line-clamp-2 drop-shadow-md">
-                              {product.name}
-                            </h3>
-                            <p className="text-stone-400 text-sm leading-relaxed line-clamp-2 font-light">
-                              {product.description || 'Изысканный вкус, созданный вручную из лучших ингредиентов по авторской рецептуре.'}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-4 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex flex-col">
-                              <span className="text-2xl font-black tracking-tight text-white">{product.price} ₽</span>
-                            </div>
-
-                            {count === 0 ? (
-                              <button onClick={() => addToCart(product)} className="bg-white/10 border border-white/20 text-white hover:bg-amber-600 hover:border-amber-500 hover:text-stone-950 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 shadow-sm backdrop-blur-md">
-                                Добавить
-                              </button>
-                            ) : (
-                              <div className="bg-amber-600 text-stone-950 flex items-center rounded-xl overflow-hidden shadow-[0_0_15px_rgba(217,119,6,0.3)]">
-                                <button onClick={() => removeFromCart(product.id)} className="px-3 py-2.5 hover:bg-amber-500 transition-colors"><Minus className="w-4 h-4" /></button>
-                                <span className="px-2 text-sm font-black min-w-[32px] text-center">{count}</span>
-                                <button onClick={() => addToCart(product)} className="px-3 py-2.5 hover:bg-amber-500 transition-colors"><Plus className="w-4 h-4" /></button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        count={count}
+                        onOpen={openProduct}
+                        onAddToCart={addToCart}
+                        onRemoveFromCart={removeFromCart}
+                      />
                     );
+                    
                   })}
                 </div>
               )}
@@ -417,7 +406,7 @@ export default function App() {
                       
                       {(!currentProductInCart || currentProductInCart.count === 0) ? (
                         <button 
-                          onClick={() => addToCart(selectedProduct)}
+                          onClick={() => addToCart(selectedProduct, 'product_detail')}
                           className="flex-1 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 py-4 px-8 rounded-2xl text-lg font-black transition-all shadow-[0_0_20px_rgba(217,119,6,0.3)] hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] transform hover:-translate-y-1"
                         >
                           В корзину
@@ -425,8 +414,8 @@ export default function App() {
                       ) : (
                         <div className="flex-1 bg-white/10 border border-white/20 flex items-center justify-between rounded-2xl overflow-hidden backdrop-blur-md">
                           <button onClick={() => removeFromCart(selectedProduct.id)} className="p-4 hover:bg-white/10 transition-colors text-white"><Minus className="w-6 h-6" /></button>
-                          <span className="text-xl font-black text-white min-w-[40px] text-center">{cart[selectedProduct.id].count}</span>
-                          <button onClick={() => addToCart(selectedProduct)} className="p-4 hover:bg-white/10 transition-colors text-white"><Plus className="w-6 h-6" /></button>
+                          <span className="text-xl font-black text-white min-w-[40px] text-center">{currentProductInCart ? currentProductInCart.count : 0}</span>
+                          <button onClick={() => addToCart(selectedProduct, 'product_detail')} className="p-4 hover:bg-white/10 transition-colors text-white"><Plus className="w-6 h-6" /></button>
                         </div>
                       )}
                     </div>
@@ -449,7 +438,7 @@ export default function App() {
             onClearCart={clearCart}
         />
       {(!isCartOpen) && (
-        <AiWidget addToCart={addToCart} />
+        <AiWidget addToCart={(prod) => addToCart(prod, 'ai_chat')} />
       )}
     </div>
   );

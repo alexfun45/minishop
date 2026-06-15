@@ -1,8 +1,8 @@
 import { Order, OrderItem, User, Product } from '../models/index.js';
 import { orderItemService } from './OrderItemService.js';
 import {sendStatusUpdateNotification} from '../api/telegramNotification.js'
-import { Op, fn, col } from 'sequelize';
-import sequelize from '../config/database.js';
+import { Op, fn, col, literal } from 'sequelize';
+import {AnalyticsEvent} from '../models/analytics.js'
 
 export class OrderService {
 
@@ -402,6 +402,64 @@ export class OrderService {
       raw: true,
       nest: true
     });
+
+    const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Считаем уникальные сессии (или пользователей) для каждого шага воронки
+  // Если у тебя в событиях пишется session_id или user_id, замени COUNT(*) на COUNT(DISTINCT session_id)
+  const viewsCount = await AnalyticsEvent.count({
+    where: { event_name: 'page_view', created_at: { [Op.gte]: thirtyDaysAgo } }
+  });
+
+  const detailsCount = await AnalyticsEvent.count({
+    where: { event_name: 'product_detail_open', created_at: { [Op.gte]: thirtyDaysAgo } }
+  });
+
+  const cartAddsCount = await AnalyticsEvent.count({
+    where: { event_name: 'add_to_cart', created_at: { [Op.gte]: thirtyDaysAgo } }
+  });
+
+    // Заказы берем напрямую из таблицы заказов за 30 дней для точности
+    const ordersCount: any = await Order.count({
+      where: { delivery_time: { [Op.gte]: thirtyDaysAgo } }
+    });
+
+
+  // --- 3. НОВЫЙ БЛОК: АНАЛИТИКА ИСТОЧНИКОВ ДОБАВЛЕНИЯ В КОРЗИНУ ---
+  // Запрос парсит JSONB поле properties и группирует по ключу source
+  const cartSourcesRaw = await AnalyticsEvent.findAll({
+    attributes: [
+      [literal("properties->>'source'"), 'source'],
+      [fn('COUNT', col('id')), 'count']
+    ],
+    where: {
+      event_name: 'add_to_cart',
+      created_at: { [Op.gte]: thirtyDaysAgo },
+      [Op.and]: [
+        literal("properties->>'source' IS NOT NULL")
+      ]
+    },
+    group: [fn('', literal("properties->>'source'"))],
+    raw: true
+  }); 
+
+  // Приводим сырые данные по источникам к красивому виду с дефолтными значениями
+  const sourcesMap: Record<string, string> = {
+    'catalog': 'Главный каталог',
+    'product_detail': 'Карточка товара',
+    'ai_chat': 'ИИ Чат-бот'
+  };
+
+  const cartSourcesData = cartSourcesRaw.map((item: any) => {
+    // Защищаемся: приводим к строке, убираем пробелы по краям и переводим в нижний регистр
+    const rawSource = String(item.source || '').trim().toLowerCase();
+    
+    return {
+      name: sourcesMap[rawSource] || item.source || 'Неизвестно',
+      value: parseInt(item.count, 10) || 0
+    };
+  });
   
     return {
       summary: {
@@ -425,7 +483,16 @@ export class OrderService {
       topProductsData: topProducts.map((item: any) => ({
         name: item.product?.name_ru || `Товар #${item.product_id}`,
         value: parseInt(item.total_quantity, 10) || 0
-      }))
+      })),
+      funnelData: [
+        { step: '1. Зашли на сайт', count: viewsCount, fill: '#a8a29e' },
+        { step: '2. Открыли товар', count: detailsCount, fill: '#fbbf24' },
+        { step: '3. Добавили в корзину', count: cartAddsCount, fill: '#f59e0b' },
+        { step: '4. Оформили заказ', count: ordersCount, fill: '#d97706' }
+      ],
+  
+      // Массив данных для круговой диаграммы (PieChart) по ИИ-боту и каталогу
+      cartSourcesData: cartSourcesData
     };
   }
 
