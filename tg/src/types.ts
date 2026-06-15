@@ -6,7 +6,7 @@ export interface UserSession {
   awaitingPhoneForOrders?: boolean;
   currentCategory?: number;
   language: 'ru' | 'tj' | 'uz';
-  checkoutStep?: 'phone' | 'address' | 'confirm' | 'payment';
+  checkoutStep?: 'phone' | 'address' | 'confirm' | 'comment' | 'payment';
   tempOrder?: any;
   lastMessageId?: number;
 }

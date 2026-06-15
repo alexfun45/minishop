@@ -96,7 +96,7 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const activeProductsCount = products ? products.length : 0;
-  const pendingOrdersCount = orders.filter((o: any) => o.payment_status === 'pending').length;
+  const pendingOrdersCount = orders.filter((o: any) => o.status === 'pending').length;
 
   const menuItems = [
     { id: 'dashboard', label: 'Главная', icon: <LayoutGrid className="w-5 h-5" /> },

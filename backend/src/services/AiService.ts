@@ -28,8 +28,8 @@ if (!process.env.YC_API_KEY || !process.env.YC_FOLDER_ID) {
 const responseSchema = z.object({
   intent: z.enum(["search", "add_to_cart", "confirm", "cancel", "greeting", "view_cart"])
     .describe("Классификация намерения..."),
-  productId: z.string().nullable().optional()
-    .describe("Артикул товара из прайса (только цифры/ID) или null, если не применимо"),
+  productIds: z.array(z.string()).nullable().optional()
+  .describe("Массив артикулов товаров (только цифры/ID), которые подходят под запрос пользователя и упомянуты в ответе text. Если ничего не найдено или не применимо — пустой массив или null"),
   quantity: z.number().nullable().optional().default(1)
     .describe("Количество товара, которое упомянул пользователь или null, если не применимо"),
   text: z.string()
@@ -292,17 +292,18 @@ export class AiService {
       
       const intentResult = await this.handleIntent(session, aiRes);
 
-      if (aiRes.productId) {
-        // Если модель вернула конкретный productId (нашла или добавляет)
-        const productInfo = await productService.findById(parseInt(aiRes.productId));
-        if (productInfo) {
-          productsForFrontend.push({
-            id: productInfo.id,
-            name_ru: productInfo.name_ru,
-            price: productInfo.price,
-            image_url: productInfo.image_url,
-            description_ru: productInfo.description_ru
-          });
+      if (aiRes.productIds && aiRes.productIds.length > 0) {
+        for (const idStr of aiRes.productIds) {
+          const pInfo = await productService.findById(parseInt(idStr));
+          if (pInfo) {
+            productsForFrontend.push({
+              id: pInfo.id,
+              name_ru: pInfo.name_ru,
+              price: pInfo.price,
+              image_url: pInfo.image_url,
+              description_ru: pInfo.description_ru
+            });
+          }
         }
       } else if (aiRes.intent === 'search' && Array.isArray(context)) {
         // Если это был поиск, но модель не выбрала один конкретный ID, 
@@ -341,26 +342,37 @@ export class AiService {
   }
 
   async handleIntent(session: UserSession, aiRes: any) {
-    const { intent, productId, quantity, text } = aiRes;
-    // Если бот что-то нашел, запоминаем это "на всякий случай"
-    if (productId) {
-      session.lastViewedProductId = productId;
+    const { intent, productIds, quantity, text } = aiRes;
+   
+    const firstProductId = productIds && productIds.length > 0 ? productIds[0] : null;
+
+    if (firstProductId) {
+      session.lastViewedProductId = firstProductId;
     }
+
     switch (intent) {
       case 'add_to_cart':
         // Запоминаем, что пользователь ХОЧЕТ добавить, но ждем подтверждения
-        const productInfo = await productService.findById(productId);
+        if (!firstProductId) {
+          return { message: "Уточните, пожалуйста, какой именно товар вы хотите добавить?" };
+        }
+        const productInfo = await productService.findById(parseInt(firstProductId));
+
         if (productInfo === null) {
-          // Обязательно возвращаем ответ, что товар заблокирован или отсутствует
           return { message: "К сожалению, этот товар сейчас недоступен для заказа." };
         }
-        if(productInfo!==null){
-        session.pendingAction = { type: 'ADD', productId, name: productInfo.name_ru, price: productInfo.price, quantity: quantity || 1 };
+
+        session.pendingAction = { 
+          type: 'ADD', 
+          productId: firstProductId, 
+          name: productInfo.name_ru, 
+          price: productInfo.price, 
+          quantity: quantity || 1 
+        };
         session.cart.push(session.pendingAction);
         session.pendingAction = null;
         return { message: text };
-        }
-
+        
       case 'confirm':
         if (session.pendingAction?.type === 'ADD') {
           const item = session.pendingAction;

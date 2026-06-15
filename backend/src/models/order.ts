@@ -15,14 +15,14 @@ interface OrderAttribute{
   customer_phone: string;
   payment_method: string;
   payment_status: string;
-  notes: string;
+  comment: string;
   delivery_lat: string;
   delivery_lng: string;
   payment_url: string;
 }
 
 interface OrderCreationAttribute extends Optional<OrderAttribute,
- 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'telegram_id' | 'payment_method' | 'payment_status' | 'notes' | 'delivery_lat' | 'delivery_lng'> {}
+ 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'telegram_id' | 'payment_method' | 'payment_status' | 'comment' | 'delivery_lat' | 'delivery_lng'> {}
 
  class Order extends Model<OrderAttribute, OrderCreationAttribute> implements OrderAttribute{
   declare id: number;
@@ -36,7 +36,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   declare customer_phone: string;
   declare payment_method: string;
   declare payment_status: string;
-  declare notes: string;
+  declare comment: string;
   declare delivery_lat: string;
   declare delivery_lng: string;
   declare payment_url: string;
@@ -94,7 +94,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
     type: DataTypes.ENUM('pending', 'paid', 'failed', 'payment_success'),
     defaultValue: 'pending',
   },
-  notes: {
+  comment: {
     type: DataTypes.TEXT,
     allowNull: true,
   },

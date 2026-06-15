@@ -21,10 +21,11 @@ router.get('/product/:id', productController.getById);
 router.use('/products/:catId/:lang', productController.getByCategory);
 router.use('/categories/:lang', categoryController.getCategories);
 
-
+router.get('/order/getPaymentStatus/:id', orderController.getPaymentStatus);
+router.get('/order/:orderId', orderController.getOrder);
 router.use('/orders/create', orderController.createOrder);
 router.use('/orders/:userId', orderController.getUserOrders);
-router.use('/order/:orderId', orderController.getOrder);
+//router.use('/order/:orderId', orderController.getOrder);
 
 router.post('/ai/generate-banner', upload.single('image'), aiService.generateCard);
 router.post('/ai/', aiService.handleUserMessage);

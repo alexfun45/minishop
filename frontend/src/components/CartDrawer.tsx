@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { ShoppingBag, X, Trash2, Minus, Plus, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShoppingBag, X, Trash2, Minus, Plus, ChevronRight, Loader2 } from 'lucide-react';
 import { apiClient } from '../services/api';
 
-// Описываем типы для пропсов, которые компонент ожидает получить от App.tsx
 interface Product {
   id: number;
   name_ru: string;
@@ -23,8 +22,10 @@ interface CartDrawerProps {
   totalPrice: number;
   onAddToCart: (product: Product) => void;
   onRemoveFromCart: (id: number, removeAll?: boolean) => void;
-  onClearCart: () => void; // Чтобы очистить корзину после успешного заказа
+  onClearCart: () => void;
 }
+
+const MAX_COMMENT_LENGTH = 200;
 
 export default function CartDrawer({
   isOpen,
@@ -36,99 +37,125 @@ export default function CartDrawer({
   onClearCart
 }: CartDrawerProps) {
   
-  // Локальные состояния для пошагового оформления
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'delivery' | 'contacts' | 'payment' | 'success'>('cart');
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
   const [address, setAddress] = useState('');
+  const [comment, setComment] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentUrl, setPaymentUrl] = useState<string>('');
+  const [isLinkFollowed, setIsLinkFollowed] = useState(false);
 
-  // Если шторка закрыта, ничего не рендерим
+  // Новые стейты для отслеживания статуса онлайн-оплаты
+  const [isPaid, setIsPaid] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+
+  useEffect(() => {
+    if (checkoutStep !== 'success' || !paymentUrl || !orderNumber || isPaid) return;
+
+    setIsCheckingPayment(true);
+
+    const interval = setInterval(async () => {
+      try {
+        const result = await apiClient.getOrderStatus(parseInt(orderNumber));
+
+        if (result && result == 'payment_success') {
+          setIsPaid(true);
+          setIsLinkFollowed(false);
+          setIsCheckingPayment(false);
+          clearInterval(interval);
+        }
+      } catch (error) {
+        console.error('Ошибка при автоматической проверке статуса оплаты:', error);
+      }
+    }, 4000);
+
+    // Очистка интервала при размонтировании компонента или смене шага
+    return () => clearInterval(interval);
+  }, [checkoutStep, paymentUrl, orderNumber, isPaid]);
+
   if (!isOpen) return null;
 
   const handlePlaceOrder = async () => {
-    setIsSubmitting(false); // Сброс стейта на старте
+    setIsSubmitting(false); 
+    setIsPaid(false); // Сброс статуса оплаты для нового заказа
   
-  // 1. Формируем тело запроса один в один как в ТГ-боте
-  // Так как у нас демо, в качестве user_id можно передать токен из localStorage
-  const rawUserId = localStorage.getItem('bakery_ai_user_id');
-
-  const numericUserId = rawUserId 
-    ? Number(rawUserId) 
-    : Number(Date.now().toString() + Math.floor(100 + Math.random() * 900).toString());
-  
-  const orderData = {
-    customer_name: name,
-    customer_phone: phone,
-    delivery_address: deliveryType === 'delivery' ? address : 'Самовывоз (ул. Коричная, д. 12)',
-    user_id: numericUserId,
-    telegram_id: null,
-    total_amount: totalPrice,
-    payment_method: paymentMethod, // 'online' или 'cash'
-    items: cartItems.map(item => ({
-      product_id: item.product.id,
-      quantity: item.count,
-      price: item.product.price
-    }))
-  };
-
-  try {
-    setIsSubmitting(true);
-    console.log('🟡 Sending order data to API:', JSON.stringify(orderData, null, 2));
+    const rawUserId = localStorage.getItem('bakery_ai_user_id');
+    const numericUserId = rawUserId 
+      ? Number(rawUserId) 
+      : Number(Date.now().toString() + Math.floor(100 + Math.random() * 900).toString());
     
-    // Вызываем реальный метод вашего API
-    const result = await apiClient.createOrder(orderData);
-    console.log('🟡 API response received:', result);
+    const orderData = {
+      customer_name: name,
+      customer_phone: phone,
+      delivery_address: deliveryType === 'delivery' ? address : 'Самовывоз (ул. Коричная, д. 12)',
+      user_id: numericUserId,
+      telegram_id: null,
+      total_amount: totalPrice,
+      payment_method: paymentMethod,
+      comment: comment.trim(), 
+      items: cartItems.map(item => ({
+        product_id: item.product.id,
+        quantity: item.count,
+        price: item.product.price
+      }))
+    };
 
-    if (result && result.success) {
-      setOrderNumber(result.data.id.toString());
+    try {
+      setIsSubmitting(true);
+      console.log('🟡 Sending order data to API:', JSON.stringify(orderData, null, 2));
       
-      // Проверяем сценарий онлайн-оплаты
-      if (paymentMethod === 'online' && result.data.payment_url) {
-        // Сохраняем ссылку во временный стейт компонента (добавьте его к остальным useState вверху)
-        setPaymentUrl(result.data.payment_url);
-      } else {
-        setPaymentUrl(''); // Сброс для налички
-      }
+      const result = await apiClient.createOrder(orderData);
+      console.log('🟡 API response received:', result);
 
-      // Очищаем корзину в App.tsx
-      onClearCart();
-      // Переходим на финальный экран
-      setCheckoutStep('success');
-    } else {
-      alert(`❌ Ошибка API: ${result?.error || 'Неизвестная ошибка'}`);
+      if (result && result.success) {
+        setOrderNumber(result.data.id.toString());
+        
+        if (paymentMethod === 'online' && result.data.payment_url) {
+          setPaymentUrl(result.data.payment_url);
+        } else {
+          setPaymentUrl('');
+        }
+
+        onClearCart(); // Очищаем корзину, так как заказ создан на бэкенде
+        setCheckoutStep('success');
+      } else {
+        alert(`❌ Ошибка API: ${result?.error || 'Неизвестная ошибка'}`);
+      }
+    } catch (error) {
+      console.error('Place order error:', error);
+      alert('❌ Произошла ошибка при оформлении заказа. Проверьте консоль или статус бэкенда.');
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error('Place order error:', error);
-    alert('❌ Произошла ошибка при оформлении заказа. Проверьте консоль или статус бэкенда.');
-  } finally {
-    setIsSubmitting(false);
-  }
   };
 
   const handleClose = () => {
-    // Если заказ успешен, при закрытии возвращаем форму в исходное состояние 'cart'
+    // Если пользователь закрывает оплаченный заказ, сбрасываем всё в исходное состояние
     if (checkoutStep === 'success') {
       setCheckoutStep('cart');
+      setComment('');
+      setIsPaid(false);
+      setPaymentUrl('');
     }
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Оверлей (задний фон) */}
+      {/* Оверлей блокирует закрытие по клику мимо кассы, пока мы ждем оплату */}
       <div 
         className="absolute inset-0 bg-stone-950/60 backdrop-blur-sm animate-in fade-in duration-300" 
         onClick={() => {
-          if (checkoutStep !== 'success') handleClose();
+          // Запрещаем закрывать шторку кликом по фону, если идет процесс онлайн-оплаты и она еще не завершена
+          if (checkoutStep === 'success' && paymentUrl && !isPaid) return;
+          handleClose();
         }} 
       />
       
-      {/* Контейнер панели */}
       <div className="relative w-full max-w-md bg-stone-950/90 border-l border-white/10 h-screen shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 backdrop-blur-2xl text-stone-200">
         
         {/* ШАПКА КОРЗИНЫ */}
@@ -139,16 +166,17 @@ export default function CartDrawer({
             {checkoutStep === 'delivery' && '1. Доставка'}
             {checkoutStep === 'contacts' && '2. Контакты'}
             {checkoutStep === 'payment' && '3. Оплата'}
-            {checkoutStep === 'success' && 'Заказ принят!'}
+            {checkoutStep === 'success' && (isPaid ? 'Заказ оплачен!' : 'Заказ принят!')}
           </h3>
-          {checkoutStep !== 'success' && (
+          {/* Прячем крестик закрытия, если идет ожидание платежа */}
+          {checkoutStep !== 'success' || (paymentUrl && isPaid) || !paymentUrl ? (
             <button onClick={handleClose} className="text-stone-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">
               <X className="w-6 h-6" />
             </button>
-          )}
+          ) : null}
         </div>
 
-        {/* СТЕППЕР (ПРОГРЕСС-БАР) */}
+        {/* СТЕППЕР */}
         {checkoutStep !== 'cart' && checkoutStep !== 'success' && (
           <div className="bg-stone-900/50 px-6 py-3 border-b border-white/5 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-stone-500 shrink-0">
             <span className={checkoutStep === 'delivery' ? 'text-amber-500' : 'text-stone-300'}>Доставка</span>
@@ -194,7 +222,7 @@ export default function CartDrawer({
             </div>
           )}
 
-          {/* ШАГ 1: СПОСОБ ПОЛУЧЕНИЯ */}
+          {/* ШАГ 1: ДОСТАВКА */}
           {checkoutStep === 'delivery' && (
             <div className="space-y-5 animate-in slide-in-from-right-5 duration-200">
               <div className="grid grid-cols-2 gap-3 bg-white/5 p-1.5 rounded-xl border border-white/5">
@@ -229,6 +257,23 @@ export default function CartDrawer({
                   <p className="text-sm text-stone-400 font-light">ул. Коричная, д. 12 (с 09:00 до 21:00)</p>
                 </div>
               )}
+
+              <div className="space-y-2 pt-2 border-t border-white/5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-400">Комментарий к заказу</label>
+                  <span className={`text-[10px] font-mono tracking-wide ${comment.length >= MAX_COMMENT_LENGTH ? 'text-red-500 font-bold' : comment.length > MAX_COMMENT_LENGTH - 30 ? 'text-amber-500' : 'text-stone-600'}`}>
+                    {comment.length} / {MAX_COMMENT_LENGTH}
+                  </span>
+                </div>
+                <textarea 
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
+                  placeholder="Например: код домофона 42к3, оставить у двери..."
+                  rows={2}
+                  maxLength={MAX_COMMENT_LENGTH}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-stone-600 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all resize-none"
+                />
+              </div>
             </div>
           )}
 
@@ -289,23 +334,45 @@ export default function CartDrawer({
             </div>
           )}
 
-          {/* ШАГ 4: УСПЕХ */}
+          {/* ШАГ 4: ЭКРАН УСПЕХА / ОПРОСА ЮКАССЫ */}
           {checkoutStep === 'success' && (
             <div className="text-center py-8 space-y-6 animate-in zoom-in-95 duration-300">
-              <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 text-stone-950 rounded-full flex items-center justify-center text-4xl font-black mx-auto shadow-[0_0_30px_rgba(217,119,6,0.4)]">
-                ✓
-              </div>
+              
+              {/* Динамическая иконка: Галочка или крутящийся лоадер ожидания */}
+              {paymentUrl && !isPaid ? (
+                <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                  <Loader2 className="w-20 h-20 text-amber-500 animate-spin absolute" />
+                  <span className="text-xs font-mono font-bold text-amber-500">⏳</span>
+                </div>
+              ) : (
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-600 text-stone-950 rounded-full flex items-center justify-center text-4xl font-black mx-auto shadow-[0_0_30px_rgba(16,185,129,0.4)] animate-bounce">
+                  ✓
+                </div>
+              )}
               
               <div className="space-y-2">
                 <h4 className="font-serif text-2xl font-black text-white">
-                  Заказ #{orderNumber} сформирован!
+                  {isPaid ? `Заказ #${orderNumber} успешно оплачен!` : `Заказ #${orderNumber} сформирован!`}
                 </h4>
                 
-                {/* Условный рендеринг текста в зависимости от платежки */}
                 {paymentUrl ? (
-                  <p className="text-sm text-stone-400 font-light px-6">
-                    Для завершения оформления необходимо оплатить его онлайн по кнопке ниже. После успешной транзакции мы передадим чек на кухню.
-                  </p>
+                  isPaid ? (
+                    <p className="text-sm text-emerald-400 font-medium px-6 animate-in fade-in">
+                      ✨ Деньги зачислены. Мы отправили чек на кухню, пекари уже принимаются за работу!
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-stone-400 font-light px-6">
+                        Для завершения транзакции перейдите к оплате. Мы автоматически обновим эту страницу, как только получим подтверждение банка.
+                      </p>
+                      {isCheckingPayment && (
+                        <div className="text-xs text-amber-500/70 font-mono flex items-center justify-center gap-1.5">
+                          <span className="inline-block w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
+                          Ожидаем сигнал от ЮKassa...
+                        </div>
+                      )}
+                    </div>
+                  )
                 ) : (
                   <p className="text-sm text-stone-400 font-light px-6">
                     Мы уже передали ваш чек пекарям. Выпечка начинает готовиться, ожидайте звонка для подтверждения!
@@ -313,30 +380,52 @@ export default function CartDrawer({
                 )}
               </div>
 
-              {/* ЕСЛИ ОНЛАЙН-ОПЛАТА: Выводим кнопку ЮKassa */}
-              {paymentUrl && (
-                <div className="px-6 animate-in fade-in slide-in-from-bottom-3 delay-150 duration-300">
-                  <a 
-                    href={paymentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-stone-950 py-4 px-6 rounded-xl font-black text-lg transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] flex items-center justify-center gap-3 decoration-0"
-                  >
-                    💳 Оплатить заказ онлайн
-                  </a>
-                  <span className="text-[11px] text-stone-500 block mt-2 font-light">
-                    Ссылка откроется в новой вкладке через безопасный шлюз ЮKassa
-                  </span>
+              {/* КНОПКА ОПЛАТЫ: Скрывается сразу после того, как статус стал 'paid' */}
+              {paymentUrl && !isPaid && (
+                <div className="px-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                  {(!isLinkFollowed) ?
+                    (
+                      <>
+                        <a 
+                          href={paymentUrl}
+                          onClick={() => setIsLinkFollowed(true)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 py-4 px-6 rounded-xl font-black text-lg transition-all shadow-[0_0_20px_rgba(217,119,6,0.2)] flex items-center justify-center gap-3 decoration-0"
+                        >
+                          💳 Перейти к оплате онлайн
+                        </a>
+                        <span className="text-[11px] text-stone-500 block mt-2 font-light">
+                          Ссылка откроется в новой вкладке ЮKassa
+                        </span>
+                      </>
+                    ) :
+                    (
+                      <span className="text-[11px] text-stone-500 block mt-2 font-light">
+                          Ждем подтверждения оплаты...
+                      </span>
+                    )
+                    }
                 </div>
               )}
 
+              {/* УПРАВЛЕНИЕ КНОПКОЙ «ВЕРНУТЬСЯ В ВИТРИНУ» */}
               <div className="border-t border-white/5 pt-4">
-                <button 
-                  onClick={handleClose}
-                  className="bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 px-8 py-3 rounded-xl text-sm font-bold transition-all"
-                >
-                  Вернуться на витрину
-                </button>
+                {/* UX РЕШЕНИЕ: Если это онлайн-оплата, кнопка «Вернуться» ЗАБЛОКИРОВАНА 
+                  до тех пор, пока заказ не будет фактически оплачен. Это удерживает пользователя на экране.
+                */}
+                {paymentUrl && !isPaid ? (
+                  <div className="text-xs text-stone-500 max-w-[280px] mx-auto leading-relaxed">
+                    Пожалуйста, завершите трансляцию платежа в открывшемся окне. Кнопка возврата станет доступна сразу после подтверждения банка.
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handleClose}
+                    className="bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 px-8 py-3 rounded-xl text-sm font-bold transition-all animate-in fade-in duration-300"
+                  >
+                    Вернуться на витрину
+                  </button>
+                )}
               </div>
             </div>
           )}

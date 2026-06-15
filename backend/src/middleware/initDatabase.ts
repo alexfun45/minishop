@@ -54,6 +54,7 @@ async function seedInitialData() {
     console.log('create user...');
     const user = await User.create({
         username: 'admin',
+        user_id: 1,
         role: 'admin',
         password: passHash
       });

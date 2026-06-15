@@ -175,6 +175,7 @@ export class OrderService {
       customer_name: order.customer_name,
       customer_phone: order.customer_phone,
       payment_method: order.payment_method,
+      comment: order.comment,
       payment_url: order.payment_url, // Убедись, что это поле есть в твоей модели БД для хранения ссылок ЮKassa
       items: (order.order_items || []).map((item: any) => ({
         product_id: item.product_id,
@@ -211,6 +212,14 @@ export class OrderService {
     order.payment_status = status;
     await order.save();
 
+  }
+
+  async getStatus(orderId: number){
+    const order = await Order.findByPk(orderId);
+    if (!order) {
+      throw new Error('Order not found');
+    }
+    return order.payment_status;
   }
 
   // Обновить статус заказа

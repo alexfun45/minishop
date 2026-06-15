@@ -227,10 +227,10 @@ export const OrdersManagement: React.FC = () => {
                         </div>
 
                         <div className="flex flex-col space-y-4 text-left">
-                          <div className={`p-4 rounded-xl border ${order.notes ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
-                            <p className="text-[10px] text-amber-800 uppercase font-black mb-1">Заметка пекарю:</p>
+                          <div className={`p-4 rounded-xl border ${order.comment ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <p className="text-[10px] text-amber-800 uppercase font-black mb-1">Комментарий покупателя:</p>
                             <p className="text-sm text-gray-700 italic leading-relaxed">
-                              {order.notes || 'Клиент не оставил комментариев'}
+                              {order.comment || 'Клиент не оставил комментариев'}
                             </p>
                           </div>
 

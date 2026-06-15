@@ -101,6 +101,16 @@ class ApiClient {
     }
   }
 
+  async getOrderStatus(orderId: number) {
+    try {
+      const response = await axios.get(`${this.baseURL}/api/order/getPaymentStatus/${orderId}`);
+      return response.data.data || null;
+    } catch (error) {
+      console.error('Get order by id error:', error);
+      return null;
+    }
+  }
+
 
   async sendAi(userId: string, message: string, payload?: any){
     const req = JSON.stringify({ userId, message, payload });

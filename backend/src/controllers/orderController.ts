@@ -1,4 +1,4 @@
-import { orderService } from "../services/OrderService.js";
+import { OrderService, orderService } from "../services/OrderService.js";
 import type { Request, Response } from 'express';
 import LogEvent from '../utils/LogEvents.js'
 import {checkout} from '../api/YKassaPayment.js'
@@ -100,7 +100,6 @@ class OrderController {
           error: 'Invalid order ID'
         });
       }
-      const currentCategory = await orderService.findById(id);
       const updatedStatus = req.body.status;
       const Order = await orderService.updateStatus(id, updatedStatus);
 
@@ -117,16 +116,39 @@ class OrderController {
     }
   }
 
+  async getPaymentStatus(req: Request, res: Response){
+    try{
+      const id = parseInt(req.params?.id || '');
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid order ID'
+        });
+      }
+      const orderStatus = await orderService.getStatus(id);
+      res.json({
+        success: true,
+        data: orderStatus,
+      });
+      } catch(error){
+        //console.error('update order error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to update order',
+        });
+      }
+  }
+
   async createOrder(req: Request, res: Response){
     try{
       let newOrder = {...req.body};
+      console.log('newOrder', newOrder);
       if(newOrder.payment_method == 'online'){
-        newOrder.status = 'pending_payment';
+        newOrder.payment_status = 'pending_payment';
       }
       const order = await orderService.create(newOrder);
       if(order)
         LogEvent('create new order', order.id.toString());
-      console.log('order', order);
       if(order && order.payment_method == 'online'){
         const payment: any = await checkout(order, order.id);
         await orderService.update(order.id, "payment_url", payment.confirmation.confirmation_url);

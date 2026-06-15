@@ -29,7 +29,7 @@ export type AuthContextType = {
 export interface Order {
   id: number;
   delivery_time: string;
-  notes: string;
+  comment: string;
   telegram_id: number;
   delivery_lat: string;
   delivery_lng: string;
