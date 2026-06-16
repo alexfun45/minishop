@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   ShoppingBag, X, Search, Star, 
   Leaf, ArrowLeft, Plus, Minus 
 } from 'lucide-react';
-import ProductCard from './components/ProductCart'
+import ProductCard from './components/ProductCart';
 import { apiClient } from './services/api';
 import AiWidget from './components/ai-widget';
 import CartDrawer from './components/CartDrawer';
-import {AnalyticsService} from './services/AnalyticsService'
+import { AnalyticsService } from './services/AnalyticsService';
+import WebApp from '@twa-dev/sdk'; 
+import { initTelegramApp, isTelegramApp } from './services/telegram';
 
-// Типы для TypeScript (опционально, но полезно для структуры)
 interface Product {
   id: number;
   name: string;
@@ -19,32 +21,62 @@ interface Product {
 }
 
 export default function App() {
-  // Базовые стейты
-  const [categories, setCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [activeCategory, setActiveCategory] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Стейты поиска
-  const [searchQuery, setSearchQuery] = useState('');
-  
   // Стейты навигации и UI
+  //const [tgUser, setTgUser] = useState<any>(null);
+  const [activeCategory, setActiveCategory] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentView, setCurrentView] = useState<'home' | 'product'>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Стейт корзины (теперь хранит полные данные товара)
+  useEffect(() => {
+    initTelegramApp();
+    //setTgUser(getTelegramUser());
+  }, []);
+
+  // Стейт корзины
   const [cart, setCart] = useState<any[]>(() => {
     const savedCart = localStorage.getItem('bakery_shop_cart');
     return savedCart ? JSON.parse(savedCart) : [];
   });
 
-  // Логика управления корзиной для каталога
+  // 2. ХУК КЭШИРОВАНИЯ КАТЕГОРИЙ
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const cats = await apiClient.getCategories();
+      // Автоматически выставляем первую категорию активной, если она ещё не выбрана
+      if (cats.length > 0 && activeCategory === null && !debouncedSearchQuery) {
+        setActiveCategory(cats[0].id);
+      }
+      return cats;
+    },
+    staleTime: 60 * 60 * 1000, // Категории меняются редко, кэшируем на 1 час
+  });
+
+  // 3. ХУК КЭШИРОВАНИЯ ТОВАРОВ (Обрабатывает и категории, и поиск!)
+  const { data: products = [], isLoading } = useQuery({
+    // Ключ зависит либо от активной категории, либо от поискового запроса
+    queryKey: ['products', { category: activeCategory, search: debouncedSearchQuery }],
+    queryFn: async () => {
+      if (debouncedSearchQuery.trim().length > 0) {
+        return await apiClient.searchProducts(debouncedSearchQuery);
+      }
+      if (activeCategory !== null) {
+        return await apiClient.getProductsByCategory(activeCategory);
+      }
+      return [];
+    },
+    // Включаем запрос, только если у нас есть выбранная категория ИЛИ поисковый запрос
+    enabled: activeCategory !== null || debouncedSearchQuery.trim().length > 0,
+    staleTime: 5 * 60 * 1000, // Кэшируем товары на 5 минут
+  });
+
+  // Логика управления корзиной
   const addToCart = (incomingProduct: any, source: 'catalog' | 'ai_chat' | 'product_detail' = 'catalog') => {
     if (!incomingProduct) return;
-  
     const product = incomingProduct.product ? incomingProduct.product : incomingProduct;
-    
     const initialCount = incomingProduct.count || incomingProduct.quantity || 1;
   
     if (product.id === undefined || product.price === undefined) {
@@ -61,16 +93,12 @@ export default function App() {
     });
   
     setCart((prevCart) => {
-      // На всякий случай проверяем, массив у нас или объект
       const currentCartArray = Array.isArray(prevCart) ? prevCart : Object.values(prevCart);
-      
-      // Ищем, есть ли уже этот товар в корзине
       const existingItemIndex = currentCartArray.findIndex(
         (item) => item && item.product && item.product.id === product.id
       );
   
       if (existingItemIndex > -1) {
-        // Если товар найден, увеличиваем его count
         const newCart = [...currentCartArray];
         newCart[existingItemIndex] = {
           ...newCart[existingItemIndex],
@@ -78,7 +106,6 @@ export default function App() {
         };
         return newCart;
       } else {
-        // Если товара нет, создаем структуру, которую ожидает ваш App.tsx
         const newCartItem = {
           count: initialCount,
           product: {
@@ -95,112 +122,131 @@ export default function App() {
 
   const removeFromCart = (id: number, removeAll = false) => {
     setCart((prevCart) => {
-      // Гарантируем, что работаем с массивом
       const currentCartArray = Array.isArray(prevCart) ? prevCart : Object.values(prevCart);
-  
-      // Ищем индекс элемента, у которого внутри объекта product совпадает id
       const existingItemIndex = currentCartArray.findIndex(
         (item) => item && item.product && item.product.id === id
       );
   
-      // Если товар почему-то не найден, ничего не делаем
       if (existingItemIndex === -1) return currentCartArray;
   
       const newCart = [...currentCartArray];
       const currentItem = newCart[existingItemIndex];
   
       if (removeAll || currentItem.count <= 1) {
-        // Удаляем позицию из массива полностью
         newCart.splice(existingItemIndex, 1);
       } else {
-        // Уменьшаем количество на 1
         newCart[existingItemIndex] = {
           ...currentItem,
           count: currentItem.count - 1
         };
       }
-  
       return newCart;
     });
   };
 
-  const clearCart = () => setCart([]); // Метод очистки для стейта
+  const clearCart = () => setCart([]);
 
-  // Вычисляемые данные для передачи в дочерний компонент корзины
   let cartItemsArray = [];
   let totalCartItems = 0;
   let totalCartPrice = 0;
-  if(cart.length>0){
+  if(cart.length > 0){
     cartItemsArray = Object.values(cart);
     totalCartItems = cartItemsArray.reduce((acc, item) => acc + item.count, 0);
     totalCartPrice = cartItemsArray.reduce((acc, item) => acc + (item.product.price * item.count), 0);
   }
 
-  // Инициализация
+  // Эффект для дебаунса поиска (теперь просто выставляет стейт для React Query)
   useEffect(() => {
-    const initData = async () => {
-      setIsLoading(true);
-      const cats = await apiClient.getCategories();
-      setCategories(cats);
-      if (cats.length > 0) {
-        setActiveCategory(cats[0].id);
-        const prods = await apiClient.getProductsByCategory(cats[0].id);
-        setProducts(prods);
-      }
-      setIsLoading(false);
-    };
-    initData();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      const trimmed = searchQuery.trim();
+      setDebouncedSearchQuery(trimmed);
 
-  // Мгновенный поиск с дебаунсом
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (searchQuery.trim().length > 0) {
-        setIsLoading(true);
+      if (trimmed.length > 0) {
         setActiveCategory(null);
-        if (currentView === 'product') setCurrentView('home'); // Возвращаем в каталог при поиске
-        
-        const searchResults = await apiClient.searchProducts(searchQuery);
-        setProducts(searchResults);
-        setIsLoading(false);
-      } else if (searchQuery.trim().length === 0 && categories.length > 0 && activeCategory === null) {
+        if (currentView === 'product') setCurrentView('home');
+      } else if (trimmed.length === 0 && categories.length > 0 && activeCategory === null) {
         handleCategoryClick(categories[0].id);
       }
-    }, 300); // 300ms для ощущения "мгновенности"
+    }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+  }, [searchQuery, categories]);
 
   useEffect(() => {
     localStorage.setItem('bakery_shop_cart', JSON.stringify(cart));
   }, [cart]);
 
+  // Сбор сквозной трекинг-аналитики
   useEffect(() => {
-    // Шлем аналитику только когда загрузка завершена и у нас есть товары
     if (!isLoading && products.length > 0) {
-      // Собираем массив ID всех товаров, которые сейчас отрендерились на экране
-      const productIds = products.map(p => p.id);
+      const productIds = products.map((p: any) => p.id);
   
       AnalyticsService.track('page_view', {
-        categoryActive: activeCategory ? categories.find(c => c.id === activeCategory)?.name : 'Поиск',
-        hasSearchQuery: !!searchQuery,
-        searchQuery: searchQuery || null,
-        viewed_products: productIds // Тот самый заветный массив ID!
+        categoryActive: activeCategory ? categories.find((c: any) => c.id === activeCategory)?.name : 'Поиск',
+        hasSearchQuery: !!debouncedSearchQuery,
+        searchQuery: debouncedSearchQuery || null,
+        viewed_products: productIds
       });
     }
-  }, [isLoading, products]);
+  }, [isLoading, products, activeCategory, categories, debouncedSearchQuery]);
 
-  const handleCategoryClick = async (id: number) => {
+  useEffect(() => {
+
+    if (!isTelegramApp()) return;
+
+    if (totalCartItems > 0) {
+      // Настраиваем кнопку: текст и цвет (в стиле твоей пекарни)
+      WebApp.MainButton.setText(`Посмотреть корзину (${totalCartItems} шт) — ${totalCartPrice} ₽`);
+      WebApp.MainButton.setParams({
+        color: '#d97706',     // Вместо bg_color используем color (amber-600)
+        text_color: '#0c0a09'
+      } as any);
+      WebApp.MainButton.show();
+
+      // Вешаем колбэк на клик по кнопке Telegram
+      const handleMainButtonClick = () => {
+        setIsCartOpen(true);
+      };
+      
+      WebApp.MainButton.onClick(handleMainButtonClick);
+
+      // Обязательно очищаем обработчик при изменении стейта
+      return () => {
+        WebApp.MainButton.offClick(handleMainButtonClick);
+      };
+    } else {
+      WebApp.MainButton.hide();
+    }
+  }, [totalCartItems, totalCartPrice]);
+
+  useEffect(() => {
+    if (!isTelegramApp()) return; 
+  
+    if (currentView === 'product') {
+      WebApp.BackButton.show();
+      
+      const handleBackClick = () => {
+        closeProduct();
+      };
+      
+      WebApp.BackButton.onClick(handleBackClick);
+      
+      // ДОБАВИЛИ ФИГУРНЫЕ СКОБКИ: теперь функция возвращает void, и React счастлив
+      return () => { 
+        WebApp.BackButton.offClick(handleBackClick); 
+      };
+    } else {
+      WebApp.BackButton.hide();
+    }
+  }, [currentView]);
+
+  const handleCategoryClick = (id: number) => {
     setSearchQuery('');
+    setDebouncedSearchQuery('');
     setCurrentView('home');
     setActiveCategory(id);
-    setIsLoading(true);
-    const prods = await apiClient.getProductsByCategory(id);
-    setProducts(prods);
-    setIsLoading(false);
   };
 
-  // Навигация
   const openProduct = (product: Product) => {
     setSelectedProduct(product);
     setCurrentView('product');
@@ -218,6 +264,7 @@ export default function App() {
   };
 
   const currentProductInCart = Array.isArray(cart) ? cart.find(item => item?.product?.id === selectedProduct?.id) : null;
+
   return (
     <div className="min-h-screen bg-[url('https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center bg-fixed text-stone-200 antialiased font-sans selection:bg-amber-600 selection:text-white">
       <div className="min-h-screen bg-stone-950/80 backdrop-blur-[4px] flex flex-col">
@@ -227,7 +274,7 @@ export default function App() {
           <div className="max-w-7xl mx-auto px-4 h-24 flex items-center justify-between gap-6">
             
             {/* Логотип */}
-            <div className="flex items-center gap-4 cursor-pointer shrink-0 group" onClick={() => { setSearchQuery(''); handleCategoryClick(categories[0]?.id); }}>
+            <div className="flex items-center gap-4 cursor-pointer shrink-0 group" onClick={() => { handleCategoryClick(categories[0]?.id); }}>
               <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-700 rounded-2xl flex items-center justify-center text-stone-950 font-serif text-2xl font-black shadow-[0_0_20px_rgba(217,119,6,0.3)] group-hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] transition-all duration-500">
                 К
               </div>
@@ -271,11 +318,11 @@ export default function App() {
           </div>
         </header>
 
-        {/* МЕНЮ КАТЕГОРИЙ (скрываем на странице товара) */}
+        {/* МЕНЮ КАТЕГОРИЙ */}
         {currentView === 'home' && (
           <section className="bg-stone-950/40 border-b border-white/5 py-4 sticky top-24 z-30 backdrop-blur-md">
             <div className="max-w-7xl mx-auto px-4 flex gap-3 overflow-x-auto no-scrollbar pb-2">
-              {categories.map(cat => (
+              {categories.map((cat: any) => (
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat.id)}
@@ -294,13 +341,11 @@ export default function App() {
 
         {/* ОСНОВНОЙ КОНТЕНТ */}
         <main className="max-w-7xl mx-auto px-4 py-12 flex-1 w-full">
-          
           {currentView === 'home' ? (
-            /* ВЬЮ: КАТАЛОГ */
             <div className="animate-in fade-in duration-500">
               <div className="mb-10 flex items-end justify-between border-b border-white/10 pb-4">
                 <h2 className="text-3xl md:text-4xl font-serif font-black tracking-tight text-white">
-                  {searchQuery ? `Результаты: "${searchQuery}"` : categories.find(c => c.id === activeCategory)?.name || 'Эксклюзивная коллекция'}
+                  {searchQuery ? `Результаты: "${searchQuery}"` : categories.find((c: any) => c.id === activeCategory)?.name || 'Эксклюзивная коллекция'}
                 </h2>
                 <span className="text-xs font-bold text-amber-500 uppercase tracking-widest px-4 py-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 backdrop-blur-sm">
                   {products.length} позиций
@@ -322,8 +367,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {products.map(product => {
-                    //const demoImg = product.image_url || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80`;
+                  {products.map((product: any) => {
                     const cartItem = Array.isArray(cart) ? cart.find(item => item?.product?.id === product.id) : null;
                     const count = cartItem ? cartItem.count : 0;
 
@@ -337,13 +381,11 @@ export default function App() {
                         onRemoveFromCart={removeFromCart}
                       />
                     );
-                    
                   })}
                 </div>
               )}
             </div>
           ) : (
-            /* ВЬЮ: КАРТОЧКА ТОВАРА */
             selectedProduct && (
               <div className="animate-in slide-in-from-bottom-8 fade-in duration-500">
                 <button onClick={closeProduct} className="flex items-center gap-2 text-stone-400 hover:text-amber-400 transition-colors mb-8 group font-medium">
@@ -352,11 +394,10 @@ export default function App() {
                 </button>
 
                 <div className="bg-stone-900/60 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-4 md:p-8 shadow-2xl flex flex-col md:flex-row gap-8 lg:gap-16">
-                  {/* Левая колонка: Изображение */}
                   <div className="w-full md:w-1/2">
                     <div className="rounded-[2rem] overflow-hidden border border-white/5 shadow-inner relative aspect-square">
                        <img 
-                        src={selectedProduct.image_url || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=1000&auto=format&fit=crop&q=80`} 
+                        src={selectedProduct.image_url?.replace('http://', 'https://') || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=1000&auto=format&fit=crop&q=80`} 
                         alt={selectedProduct.name} 
                         className="w-full h-full object-cover"
                       />
@@ -364,7 +405,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Правая колонка: Информация */}
                   <div className="w-full md:w-1/2 flex flex-col justify-center py-6">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs uppercase tracking-widest font-bold px-3 py-1 rounded-full backdrop-blur-md">
@@ -380,7 +420,7 @@ export default function App() {
                     </h1>
 
                     <p className="text-stone-300 text-lg leading-relaxed font-light mb-8">
-                      {selectedProduct.description || 'Классический рецепт, доведенный до совершенства. Мы используем только натуральную закваску долгой ферментации, фермерское масло и органическую муку, чтобы добиться идеального баланса хрустящей корочки и нежного мякиша.'}
+                      {selectedProduct.description || 'Классический рецепт, доведенный до совершенства...'}
                     </p>
 
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8 backdrop-blur-sm">
@@ -388,7 +428,7 @@ export default function App() {
                         <Leaf className="w-4 h-4 text-amber-500" /> Состав & БЖУ
                       </h4>
                       <p className="text-stone-400 text-sm leading-relaxed mb-4">
-                        Мука пшеничная высшего сорта, вода артезианская, закваска пшеничная (мука, вода), соль морская, мед акациевый.
+                        Мука пшеничная высшего сорта, вода артезианская, закваска пшеничная (мука, water), соль морская, мед акациевый.
                       </p>
                       <div className="flex justify-between border-t border-white/10 pt-4 text-sm text-stone-300">
                         <span className="flex flex-col"><span className="text-stone-500 text-xs">Белки</span>8.5 г</span>
@@ -425,19 +465,19 @@ export default function App() {
             )
           )}
         </main>
-        </div>
-        {/* ШТОРКА КОРЗИНЫ (DRAWER) */}
-        
-        <CartDrawer 
-            isOpen={isCartOpen}
-            onClose={() => setIsCartOpen(false)}
-            cartItems={cartItemsArray}
-            totalPrice={totalCartPrice}
-            onAddToCart={addToCart}
-            onRemoveFromCart={removeFromCart}
-            onClearCart={clearCart}
-        />
-      {(!isCartOpen) && (
+      </div>
+
+      {/* ШТОРКА КОРЗИНЫ (DRAWER) */}
+      <CartDrawer 
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cartItems={cartItemsArray}
+        totalPrice={totalCartPrice}
+        onAddToCart={addToCart}
+        onRemoveFromCart={removeFromCart}
+        onClearCart={clearCart}
+      />
+      {!isCartOpen && (
         <AiWidget addToCart={(prod) => addToCart(prod, 'ai_chat')} />
       )}
     </div>

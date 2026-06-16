@@ -25,7 +25,7 @@ export default function ProductCard({
   onRemoveFromCart 
 }: ProductCardProps) {
   
-  const demoImg = product.image_url || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80`;
+  const demoImg = product.image_url?.replace('http://', 'https://') || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=600&auto=format&fit=crop&q=80`;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Чтобы не срабатывал клик по карточке (открытие модалки)
