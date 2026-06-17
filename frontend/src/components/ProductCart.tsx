@@ -63,6 +63,7 @@ export default function ProductCard({
         <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 to-transparent z-10" />
         <img 
           src={demoImg} 
+          crossOrigin="anonymous"
           alt={product.name} 
           className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-all duration-700 opacity-90 group-hover:opacity-100" 
         />

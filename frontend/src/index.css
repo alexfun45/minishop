@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -7,5 +8,23 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+@layer base {
+  html, body {
+    background-color: #0c0a09 !important;
+    color: #e7e5e4 !important;
+    color-scheme: dark !important;
+  }
+}
+
+/* Выносим хак для Chrome за пределы @layer и пишем на чистом CSS */
+@media screen and (-webkit-min-device-pixel-ratio:0) {
+  /* Нацелено строго на WebKit/Chrome: заставляем его корректно 
+     обрабатывать прозрачность слоев поверх фиксированного фона */
+  header, section, main, .backdrop-blur {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 }

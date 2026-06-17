@@ -267,15 +267,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[url('https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center bg-fixed text-stone-200 antialiased font-sans selection:bg-amber-600 selection:text-white">
-      <div className="min-h-screen bg-stone-950/80 backdrop-blur-[4px] flex flex-col">
+      <div className="min-h-screen bg-stone-950/90 md:bg-stone-950/85 backdrop-blur-[4px] flex flex-col will-change-transform">
         
         {/* ШАПКА */}
-        <header className="sticky top-0 z-40 bg-stone-950/70 border-b border-white/10 backdrop-blur-xl transition-all">
+        <header className="sticky top-0 z-40 bg-stone-950 border-b border-white/10 shadow-lg transition-all">
           <div className="max-w-7xl mx-auto px-4 h-24 flex items-center justify-between gap-6">
             
             {/* Логотип */}
             <div className="flex items-center gap-4 cursor-pointer shrink-0 group" onClick={() => { handleCategoryClick(categories[0]?.id); }}>
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-700 rounded-2xl flex items-center justify-center text-stone-950 font-serif text-2xl font-black shadow-[0_0_20px_rgba(217,119,6,0.3)] group-hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] transition-all duration-500">
+              <div style={{ background: 'linear-gradient(135deg, #fbbf24 0%, #b45309 100%)' }}
+                  className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-700 text-stone-950 font-serif text-2xl font-black shadow-[0_0_20px_rgba(217,119,6,0.3)] group-hover:shadow-[0_0_30px_rgba(217,119,6,0.5)] transition-all duration-500 flex items-center justify-center">
                 К
               </div>
               <div className="hidden sm:block">
@@ -322,19 +323,29 @@ export default function App() {
         {currentView === 'home' && (
           <section className="bg-stone-950/40 border-b border-white/5 py-4 sticky top-24 z-30 backdrop-blur-md">
             <div className="max-w-7xl mx-auto px-4 flex gap-3 overflow-x-auto no-scrollbar pb-2">
-              {categories.map((cat: any) => (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryClick(cat.id)}
-                  className={`px-6 py-2.5 rounded-full whitespace-nowrap text-sm font-semibold tracking-wide transition-all duration-300 ${
-                    activeCategory === cat.id 
-                      ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-stone-950 shadow-[0_0_20px_rgba(217,119,6,0.4)] scale-105' 
-                      : 'bg-white/5 text-stone-300 border border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white'
-                  }`}
-                >
-                  {cat.name}
-                </button>
-              ))}
+            {categories.map((cat: any) => {
+  const isActive = activeCategory === cat.id;
+  
+  return (
+    <button
+      key={cat.id}
+      onClick={() => handleCategoryClick(cat.id)}
+      /* Инлайн-стилем жестко прописываем фон для активной кнопки */
+      style={
+        isActive 
+          ? { background: 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)' } 
+          : {}
+      }
+      className={`px-6 py-2.5 rounded-full whitespace-nowrap text-sm font-semibold tracking-wide transition-all duration-300 ${
+        isActive 
+          ? 'text-stone-950 font-black shadow-[0_0_25px_rgba(245,158,11,0.4)] scale-105' 
+          : 'bg-white/5 text-stone-300 border border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white'
+      }`}
+    >
+      {cat.name}
+    </button>
+  );
+})}
             </div>
           </section>
         )}
@@ -397,6 +408,7 @@ export default function App() {
                   <div className="w-full md:w-1/2">
                     <div className="rounded-[2rem] overflow-hidden border border-white/5 shadow-inner relative aspect-square">
                        <img 
+                        crossOrigin="anonymous"
                         src={selectedProduct.image_url?.replace('http://', 'https://') || `https://images.unsplash.com/photo-1586444248902-2f64eddc13df?w=1000&auto=format&fit=crop&q=80`} 
                         alt={selectedProduct.name} 
                         className="w-full h-full object-cover"

@@ -123,13 +123,55 @@ bot.on('message', async (msg: any) => {
       await bot.sendMessage(chatId, multi.getAboutText(ctx.session.language));
       break;
     default:
-      // Если это не команда, считаем что это 
-      const answer = await aiService.handleUserMessage(chatId, text);
-      await bot.sendMessage(chatId, answer.text);
-      //if (text && !['⬅️ Назад', '⬅️ Бозгашт', '⬅️ Orqaga'].includes(text)) {
-        //await searchHandler(ctx, text);
+        // 1. Получаем структурированный ответ от нашего ИИ-сервиса
+        const response = await aiService.handleUserMessage(chatId, text);
+        
+        // Вытягиваем данные (учитываем, что они могут лежать в data или в корне)
+        const aiData = response?.data || response;
+        const aiText = aiData?.text || 'Извините, задумался. Повторите, пожалуйста.';
+        const aiProducts = aiData?.products || [];
+  
+        // 2. Сначала отправляем текстовый ответ сомелье
+        await bot.sendMessage(chatId, aiText);
+  
+        // 3. Если ИИ подобрал товары, красиво выводим их карточки
+        if (aiProducts && aiProducts.length > 0) {
+          for (const product of aiProducts) {
+            
+            // Формируем текст для подписи к фото
+            const caption = `<b>${product.name_ru}</b>\n\n${product.description_ru || ''}\n\n💰 <b>Цена: ${product.price} руб.</b>`;
+            
+            // Создаем инлайн-кнопку «Добавить в корзину»
+            // В data зашиваем уникальный префикс, чтобы бот понял, что это за действие
+            const inlineKeyboard = {
+              inline_keyboard: [
+                [
+                  {
+                    text: '🛒 Добавить в корзину',
+                    callback_data: `add_to_cart_${product.id}` 
+                  }
+                ]
+              ]
+            };
+  
+            if (product.image_url) {
+              // Если у товара есть фото — отправляем методом sendPhoto
+              await bot.sendPhoto(chatId, product.image_url, {
+                caption: caption,
+                parse_mode: 'HTML',
+                reply_markup: inlineKeyboard
+              });
+            } else {
+              // Если фото нет — отправляем обычным сообщением, но с кнопкой
+              await bot.sendMessage(chatId, caption, {
+                parse_mode: 'HTML',
+                reply_markup: inlineKeyboard
+              });
+            }
+          }   
+        }   
       }
-});
+    });
 
 // Обработчик callback запросов
 bot.on('callback_query', async (callbackQuery: any) => {

@@ -40,17 +40,26 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
   }, [messages]);
 
   useEffect(() => {
-    const LOCAL_STORAGE_KEY = 'bakery_ai_user_id';
-    let storedId = localStorage.getItem(LOCAL_STORAGE_KEY);
 
-    if (!storedId) {
-      const timestamp = Date.now().toString(); 
-      const randomTail = Math.floor(100 + Math.random() * 900).toString();
-      storedId = timestamp + randomTail;
-      localStorage.setItem(LOCAL_STORAGE_KEY, storedId);
+    const tg = (window as any).Telegram?.WebApp;
+    const tgUser = tg?.initDataUnsafe?.user;
+    if (tgUser && tgUser.id) {
+      // Если мы в ТГ — берем настоящий, вечный ID юзера
+      setUserId(tgUser.id.toString());
+    } else {
+      const LOCAL_STORAGE_KEY = 'bakery_ai_user_id';
+      let storedId = localStorage.getItem(LOCAL_STORAGE_KEY);
+
+      if (!storedId) {
+        const timestamp = Date.now().toString(); 
+        const randomTail = Math.floor(100 + Math.random() * 900).toString();
+        storedId = timestamp + randomTail;
+        localStorage.setItem(LOCAL_STORAGE_KEY, storedId);
+      }
+      setUserId(storedId);
     }
 
-    setUserId(storedId);
+    
   }, []); 
 
   useEffect(() => {
@@ -88,9 +97,9 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       }
       
       const aiText = response?.data?.text || response?.text || 'Прошу прощения, задумался о пропорциях кардамона. Повторите, пожалуйста.';
-      const aiProducts = response?.products || [];
+      const aiProducts = response?.data?.products || response?.products || [];
       const intent = response?.intent;
-      if(intent == 'add_to_cart'){
+      if(intent == 'add_to_cart' && aiProducts.length > 0){
         addToCart(aiProducts[0]);
       }
       setMessages(prev => [...prev, { 
@@ -116,7 +125,7 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50">
+    <div className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50">
       {!isOpen ? (
         <button 
           onClick={() => setIsOpen(true)} 
@@ -128,7 +137,7 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
           <span className="font-semibold text-sm tracking-wide">Ваш Сомелье</span>
         </button>
       ) : (
-        <div className="bg-stone-950/90 w-[380px] sm:w-[420px] h-[560px] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl">
+        <div className="bg-stone-950/90 w-[calc(100vw-2rem)] sm:w-[420px] max-w-[420px] h-[560px] max-h-[calc(100vh-6rem)] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl">
           
           {/* Шапка чата */}
           <div className="bg-transparent border-b border-white/10 px-6 py-5 flex justify-between items-center relative overflow-hidden">
@@ -174,7 +183,8 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
                       >
                         {product.image_url ? (
                           <img 
-                            src={product.image_url} 
+                            crossOrigin="anonymous"
+                            src={product.image_url?.replace('http://', 'https://')} 
                             alt={product.name_ru} 
                             className="w-16 h-16 object-cover rounded-lg bg-stone-800 border border-white/5 flex-shrink-0"
                           />

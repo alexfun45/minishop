@@ -323,6 +323,26 @@ export class AiService {
         }
       }
 
+      if (productsForFrontend.length === 0 && Array.isArray(context) && context.length > 0) {
+        // Берем топ-3 найденных товаров из базы данных
+        for (const item of context.slice(0, 3)) {
+          // В зависимости от того, как LanceDB возвращает поле, проверяем item.productId или item.id
+          const targetId = item.productId || item.id;
+          if (!targetId) continue;
+      
+          const pInfo = await productService.findById(parseInt(targetId));
+          if (pInfo) {
+            productsForFrontend.push({
+              id: pInfo.id,
+              name_ru: pInfo.name_ru,
+              price: pInfo.price,
+              image_url: pInfo.image_url,
+              description_ru: pInfo.description_ru
+            });
+          }
+        }
+      }
+
       await redis.set(`session:${userId}`, JSON.stringify(session));
       // Дальше твоя логика работает как раньше
       res.json({
