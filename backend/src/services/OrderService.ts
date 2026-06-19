@@ -14,7 +14,7 @@ export class OrderService {
           as: 'order_items'
         }],
       order: [
-        ['delivery_time', 'DESC']
+        ['order_created', 'DESC']
       ]
     });
     return orders;
