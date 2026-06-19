@@ -7,6 +7,7 @@ import {useCategories} from '../hooks/useCategories'
 import { Activity } from '../components/dashboard/Activity';
 import { apiClient } from '../services/api';
 import type { statItem } from '../types/index';
+import { useAuth } from '../hooks/useAuth';
 
 // ИМПОРТ КОМПОНЕНТОВ СТРАНИЦ
 import {StatisticsPage} from './Analytics/Analytics';
@@ -54,6 +55,7 @@ const Dashboard: React.FC = () => {
   const { orders = [] } = useOrders();
   const { products = [] } = useProducts();
   const { categories = [] } = useCategories();
+  const auth = useAuth();
   const [stats, setStats] = useState({
     totalRevenue: 0,
     current_items: 0,
@@ -310,7 +312,7 @@ const Dashboard: React.FC = () => {
             {darkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-teal-600" />}
             <span>{darkMode ? 'Светлая тема' : 'Темная тема'}</span>
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all">
+          <button onClick={auth.logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all">
             <LogOut className="w-5 h-5" />
             <span>Выйти</span>
           </button>

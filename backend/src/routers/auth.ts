@@ -9,8 +9,11 @@ const router = express.Router();
 // Логин админа
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body.body;
-    console.log('password', password);
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
     const secret = 'gfrvwf23f';
     const passHash = createHmac('sha256', secret)
     .update(password)

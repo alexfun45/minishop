@@ -10,6 +10,7 @@ interface OrderAttribute{
   total_amount: number;
   status: string;
   delivery_address: string;
+  order_created: string;
   delivery_time: string;
   customer_name: string;
   customer_phone: string;
@@ -22,7 +23,7 @@ interface OrderAttribute{
 }
 
 interface OrderCreationAttribute extends Optional<OrderAttribute,
- 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'telegram_id' | 'payment_method' | 'payment_status' | 'comment' | 'delivery_lat' | 'delivery_lng'> {}
+ 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'order_created' | 'telegram_id' | 'payment_method' | 'payment_status' | 'comment' | 'delivery_lat' | 'delivery_lng'> {}
 
  class Order extends Model<OrderAttribute, OrderCreationAttribute> implements OrderAttribute{
   declare id: number;
@@ -30,6 +31,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   declare telegram_id: number;
   declare total_amount: number;
   declare status: string;
+  declare order_created: string;
   declare delivery_address: string;
   declare delivery_time: string;
   declare customer_name: string;
@@ -64,6 +66,11 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   status: {
     type: DataTypes.ENUM('pending', 'confirmed', 'preparing', 'pending_payment', 'ready', 'delivered', 'cancelled'),
     defaultValue: 'pending',
+  },
+  order_created:{
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+    allowNull: true,
   },
   delivery_address: {
     type: DataTypes.TEXT,

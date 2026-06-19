@@ -25,14 +25,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (data: any): Promise<boolean> => {
 
     try {
-      const response = await apiClient.post("/login", {
-        method: "POST",
-        headers: {
-          //"Content-Type": "application/json"
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: data,
-      });
+      const response = await apiClient.post("/login", data);
       const res = response;
       if (res.user) {
         setUser(res.user);
@@ -51,8 +44,10 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    setToken("");
     setUser(null);
     setIsAuthenticated(false);
+    navigate("/");
   };
 
   if (loading) return <div>Loading...</div>;

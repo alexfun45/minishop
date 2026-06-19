@@ -144,7 +144,7 @@ class OrderController {
       let newOrder = {...req.body};
       console.log('newOrder', newOrder);
       if(newOrder.payment_method == 'online'){
-        newOrder.payment_status = 'pending_payment';
+        newOrder.payment_status = 'pending';
       }
       const order = await orderService.create(newOrder);
       if(order)

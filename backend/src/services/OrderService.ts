@@ -12,7 +12,10 @@ export class OrderService {
         {
           model: OrderItem,
           as: 'order_items'
-        }]
+        }],
+      order: [
+        ['delivery_time', 'DESC']
+      ]
     });
     return orders;
     return orders.map((order: any) => ({

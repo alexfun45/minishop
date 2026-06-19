@@ -52,13 +52,14 @@ async function seedInitialData() {
     .update('admin465')
     .digest('hex');
     console.log('create user...');
-    const user = await User.create({
+    /*const user = await User.create({
         username: 'admin',
         user_id: 1,
         role: 'admin',
         password: passHash
       });
-      console.log('create user', user);
+      console.log('create user', user);*/
+      
       // Создаем тестовые товары
       /*await Product.create({
         name_ru: 'White bread',
