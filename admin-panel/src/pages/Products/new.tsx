@@ -31,7 +31,7 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
     price: '',
     old_price: '',
     category_id: 0,
-    weight: '', // Изменено на string для поддержки форматов "500г", "1л" из твоего placeholder
+    weight: '', 
     ingredients_ru: '',
     ingredients_tj: '',
     ingredients_uz: '',
@@ -54,28 +54,17 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
   };
 
   // --- ИИ ОБРАБОТЧИКИ ---
-
-  // 1. Автоматическое заполнение всей формы по текстовому описанию
   const handleAiFillForm = async () => {
     if (!aiTextPrompt.trim()) return;
     setIsGeneratingForm(true);
     setError(null);
     try {
-      // Пример интеграции с твоим apiClient:
        const response = await apiClient.post('/ai/fill-product', { prompt: aiTextPrompt });
        const generatedFields = response.data;
        if(generatedFields.price)
         generatedFields.price = parseInt(generatedFields.price);
        if(generatedFields.weight)
         generatedFields.weight = parseInt(generatedFields.weight);
-      // Имитация ответа от бэкенда для теста:
-      /*const generatedFields = {
-        name_ru: 'Сырная улитка',
-        price: '150',
-        weight: '120г',
-        ingredients_ru: 'Слоеное тесто, сыр сулугуни, яйцо, соль.',
-        description_ru: 'Хрустящая выпечка из слоеного теста с сочной начинкой из традиционного сыра сулугуни. Идеальный перекус.',
-      };*/
 
       setFormData(prev => ({ ...prev, ...generatedFields }));
     } catch (err) {
@@ -85,7 +74,6 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
     }
   };
 
-  // 2. Генерация только текста описания (на основе имени и ингредиентов)
   const handleGenerateDescription = async () => {
     if (!formData.name_ru) {
       setError("Сначала введите название товара на русском языке для генерации описания.");
@@ -96,7 +84,6 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
     try {
        const response = await apiClient.post('/ai/generate-description', { name: formData.name_ru, ingredients: formData.ingredients_ru });
        const newDescription = response.data;
-      //const newDescription = `Эксклюзивный продукт "${formData.name_ru}" приготовлен по проверенным рецептам. Обладает богатым вкусом и натуральным составом, в который входят: ${formData.ingredients_ru || 'лучшие отобранные компоненты'}.`;
       
       setFormData(prev => ({ ...prev, description_ru: newDescription }));
     } catch (err) {
@@ -106,7 +93,6 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
     }
   };
 
-  // 3. Генерация баннера (удаление фона + ИИ подложка)
   const handleGenerateBanner = async () => {
     if (!imageFile) {
       setError("Загрузите исходное фото товара в блок слева, чтобы ИИ мог заменить фон.");
@@ -125,14 +111,9 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
       bannerData.append('image', imageFile);
       bannerData.append('prompt', finalPrompt);
 
-      // Отправка на разработанный нами эндпоинт
       const response = await apiClient.post('/ai/generate-banner', bannerData);
-
-      //if (!response.ok) throw new Error('Ошибка сервера при обработке изображения');
-      //const data = await response.json();
-
       setFormData(prev => ({ ...prev, image_url: response.imageUrl }));
-      setImageFile(null); // Переключаемся на использование сгенерированного URL
+      setImageFile(null); 
     } catch (err) {
       console.log('err', err);
       setError("Не удалось сгенерировать студийный фон. Проверьте соединение с сервером.");
@@ -198,26 +179,27 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg font-medium text-gray-600">Загрузка категорий...</div>
+        <div className="text-lg font-bold text-gray-950">Загрузка категорий...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">      
-      <main className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 pb-12">      
+      {/* Увеличили максимальную ширину контейнера до max-w-7xl */}
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
+          <h2 className="text-2xl font-black leading-7 text-gray-950 sm:text-3xl">
             Добавить новый товар
           </h2>
         </div>
 
         {/* --- 1. ПАНЕЛЬ ОБЩЕЙ ГЕНЕРАЦИИ ФОРМЫ ПО ТЕКСТУ --- */}
-        <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-5 border border-amber-200 shadow-sm">
-          <h3 className="text-base font-semibold text-amber-900 mb-1 flex items-center">
+        <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-5 border border-amber-300 shadow-sm">
+          <h3 className="text-base font-bold text-amber-950 mb-1 flex items-center">
             <span className="mr-2">✨</span> AI-Заполнение всей карточки
           </h3>
-          <p className="text-xs text-amber-700 mb-3">
+          <p className="text-xs font-medium text-amber-900 mb-3">
             Введите краткое описание товара, ИИ попробует распознать имя, цену, состав и написать тексты.
           </p>
           <div className="flex gap-3">
@@ -226,15 +208,15 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
               value={aiTextPrompt}
               onChange={(e) => setAiTextPrompt(e.target.value)}
               placeholder="Например: Медовик праздничный, 800 грамм, цена 1400 руб, состав: натуральный мед, сметанный крем..."
-              className="block w-full border border-amber-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white"
+              className="block w-full border border-amber-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-600 focus:border-amber-600 sm:text-sm bg-white text-gray-950 font-medium placeholder-gray-500"
             />
             <button
               type="button"
               onClick={handleAiFillForm}
               disabled={isGeneratingForm || !aiTextPrompt.trim()}
-              className="whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+              className="whitespace-nowrap inline-flex items-center justify-center px-5 py-2 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 transition-colors"
             >
-              {isGeneratingForm ? 'Распознавание...' : 'Заполнить форму'}
+              {isGeneratingForm ? 'Распознавание...' : 'Заполни форму'}
             </button>
           </div>
         </div>
@@ -242,8 +224,8 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
         <form onSubmit={handleSubmit} className="space-y-6">
           
           {/* --- 2. БЛОК СТУДИЙНОЙ ФОТОГРАФИИ (МЕДИА СТЕК) --- */}
-          <div className="bg-white shadow sm:rounded-lg px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+          <div className="bg-white shadow sm:rounded-lg px-4 py-5 sm:p-6 border border-gray-200">
+            <h3 className="text-lg leading-6 font-black text-gray-950 mb-4">
               Визуальное оформление
             </h3>
             <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -256,28 +238,82 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
               </div>
 
               {/* Настройки генерации фона */}
-              <div className="w-full md:flex-1 bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-lg border border-indigo-100 flex flex-col justify-between min-h-[350px]">
-                <div>
-                  <h4 className="text-sm font-semibold text-indigo-900 mb-1 flex items-center">
-                    <span className="mr-2">🎨</span> Генерация карточки товара
-                  </h4>
-                  <p className="text-xs text-indigo-700 mb-4">
-                    Вырежем объект из кадра и сгенерируем красивую коммерческую сцену вокруг.
-                  </p>
-                  
+              <div className="w-full md:flex-1 bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-lg border border-indigo-200 flex flex-col justify-between min-h-[350px] relative">
+              <div>
+                <h4 className="text-sm font-bold text-indigo-950 mb-1 flex items-center">
+                  <span className="mr-2">🎨</span> Генерация карточки товара
+                </h4>
+                <p className="text-xs font-medium text-indigo-900 mb-4">
+                  Вырежем объект из кадра и сгенерируем красивую коммерческую сцену вокруг.
+                </p>
+                
                   <div className="space-y-3">
-                    <select
-                      value={backgroundPreset}
-                      onChange={(e) => setBackgroundPreset(e.target.value)}
-                      disabled={!imageFile || isGeneratingBanner}
-                      className="block w-full border border-indigo-200 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
-                    >
-                      <option value="">Выберите стилистику подложки...</option>
-                      <option value="Пустой светлый деревянный стол в пекарне, на столе ничего нет, много свободного места по центру для предмета, теплое утреннее солнце, размытый задний план пекарни, профессиональное фото товара">🪵 Деревянный стол (Пекарня)</option>
-                      <option value="На идеально чистой белой мраморной поверхности, минималистичный премиальный фон, рассеянный студийный свет">🪨 Минималистичный мрамор</option>
-                      <option value="На черной сланцевой доске, ресторанная подача, темный изысканный фон, контрастные тени">⬛ Стильный темный сланец</option>
-                      <option value="custom">✍️ Свой вариант оформления...</option>
-                    </select>
+                    {/* Кастомное карусельное или вертикальное меню пресетов */}
+                    <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider mb-2">
+                      Выберите окружение:
+                    </label>
+                  
+                        <div className={`space-y-2 max-h-[240px] overflow-y-auto pr-1 ${(!imageFile && !formData.image_url) || isGeneratingBanner ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {[
+                            {
+                              id: 'bakery',
+                              icon: '🪵',
+                              title: 'Деревянный стол',
+                              desc: 'Пекарня, теплое утреннее солнце, размытый фон',
+                              value: 'Пустой светлый деревянный стол в пекарне, на столе ничего нет, много свободного места по центру для предмета, теплое утреннее солнце, размытый задний план пекарни, professional photo'
+                            },
+                            {
+                              id: 'marble',
+                              icon: '🪨',
+                              title: 'Минималистичный мрамор',
+                              desc: 'Белая мраморная поверхность, студийный свет',
+                              value: 'На идеально чистой белой мраморной поверхности, минималистичный премиальный фон, рассеянный студийный свет'
+                            },
+                            {
+                              id: 'slate',
+                              icon: '⬛',
+                              title: 'Стильный темный сланец',
+                              desc: 'Ресторанная подача, изысканный темный фон',
+                              value: 'На черной сланцевой доске, ресторанная подача, темный изысканный фон, контрастные тени'
+                            },
+                            {
+                              id: 'custom',
+                              icon: '✍️',
+                              title: 'Свой вариант оформления',
+                              desc: 'Напишите собственный промпт для ИИ',
+                              value: 'custom'
+                            }
+                          ].map((preset) => {
+                            const isSelected = backgroundPreset === preset.value;
+                            return (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => {
+                                  setBackgroundPreset(preset.value);
+                                  if (preset.value !== 'custom') setCustomBannerPrompt('');
+                                }}
+                                className={`w-full text-left flex items-start gap-3 p-2.5 rounded-md border transition-all ${
+                                  isSelected 
+                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' 
+                                    : 'bg-white border-indigo-200 text-gray-950 hover:bg-indigo-100/50'
+                                }`}
+                              >
+                                <span className="text-xl p-1 bg-gray-100 rounded-md shrink-0 block img-icon-wrapper select-none">
+                                  {preset.icon}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-xs font-bold leading-tight ${isSelected ? 'text-white' : 'text-gray-950'}`}>
+                                    {preset.title}
+                                  </p>
+                                  <p className={`text-[11px] mt-0.5 truncate ${isSelected ? 'text-indigo-100' : 'text-gray-600'}`}>
+                                    {preset.desc}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
 
                     {backgroundPreset === 'custom' && (
                       <textarea
@@ -286,7 +322,7 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                         onChange={(e) => setCustomBannerPrompt(e.target.value)}
                         disabled={!imageFile || isGeneratingBanner}
                         placeholder="Опишите окружение детально (например: на фоне летней террасы, на тарелке с мятой)..."
-                        className="block w-full border border-indigo-200 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                        className="block w-full border border-indigo-300 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-600 focus:border-indigo-600 text-sm bg-white text-gray-950 font-medium placeholder-gray-500"
                       />
                     )}
                   </div>
@@ -296,7 +332,7 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                   type="button"
                   onClick={handleGenerateBanner}
                   disabled={!imageFile || isGeneratingBanner || !backgroundPreset}
-                  className="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {isGeneratingBanner ? (
                     <>
@@ -315,16 +351,16 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
           </div>
 
           {/* --- 3. ГРУППА ПОЛЕЙ: ОСНОВНЫЕ ДАННЫЕ И ЛОКАЛИЗАЦИЯ --- */}
-          <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+          <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6 border border-gray-200">
+            <h3 className="text-lg leading-6 font-black text-gray-950 mb-4">
               Основная информация
             </h3>
             
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               {/* Название RU */}
               <div>
-                <label htmlFor="name_ru" className="block text-sm font-medium text-gray-700">
-                  Название (русский) *
+                <label htmlFor="name_ru" className="block text-sm font-bold text-gray-950">
+                  Название
                 </label>
                 <input
                   type="text"
@@ -333,13 +369,13 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                   required
                   value={formData.name_ru}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-950 font-semibold"
                 />
               </div>
 
               {/* Цена */}
               <div>
-                <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="price" className="block text-sm font-bold text-gray-950">
                   Цена (₽) *
                 </label>
                 <input
@@ -351,13 +387,13 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                   step="0.01"
                   value={formData.price}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-950 font-semibold"
                 />
               </div>
 
               {/* Категория */}
               <div>
-                <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="category_id" className="block text-sm font-bold text-gray-950">
                   Категория *
                 </label>
                 <select
@@ -366,7 +402,7 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                   required
                   value={formData.category_id || ''}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white"
+                  className="mt-1 block w-full border border-gray-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white text-gray-950 font-semibold"
                 >
                   <option value="">Выберите категорию</option>
                   {categories.map((category: any) => (
@@ -379,23 +415,23 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
 
               {/* Вес */}
               <div>
-                <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="weight" className="block text-sm font-bold text-gray-950">
                   Вес / Объем / Размер
                 </label>
                 <input
-                  type="text"
+                  type="number"
                   name="weight"
                   id="weight"
                   value={formData.weight}
                   onChange={handleChange}
-                  placeholder="Например: 500г, 1л, 6 шт."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  placeholder="Например: 500"
+                  className="mt-1 block w-full border border-gray-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-950 font-semibold placeholder-gray-500"
                 />
               </div>
 
               {/* Старая цена */}
               <div>
-                <label htmlFor="old_price" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="old_price" className="block text-sm font-bold text-gray-950">
                   Старая цена (для отображения скидки)
                 </label>
                 <input
@@ -406,53 +442,24 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                   step="0.01"
                   value={formData.old_price}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-950 font-semibold"
                 />
               </div>
             </div>
 
-            {/* Дополнительные локализации названий */}
-            <div className="mt-6 border-t pt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label htmlFor="name_tj" className="block text-sm font-medium text-gray-700">
-                  Название (таджикский)
-                </label>
-                <input
-                  type="text"
-                  name="name_tj"
-                  id="name_tj"
-                  value={formData.name_tj}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="name_uz" className="block text-sm font-medium text-gray-700">
-                  Название (узбекский)
-                </label>
-                <input
-                  type="text"
-                  name="name_uz"
-                  id="name_uz"
-                  value={formData.name_uz}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                />
-              </div>
-            </div>
+            
           </div>
 
           {/* --- 4. БЛОК ОПИСАНИЙ И ИНГРЕДИЕНТОВ С ИИ-ГЕНЕРАЦИЕЙ --- */}
-          <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+          <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6 border border-gray-200">
+            <h3 className="text-lg leading-6 font-black text-gray-950 mb-4">
               Детальное описание и состав
             </h3>
 
             {/* Ингредиенты RU */}
             <div>
-              <label htmlFor="ingredients_ru" className="block text-sm font-medium text-gray-700">
-                Ингредиенты (русский)
+              <label htmlFor="ingredients_ru" className="block text-sm font-bold text-gray-950">
+                Ингредиенты
               </label>
               <textarea
                 name="ingredients_ru"
@@ -461,21 +468,21 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                 value={formData.ingredients_ru}
                 onChange={handleChange}
                 placeholder="Перечислите основные компоненты через запятую..."
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                className="mt-1 block w-full border border-gray-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-950 font-medium placeholder-gray-500"
               />
             </div>
 
             {/* Описание RU + кнопка ИИ */}
             <div className="mt-4">
               <div className="flex justify-between items-center mb-1">
-                <label htmlFor="description_ru" className="block text-sm font-medium text-gray-700">
-                  Описание (русский)
+                <label htmlFor="description_ru" className="block text-sm font-bold text-gray-950">
+                  Описание
                 </label>
                 <button
                   type="button"
                   onClick={handleGenerateDescription}
                   disabled={isGeneratingDesc}
-                  className="text-xs font-medium text-amber-600 hover:text-amber-800 flex items-center transition-colors"
+                  className="text-xs font-bold text-amber-700 hover:text-amber-900 flex items-center transition-colors"
                 >
                   {isGeneratingDesc ? 'Пишу красивый текст...' : '✨ Сгенерировать вкусное описание'}
                 </button>
@@ -486,76 +493,15 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                 rows={6}
                 value={formData.description_ru}
                 onChange={handleChange}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                className="block w-full border border-gray-400 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-950 font-medium"
               />
             </div>
 
-            {/* Переводы Описаний и Составов */}
-            <div className="mt-6 border-t pt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {/* Таджикский блок */}
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="ingredients_tj" className="block text-sm font-medium text-gray-500">
-                    Ингредиенты (таджикский)
-                  </label>
-                  <textarea
-                    name="ingredients_tj"
-                    id="ingredients_tj"
-                    rows={2}
-                    value={formData.ingredients_tj}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="description_tj" className="block text-sm font-medium text-gray-500">
-                    Описание (таджикский)
-                  </label>
-                  <textarea
-                    name="description_tj"
-                    id="description_tj"
-                    rows={2}
-                    value={formData.description_tj}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Узбекский блок */}
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="ingredients_uz" className="block text-sm font-medium text-gray-500">
-                    Ингредиенты (узбекский)
-                  </label>
-                  <textarea
-                    name="ingredients_uz"
-                    id="ingredients_uz"
-                    rows={2}
-                    value={formData.ingredients_uz}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="description_uz" className="block text-sm font-medium text-gray-500">
-                    Описание (узбекский)
-                  </label>
-                  <textarea
-                    name="description_uz"
-                    id="description_uz"
-                    rows={2}
-                    value={formData.description_uz}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-            </div>
+           
           </div>
 
           {/* --- 5. ДОСТУПНОСТЬ ТОВАРА --- */}
-          <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6">
+          <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6 border border-gray-200">
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -563,9 +509,9 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
                 id="available"
                 checked={formData.available}
                 onChange={handleChange}
-                className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded transition-colors"
+                className="h-5 w-5 text-amber-600 focus:ring-amber-500 border-gray-400 rounded transition-colors cursor-pointer"
               />
-              <label htmlFor="available" className="ml-2 block text-sm text-gray-900 font-medium">
+              <label htmlFor="available" className="ml-3 block text-sm text-gray-950 font-bold cursor-pointer">
                 Товар доступен для заказа и отображается на витрине
               </label>
             </div>
@@ -573,32 +519,32 @@ export const NewProduct = ({onClose, onSuccess}: {onClose: any, onSuccess: any})
 
           {/* ХЕНДЛЕР ОШИБОК СЕРВЕРА */}
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-sm">
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                  <p className="text-sm text-red-950 font-bold">{error}</p>
                 </div>
               </div>
             </div>
           )}
 
           {/* КНОПКИ ДЕЙСТВИЙ */}
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-4">
             <button
               type="button"
               onClick={handleCancel}
-              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+              className="bg-white py-2.5 px-6 border border-gray-400 rounded-md shadow-sm text-sm font-bold text-gray-950 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
             >
               Отмена
             </button>
             <button
               type="submit"
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+              className="inline-flex justify-center py-2.5 px-6 border border-transparent shadow-sm text-sm font-bold rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
             >
               Создать товар
             </button>

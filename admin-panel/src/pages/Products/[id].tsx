@@ -5,7 +5,6 @@ import { ImageUpload } from '../../components/ImageUpload';
 import { useProducts } from '../../hooks/useProducts';
 import { apiClient } from '../../services/api';
 
-// Предполагаем, что интерфейс Product импортируется или описан так:
 interface Product {
   id: string;
   name_ru: string;
@@ -61,7 +60,6 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
   });
 
   useEffect(() => {
-    // Загрузка данных товара
     const fetchProduct = async () => {
       try {
         const data = await apiClient.get('/product/' + productId);
@@ -75,18 +73,15 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
         setError("Не удалось загрузить данные товара.");
       }
     };
-    fetchProduct();
+    if (productId) fetchProduct();
   }, [productId]);
 
   // --- ИИ ОБРАБОТЧИКИ ---
-
-  // 1. Автоматическое заполнение всей формы по текстовому описанию
   const handleAiFillForm = async () => {
     if (!aiTextPrompt.trim()) return;
     setIsGeneratingForm(true);
     setError(null);
     try {
-      // Имитация ответа от бэкенда для теста (или реальный запрос при необходимости)
       const generatedFields = {
         name_ru: 'Сырная улитка',
         price: '150',
@@ -94,7 +89,6 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
         ingredients_ru: 'Слоеное тесто, сыр сулугуни, яйцо, соль.',
         description_ru: 'Хрустящая выпечка из слоеного теста с сочной начинкой из традиционного сыра сулугуни. Идеальный перекус.',
       };
-
       setFormData(prev => ({ ...prev, ...generatedFields }));
     } catch (err) {
       setError("Не удалось автоматически заполнить форму. Попробуйте ввести данные вручную.");
@@ -103,7 +97,6 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
     }
   };
 
-  // 2. Генерация маркетингового описания
   const handleGenerateDescription = async () => {
     if (!formData.name_ru) {
       setError("Сначала введите название товара на русском языке для генерации описания.");
@@ -122,9 +115,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
     }
   };
 
-  // 3. Генерация баннера (удаление фона + ИИ подложка)
   const handleGenerateBanner = async () => {
-    // Проверяем, есть ли хоть какая-то картинка (файл или url)
     if (!imageFile && !formData.image_url) {
       setError("Загрузите или выберите фото товара, чтобы ИИ мог заменить фон.");
       return;
@@ -142,7 +133,6 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
       const bannerData = new FormData();
       bannerData.append('prompt', finalPrompt);
 
-      // Если юзер загрузил новый файл — шлем файл. Если нет — шлем текущий URL из базы
       if (imageFile) {
         bannerData.append('image', imageFile);
       } else if (formData.image_url) {
@@ -150,10 +140,8 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
       }
 
       const response = await apiClient.post('/ai/generate-banner', bannerData);
-
-      // Записываем сгенерированный URL от ИИ обратно в стейт
       setFormData(prev => ({ ...prev, image_url: response.imageUrl }));
-      setImageFile(null); // Сбрасываем локальный файл, так как теперь работаем с новым URL
+      setImageFile(null);
     } catch (err) {
       console.log('err', err);
       setError("Не удалось сгенерировать студийный фон. Проверьте соединение с сервером.");
@@ -184,17 +172,14 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
       } else if (formData.image_url && !imageFile) {
         submitData.append('image_url', formData.image_url);
       }
-      console.log('Отправляем данные:', Object.fromEntries(submitData.entries())); 
       await updateProduct(productId!, submitData);
       onSuccess();
     } catch (error: any) {
-      console.log('Полный объект ошибки на фронте:', error);
       const serverError = error?.responseData?.error || 'Произошла ошибка при сохранении товара';
       setError(serverError);
     } finally {
       setSaving(false);
     }
-
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -218,7 +203,6 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
   const handleDelete = async () => {
     if (window.confirm('Вы уверены, что хотите удалить этот товар?')) {
       try {
-        // Предполагается, что в apiClient или hook есть метод удаления
         await apiClient.delete('/product/' + productId);
         onSuccess();
       } catch (err) {
@@ -234,20 +218,22 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
   if (categoriesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg font-medium text-gray-600">Загрузка данных...</div>
+        <div className="text-lg font-medium text-gray-900">Загрузка данных...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">      
-      <main className="max-w-5xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 pb-12">      
+      {/* max-w-7xl делает весь контент шире */}
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
               Редактировать товар
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-900 font-medium">
               ID: {productId}
             </p>
           </div>
@@ -255,7 +241,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
             <button
               type="button"
               onClick={handleDelete}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
             >
               Удалить товар
             </button>
@@ -264,10 +250,10 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
 
         {/* --- 1. ПАНЕЛЬ ОБЩЕЙ ГЕНЕРАЦИИ ФОРМЫ ПО ТЕКСТУ --- */}
         <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-5 border border-amber-200 shadow-sm">
-          <h3 className="text-base font-semibold text-amber-900 mb-1 flex items-center">
+          <h3 className="text-base font-bold text-amber-950 mb-1 flex items-center">
             <span className="mr-2">✨</span> AI-Перезаполнение карточки
           </h3>
-          <p className="text-xs text-amber-700 mb-3">
+          <p className="text-xs text-amber-900 font-medium mb-3">
             Введите новое краткое описание товара, ИИ обновит имя, цену, состав и структуру. Текущие данные будут перезаписаны.
           </p>
           <div className="flex gap-3">
@@ -276,13 +262,13 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
               value={aiTextPrompt}
               onChange={(e) => setAiTextPrompt(e.target.value)}
               placeholder="Например: Медовик праздничный, 800 грамм, цена 1400 руб, состав: натуральный мед, сметанный крем..."
-              className="block w-full border border-amber-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white"
+              className="block w-full border border-amber-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white text-gray-900 font-medium"
             />
             <button
               type="button"
               onClick={handleAiFillForm}
               disabled={isGeneratingForm || !aiTextPrompt.trim()}
-              className="whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+              className="whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
             >
               {isGeneratingForm ? 'Распознавание...' : 'Заполнить форму'}
             </button>
@@ -293,7 +279,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
           
           {/* --- 2. БЛОК СТУДИЙНОЙ ФОТОГРАФИИ (МЕДИА СТЕК) --- */}
           <div className="bg-white shadow sm:rounded-lg px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+            <h3 className="text-lg leading-6 font-bold text-gray-900 mb-4">
               Визуальное оформление
             </h3>
             <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -307,28 +293,82 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
               </div>
 
               {/* Настройки генерации фона */}
-              <div className="w-full md:flex-1 bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-lg border border-indigo-100 flex flex-col justify-between min-h-[350px]">
-                <div>
-                  <h4 className="text-sm font-semibold text-indigo-900 mb-1 flex items-center">
-                    <span className="mr-2">🎨</span> Генерация карточки товара
-                  </h4>
-                  <p className="text-xs text-indigo-700 mb-4">
-                    Вырежем объект из кадра и сгенерируем красивую коммерческую сцену вокруг.
-                  </p>
+              <div className="w-full md:flex-1 bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-lg border border-indigo-200 flex flex-col justify-between min-h-[350px] relative">
+              <div>
+                <h4 className="text-sm font-bold text-indigo-950 mb-1 flex items-center">
+                  <span className="mr-2">🎨</span> Генерация карточки товара
+                </h4>
+                <p className="text-xs font-medium text-indigo-900 mb-4">
+                  Вырежем объект из кадра и сгенерируем красивую коммерческую сцену вокруг.
+                </p>
+                
+                <div className="space-y-3">
+                  {/* Кастомное карусельное или вертикальное меню пресетов */}
+                  <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider mb-2">
+                    Выберите окружение:
+                  </label>
                   
-                  <div className="space-y-3">
-                    <select
-                      value={backgroundPreset}
-                      onChange={(e) => setBackgroundPreset(e.target.value)}
-                      disabled={!(imageFile || formData.image_url) || isGeneratingBanner}
-                      className="block w-full border border-indigo-200 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
-                    >
-                      <option value="">Выберите стилистику подложки...</option>
-                      <option value="Пустой светлый деревянный стол в пекарне, на столе ничего нет, много свободного места по центру для предмета, теплое утреннее солнце, размытый задний план пекарни, профессиональное фото товара">🪵 Деревянный стол (Пекарня)</option>
-                      <option value="На идеально чистой белой мраморной поверхности, минималистичный премиальный фон, рассеянный студийный свет">🪨 Минималистичный мрамор</option>
-                      <option value="На черной сланцевой доске, ресторанная подача, темный изысканный фон, контрастные тени">⬛ Стильный темный сланец</option>
-                      <option value="custom">✍️ Свой вариант оформления...</option>
-                    </select>
+                  <div className={`space-y-2 max-h-[240px] overflow-y-auto pr-1 ${(!imageFile && !formData.image_url) || isGeneratingBanner ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {[
+                      {
+                        id: 'bakery',
+                        icon: '🪵',
+                        title: 'Деревянный стол',
+                        desc: 'Пекарня, теплое утреннее солнце, размытый фон',
+                        value: 'Пустой светлый деревянный стол в пекарне, на столе ничего нет, много свободного места по центру для предмета, теплое утреннее солнце, размытый задний план пекарни, professional photo'
+                      },
+                      {
+                        id: 'marble',
+                        icon: '🪨',
+                        title: 'Минималистичный мрамор',
+                        desc: 'Белая мраморная поверхность, студийный свет',
+                        value: 'На идеально чистой белой мраморной поверхности, минималистичный премиальный фон, рассеянный студийный свет'
+                      },
+                      {
+                        id: 'slate',
+                        icon: '⬛',
+                        title: 'Стильный темный сланец',
+                        desc: 'Ресторанная подача, изысканный темный фон',
+                        value: 'На черной сланцевой доске, ресторанная подача, темный изысканный фон, контрастные тени'
+                      },
+                      {
+                        id: 'custom',
+                        icon: '✍️',
+                        title: 'Свой вариант оформления',
+                        desc: 'Напишите собственный промпт для ИИ',
+                        value: 'custom'
+                      }
+                    ].map((preset) => {
+                      const isSelected = backgroundPreset === preset.value;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => {
+                            setBackgroundPreset(preset.value);
+                            if (preset.value !== 'custom') setCustomBannerPrompt('');
+                          }}
+                          className={`w-full text-left flex items-start gap-3 p-2.5 rounded-md border transition-all ${
+                            isSelected 
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' 
+                              : 'bg-white border-indigo-200 text-gray-950 hover:bg-indigo-100/50'
+                          }`}
+                        >
+                          <span className="text-xl p-1 bg-gray-100 rounded-md shrink-0 block img-icon-wrapper select-none">
+                            {preset.icon}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-bold leading-tight ${isSelected ? 'text-white' : 'text-gray-950'}`}>
+                              {preset.title}
+                            </p>
+                            <p className={`text-[11px] mt-0.5 truncate ${isSelected ? 'text-indigo-100' : 'text-gray-600'}`}>
+                              {preset.desc}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
                     {backgroundPreset === 'custom' && (
                       <textarea
@@ -337,7 +377,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                         onChange={(e) => setCustomBannerPrompt(e.target.value)}
                         disabled={!(imageFile || formData.image_url) || isGeneratingBanner}
                         placeholder="Опишите окружение детально (например: на фоне летней террасы, на тарелке с мятой)..."
-                        className="block w-full border border-indigo-200 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                        className="block w-full border border-indigo-200 rounded-md shadow-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white text-gray-900 font-medium"
                       />
                     )}
                   </div>
@@ -347,7 +387,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                   type="button"
                   onClick={handleGenerateBanner}
                   disabled={!(imageFile || formData.image_url) || isGeneratingBanner || !backgroundPreset}
-                  className="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {isGeneratingBanner ? (
                     <>
@@ -367,14 +407,14 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
 
           {/* --- 3. ГРУППА ПОЛЕЙ: ОСНОВНЫЕ ДАННЫЕ И ЛОКАЛИЗАЦИЯ --- */}
           <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+            <h3 className="text-lg leading-6 font-bold text-gray-900 mb-4">
               Основная информация
             </h3>
             
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               {/* Название RU */}
               <div>
-                <label htmlFor="name_ru" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="name_ru" className="block text-sm font-bold text-gray-900">
                   Название (русский) *
                 </label>
                 <input
@@ -384,13 +424,13 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                   required
                   value={formData.name_ru}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-900 font-medium"
                 />
               </div>
 
               {/* Цена */}
               <div>
-                <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="price" className="block text-sm font-bold text-gray-900">
                   Цена (₽) *
                 </label>
                 <input
@@ -402,13 +442,13 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                   step="0.01"
                   value={formData.price}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-900 font-medium"
                 />
               </div>
 
               {/* Категория */}
               <div>
-                <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="category_id" className="block text-sm font-bold text-gray-900">
                   Категория *
                 </label>
                 <select
@@ -417,7 +457,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                   required
                   value={formData.category_id || ''}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm bg-white text-gray-900 font-medium"
                 >
                   <option value="">Выберите категорию</option>
                   {categories.map((category: any) => (
@@ -430,23 +470,23 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
 
               {/* Вес */}
               <div>
-                <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="weight" className="block text-sm font-bold text-gray-900">
                   Вес / Объем / Размер
                 </label>
                 <input
-                  type="text"
+                  type="number"
                   name="weight"
                   id="weight"
                   value={formData.weight}
                   onChange={handleChange}
-                  placeholder="Например: 500г, 1л, 6 шт."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  placeholder="Например: 500"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-900 font-medium"
                 />
               </div>
 
               {/* Старая цена */}
               <div>
-                <label htmlFor="old_price" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="old_price" className="block text-sm font-bold text-gray-900">
                   Старая цена (для отображения скидки)
                 </label>
                 <input
@@ -457,53 +497,24 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                   step="0.01"
                   value={formData.old_price}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-900 font-medium"
                 />
               </div>
             </div>
 
-            {/* Локализация названий */}
-            <div className="mt-6 border-t pt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label htmlFor="name_tj" className="block text-sm font-medium text-gray-700">
-                  Название (таджикский)
-                </label>
-                <input
-                  type="text"
-                  name="name_tj"
-                  id="name_tj"
-                  value={formData.name_tj}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="name_uz" className="block text-sm font-medium text-gray-700">
-                  Название (узбекский)
-                </label>
-                <input
-                  type="text"
-                  name="name_uz"
-                  id="name_uz"
-                  value={formData.name_uz}
-                  onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                />
-              </div>
-            </div>
+            
           </div>
 
           {/* --- 4. ДЕТАЛЬНОЕ ОПИСАНИЕ, СОСТАВ И ИИ ГЕНЕРАТОР --- */}
           <div className="bg-white shadow sm:rounded-lg p-4 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+            <h3 className="text-lg leading-6 font-bold text-gray-900 mb-4">
               Детальное описание и состав
             </h3>
 
             {/* Ингредиенты RU */}
             <div>
-              <label htmlFor="ingredients_ru" className="block text-sm font-medium text-gray-700">
-                Ингредиенты (русский)
+              <label htmlFor="ingredients_ru" className="block text-sm font-bold text-gray-900">
+                Ингредиенты
               </label>
               <textarea
                 name="ingredients_ru"
@@ -512,21 +523,21 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                 value={formData.ingredients_ru}
                 onChange={handleChange}
                 placeholder="Перечислите основные компоненты через запятую..."
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-900 font-medium"
               />
             </div>
 
             {/* Описание RU + Кнопка генерации */}
             <div className="mt-4">
               <div className="flex justify-between items-center mb-1">
-                <label htmlFor="description_ru" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="description_ru" className="block text-sm font-bold text-gray-900">
                   Описание (русский)
                 </label>
                 <button
                   type="button"
                   onClick={handleGenerateDescription}
                   disabled={isGeneratingDesc}
-                  className="text-xs font-medium text-amber-600 hover:text-amber-800 flex items-center transition-colors"
+                  className="text-xs font-bold text-amber-600 hover:text-amber-800 flex items-center transition-colors"
                 >
                   {isGeneratingDesc ? 'Пишу красивый text...' : '✨ Сгенерировать вкусное описание'}
                 </button>
@@ -537,68 +548,8 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                 rows={6}
                 value={formData.description_ru}
                 onChange={handleChange}
-                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm text-gray-900 font-medium"
               />
-            </div>
-
-            {/* Мультиязычные поля описания и состава */}
-            <div className="mt-6 border-t pt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="ingredients_tj" className="block text-sm font-medium text-gray-500">
-                    Ингредиенты (таджикский)
-                  </label>
-                  <textarea
-                    name="ingredients_tj"
-                    id="ingredients_tj"
-                    rows={2}
-                    value={formData.ingredients_tj}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="description_tj" className="block text-sm font-medium text-gray-500">
-                    Описание (таджикский)
-                  </label>
-                  <textarea
-                    name="description_tj"
-                    id="description_tj"
-                    rows={2}
-                    value={formData.description_tj}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="ingredients_uz" className="block text-sm font-medium text-gray-500">
-                    Ингредиенты (узбекский)
-                  </label>
-                  <textarea
-                    name="ingredients_uz"
-                    id="ingredients_uz"
-                    rows={2}
-                    value={formData.ingredients_uz}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="description_uz" className="block text-sm font-medium text-gray-500">
-                    Описание (узбекский)
-                  </label>
-                  <textarea
-                    name="description_uz"
-                    id="description_uz"
-                    rows={2}
-                    value={formData.description_uz}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -613,7 +564,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                 onChange={handleChange}
                 className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded transition-colors"
               />
-              <label htmlFor="available" className="ml-2 block text-sm text-gray-900 font-medium">
+              <label htmlFor="available" className="ml-2 block text-sm text-gray-900 font-bold">
                 Товар доступен для заказа и отображается на витрине
               </label>
             </div>
@@ -629,7 +580,7 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                  <p className="text-sm text-red-700 font-semibold">{error}</p>
                 </div>
               </div>
             </div>
@@ -640,14 +591,14 @@ export const EditProduct = ({productId, onClose, onSuccess}: {productId: string 
             <button
               type="button"
               onClick={handleCancel}
-              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors disabled:opacity-50"
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-semibold rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors disabled:opacity-50"
             >
               {saving ? 'Сохранение...' : 'Сохранить изменения'}
             </button>
