@@ -10,18 +10,48 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders = [] }) => {
   // Хелпер для отрисовки красивых статусов
   const renderStatusBadge = (status: string) => {
     switch (status) {
-      case 'paid':
+      case 'delivered':
         return (
           <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-wider">
-            Delivered
+            Доставлен
           </span>
         );
       case 'pending':
         return (
           <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-wider">
-            Pending
+            Ожидает
           </span>
         );
+      case 'payment_success':
+        return (
+          <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Успешная оплата
+          </span>
+        )
+      case 'confirmed':
+        return (
+          <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Подтверждён
+          </span>
+        )
+      case 'preparing':
+        return (
+          <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Готовится
+          </span>
+        )
+      case 'ready':
+        return (
+          <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Готов к выдаче
+          </span>
+        )
+      case 'cancelled':
+        return (
+          <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[10px] font-black uppercase tracking-wider">
+            Отменён
+          </span>
+        )
       default:
         return (
           <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-wider">
@@ -44,10 +74,10 @@ export const RecentOrders: React.FC<RecentOrdersProps> = ({ orders = [] }) => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-widest font-bold">
             <tr>
-              <th className="px-8 py-4">Order ID</th>
-              <th className="px-8 py-4">Buyer Name</th>
-              <th className="px-8 py-4">Status</th>
-              <th className="px-8 py-4">Amount</th>
+              <th className="px-8 py-4">Номер заказа</th>
+              <th className="px-8 py-4">Имя клиента</th>
+              <th className="px-8 py-4">Статус</th>
+              <th className="px-8 py-4">Количество</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

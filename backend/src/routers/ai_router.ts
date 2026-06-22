@@ -1,5 +1,6 @@
 import express from 'express'
 import {AiService} from '../services/AiService.js'
+import {aiController} from '../controllers/aiController.js'
 import multer from 'multer';
 import path from 'path';
 
@@ -41,5 +42,9 @@ aiRouter.post('/ai/generate-description', async (req, res) => {
     res.status(500).json({ error: 'Ошибка генерации' });
   }
 });
+
+aiRouter.get('/ai/ai-settings', aiController.getAiSettings);
+
+aiRouter.post('/ai/save-ai-settings', aiController.saveAiSettings);
 
 export default aiRouter

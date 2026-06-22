@@ -1,6 +1,5 @@
 import * as lancedb from "@lancedb/lancedb";
 import type { Request, Response } from 'express';
-import { YandexGPTEmbeddings } from "@langchain/yandex";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import redis from './RedisService.js'
 import path from "path";
@@ -14,6 +13,7 @@ import { removeBackground } from '@imgly/background-removal-node';
 import sharp from 'sharp';
 import OpenAI from "openai";
 import { ChatOpenAI } from "@langchain/openai";
+import { AiSettings } from "../models/aiSettings.js";
 import axios from "axios";
 
 const client = new OpenAI({
@@ -119,6 +119,14 @@ export class AiService {
     `.trim().replace(/\s+/g, ' '); // убираем лишние пробелы
   }
 
+  public static async getAiSettings(){
+    const settings = await AiSettings.findAll();
+    return settings;
+  }
+
+  public static async saveAiSettigns(settings: any){
+    await AiSettings.create(settings);
+  }
 
   public static async indexProduct(product: any) {
     try {

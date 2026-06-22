@@ -14,6 +14,7 @@ import {StatisticsPage} from './Analytics/Analytics';
 import {CategoriesManagement} from '../pages/Categories/index';
 import {OrdersManagement} from '../pages/Orders/index';
 import {ProductsList} from '../pages/Products/index';
+import { AiSettingsPage } from '../pages/AI/AiSettingsPage'
 
 import { 
   ResponsiveContainer, 
@@ -106,7 +107,7 @@ const Dashboard: React.FC = () => {
     { id: 'products', label: 'Продукты', icon: <Package className="w-5 h-5" />, count: activeProductsCount },
     { id: 'categories', label: 'Категории', icon: <Layers className="w-5 h-5" />, count: categories.length },
     { id: 'analytics', label: 'Аналитика', icon: <BarChart3 className="w-5 h-5" /> },
-    { id: 'ai-assistant', label: 'ИИ ассистент', icon: <MessageSquare className="w-5 h-5" /> },
+    { id: 'ai-assistant', label: 'Настройки ИИ', icon: <MessageSquare className="w-5 h-5" /> },
   ];
 
   // ДИНАМИЧЕСКИЙ РЕНДЕР КОНТЕНТА В ЗАВИСИМОСТИ ОТ ВЫБРАННОГО ТАБА
@@ -121,11 +122,7 @@ const Dashboard: React.FC = () => {
       case 'products':
         return <ProductsList />;
       case 'ai-assistant':
-        return (
-          <div className="p-6 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-slate-400">
-            Модуль искусственного интеллекта находится в стадии интеграции.
-          </div>
-        );
+        return <AiSettingsPage />
       case 'dashboard':
       default:
         return (
