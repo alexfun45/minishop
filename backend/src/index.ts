@@ -5,6 +5,7 @@ import routes from './routers/router.js';
 import adminRoutes from './routers/admin.js'
 
 const app = express();
+
 app.use(cors);
 app.use(express.json());
 app.use('/api', routes);

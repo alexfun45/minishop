@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sliders, FileText, Sparkles, Save, Percent, HelpCircle, Upload, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { apiClient } from '../../services/api';
 
 interface AiSettings {
@@ -10,8 +11,8 @@ interface AiSettings {
 
 interface DocumentFile {
   id: string;
-  name: string;
-  size: string;
+  file_name: string;
+  file_size: string;
 }
 
 export const AiSettingsPage: React.FC = () => {
@@ -22,16 +23,30 @@ export const AiSettingsPage: React.FC = () => {
   });
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{
+      isOpen: boolean;
+      docId: string | null;
+      docName: string;
+    }>({
+      isOpen: false,
+      docId: null,
+      docName: '',
+    });
 
   useEffect(() => {
     // Здесь будет загрузка текущих настроек с бэкенда
-    apiClient.get('/ai/ai-settings').then(res => setSettings(res.data));
+    apiClient.get('/ai/ai-settings').then((res) => {
+      const __settings = res.data.settings;
+      const updatedSetting = {...settings, ...__settings};
+      setSettings(updatedSetting);
+      setDocuments(res.data.docs);
+    })
     
     // Фейковые данные для демонстрации документов базы знаний
-    setDocuments([
-      { id: '1', name: 'Правила_возврата_и_доставки.pdf', size: '1.2 MB' },
-      { id: '2', name: 'Размерная_сетка_обуви_и_одежды.docx', size: '450 KB' },
-    ]);
+    //setDocuments([
+    //  { id: '1', name: 'Правила_возврата_и_доставки.pdf', size: '1.2 MB' },
+    //  { id: '2', name: 'Размерная_сетка_обуви_и_одежды.docx', size: '450 KB' },
+    //]);
   }, []);
 
   const handleSave = async () => {
@@ -46,8 +61,72 @@ export const AiSettingsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteDoc = (id: string) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+  
+    const file = files[0];
+    
+    const formData = new FormData();
+    formData.append('file', file);
+  
+    const temporaryId = Math.random().toString();
+    const newDoc = {
+      id: temporaryId,
+      file_name: file.name,
+      file_size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      status: 'processing' as const
+    };
+    console.log('newDoc', newDoc);
+    setDocuments(prev => [...prev, newDoc]);
+  
+    try {
+      // Отправляем запрос на бэкенд
+      console.log('отправляю файл на сервер');
+      await apiClient.post('/ai/documents', formData);
+  
+      // Заменяем временный документ реальным ответом от базы данных
+      //setDocuments(prev => 
+      //  prev.map(doc => doc.id === temporaryId ? { ...response.data, name: response.data.file_name, size: response.data.file_size } : doc)
+      //);
+  
+    } catch (error) {
+      console.error('Ошибка при загрузке файла:', error);
+      alert('Не удалось загрузить файл');
+      // Удаляем файл из списка, если загрузка оборвалась
+      setDocuments(prev => prev.filter(doc => doc.id !== temporaryId));
+    }
+  };
+
+  const initiateDelete = (id: string, fileName: string) => {
+    setDeleteDialog({
+      isOpen: true,
+      docId: id,
+      docName: fileName,
+    });
+  };
+
+  // 2. Срабатывает, когда пользователь нажал «Удалить» в красивом модальном окне
+  const handleConfirmDelete = async () => {
+    const { docId } = deleteDialog;
+    if (!docId) return;
+
+    // Сразу закрываем окно, чтобы UI реагировал мгновенно
+    setDeleteDialog(prev => ({ ...prev, isOpen: false }));
+
+    try {
+      apiClient.get(`/ai/documents/${docId}`);
+      // Обновляем список документов в стейте
+      setDocuments(prev => prev.filter(doc => doc.id !== docId));
+    } catch (error) {
+      console.error('Не удалось удалить документ:', error);
+      alert('Произошла ошибка при удалении документа с сервера.');
+    }
+  };
+
+  const handleDeleteDoc = async (id: string) => {
     setDocuments(documents.filter(doc => doc.id !== id));
+    await apiClient.post('/ai/delete_document', {docId: id});
   };
 
   return (
@@ -171,7 +250,13 @@ export const AiSettingsPage: React.FC = () => {
 
             {/* Зона загрузки */}
             <div className="border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl p-4 text-center cursor-pointer transition group">
-              <input type="file" className="hidden" id="file-upload" multiple />
+              <input
+                type="file"
+                className="hidden"
+                id="file-upload"
+                accept=".pdf"
+                onChange={handleFileUpload} 
+              />
               <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-2">
                 <Upload className="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition" />
                 <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Загрузить файлы</span>
@@ -189,12 +274,12 @@ export const AiSettingsPage: React.FC = () => {
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
                     <div className="truncate">
-                      <p className="font-medium text-gray-700 dark:text-gray-300 truncate text-xs">{doc.name}</p>
-                      <p className="text-[10px] text-gray-400">{doc.size}</p>
+                      <p className="font-medium text-gray-700 dark:text-gray-300 truncate text-xs">{doc.file_name}</p>
+                      <p className="text-[10px] text-gray-400">{doc.file_size}</p>
                     </div>
                   </div>
                   <button 
-                    onClick={() => handleDeleteDoc(doc.id)}
+                    onClick={() => initiateDelete(doc.id, doc.file_name)}
                     className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -207,6 +292,16 @@ export const AiSettingsPage: React.FC = () => {
         </div>
 
       </div>
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        title="Удалить документ?"
+        description={`Вы собираетесь полностью удалить файл "${deleteDialog.docName}".\nИИ потеряет доступ к этим данным, а связанные векторы в LanceDB будут безвозвратно стерты.`}
+        confirmText="Да, удалить"
+        cancelText="Отмена"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteDialog(prev => ({ ...prev, isOpen: false }))}
+        isDanger={true}
+      />
     </div>
   );
 };

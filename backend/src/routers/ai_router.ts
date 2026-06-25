@@ -8,7 +8,7 @@ const aiService = new AiService();
 const aiRouter = express.Router();
 
 const storage = multer.diskStorage({
-  destination: 'uploads/temp/',
+  destination: 'uploads/temp',
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     // Достаем расширение оригинального файла (например, .jpg)
@@ -18,6 +18,16 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+const upload_documents = multer({ 
+  dest: 'uploads/documents',
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Поддерживаются только файлы формата PDF!'));
+    }
+  }
+});
 
 aiRouter.post('/ai/generate-banner', upload.single('image'), (req, res) => {
   aiService.generateCard(req, res)
@@ -46,5 +56,9 @@ aiRouter.post('/ai/generate-description', async (req, res) => {
 aiRouter.get('/ai/ai-settings', aiController.getAiSettings);
 
 aiRouter.post('/ai/save-ai-settings', aiController.saveAiSettings);
+
+aiRouter.post('/ai/documents', upload_documents.single('file'), aiController.saveDocument);
+
+aiRouter.get(`/ai/documents/:docId`, aiController.deleteDocument);
 
 export default aiRouter

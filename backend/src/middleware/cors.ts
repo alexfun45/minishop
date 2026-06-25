@@ -9,7 +9,8 @@ const corsOptions = {
     'http://localhost:5171'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 export default cors(corsOptions);

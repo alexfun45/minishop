@@ -20,6 +20,11 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
+    const combinedHeaders = {
+      ...headers,
+      ...options.headers,
+    };
+
     const config: RequestInit = {
       headers: {
         ...headers,

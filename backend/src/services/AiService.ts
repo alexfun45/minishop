@@ -14,7 +14,11 @@ import sharp from 'sharp';
 import OpenAI from "openai";
 import { ChatOpenAI } from "@langchain/openai";
 import { AiSettings } from "../models/aiSettings.js";
+import { AiDocument } from '../models/aiDocument.js';
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import axios from "axios";
+import type { Embedding } from "openai/resources";
 
 const client = new OpenAI({
   apiKey: process.env.AITUNNEL_API_KEY,
@@ -72,11 +76,6 @@ const template = PromptTemplate.fromTemplate(`
 {format_instructions}
 `);
 
-/*const embeddings = new YandexGPTEmbeddings({
-  apiKey: process.env.YC_API_KEY, 
-  folderID: process.env.YC_FOLDER_ID,
-  model: "text-search-doc",
-});*/
 
 const embeddings = new OpenAIEmbeddings({
   apiKey: process.env.AITUNNEL_API_KEY,
@@ -121,11 +120,158 @@ export class AiService {
 
   public static async getAiSettings(){
     const settings = await AiSettings.findAll();
-    return settings;
+    return settings[0];
+  }
+
+  public static async getAiDocuments(){
+    const documents = await AiDocument.findAll();
+    return documents;
   }
 
   public static async saveAiSettigns(settings: any){
-    await AiSettings.create(settings);
+    const count = await AiSettings.count();
+    if(count>0){
+      const ai_settings = await AiSettings.findOne();
+      if(ai_settings)
+        await ai_settings.update(settings);
+    }
+    else{
+      await AiSettings.create(settings);
+    }
+    return settings;
+  }
+
+  // Сохранение документа в 
+  public static async registerAndProcessDocument(file: Express.Multer.File){
+    
+    const aiDoc = await AiDocument.create({
+      file_name: file.originalname,
+      file_size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      storage_path: file.path,
+      status: 'processing'
+    });
+
+    AiService.processRAG(aiDoc.id, file.path, file.originalname)
+      .catch(err => console.error(`Критическая ошибка фонового RAG для ${aiDoc.id}:`, err));
+
+  }
+
+  public static async processRAG(docId: string, filePath: string, fileName: string) {
+
+    try {
+      const loader = new PDFLoader(filePath);
+      const docs = await loader.load();
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000,
+        chunkOverlap: 200,
+      });
+
+      const splittedDocs = await splitter.splitDocuments(docs)
+
+      // 2. Собираем все тексты чанков в один плоский массив для API aitunnel
+      const textInputs = splittedDocs.map(doc => doc.pageContent);
+
+      console.log(`[RAG] Отправляем пакет из ${textInputs.length} чанков в aitunnel...`);
+
+      const embeddingResponse = await client.embeddings.create({
+        model: "gemini-embedding-001",
+        input: textInputs,
+      });
+
+      // API возвращает массив объектов, где в поле `embedding` лежат наши 1536 чисел
+      let embeddings: Embedding[] = [];
+      
+      if(embeddingResponse?.data)
+        embeddings = embeddingResponse.data;
+
+      const db = await this.getDb();
+
+      const existingTables = await db.tableNames();
+      let table;
+
+      const recordsToInsert = splittedDocs.map((doc, index) => {
+        return {
+          vector: (embeddings as any)[index].embedding, // Берем соответствующий вектор из ответа API
+          text: doc.pageContent,
+          document_id: docId,
+          file_name: fileName,
+          page_number: doc.metadata.loc?.pageNumber || 1
+        };
+      });
+
+      if (!existingTables.includes('knowledge_chunks')) {
+        console.log(`[LanceDB] Таблица "knowledge_chunks" не найдена. Создаем новую...`);
+        
+        if(embeddings[0] !== undefined){
+          table = await db.createTable('knowledge_chunks', [
+            {
+              vector: embeddings[0].embedding, // Первому элементу задаем реальный вектор, чтобы база поняла размерность (1536)
+              text: (splittedDocs as any)[0].pageContent,
+              document_id: docId,
+              file_name: fileName,
+              page_number: (splittedDocs as any)[0].metadata.loc?.pageNumber || 1
+            }
+          ]);
+        }
+        
+        // Так как первый элемент мы уже добавили при создании таблицы, 
+        // для последующей пакетной вставки `.add()` мы его убираем, чтобы не дублировать
+        recordsToInsert.shift(); 
+      } else {
+        // Если таблица уже есть, просто открываем её
+        table = await db.openTable('knowledge_chunks');
+      }
+
+      if (recordsToInsert.length > 0) {
+        await (table as any).add(recordsToInsert);
+      }
+
+      await AiDocument.update({ status: 'indexed' }, { where: { id: docId } });
+        console.log(`[RAG] Успех! Документ "${fileName}" векторизован пакетным методом.`);
+    } catch (error) {
+      console.error(`[RAG Ошибка] Пакетная векторизация провалилась для ${docId}:`, error);
+      await AiDocument.update({ status: 'error' }, { where: { id: docId } });
+    }
+  }
+
+  public static async deleteDocument(docId: string | null): Promise<void> {
+    // 1. Ищем документ в PostgreSQL, чтобы узнать путь к файлу
+    const doc = await AiDocument.findByPk(docId || 0);
+    if (!doc) {
+      throw new Error('Документ не найден в базе данных');
+    }
+
+    // 2. Очищаем векторы в LanceDB
+    try {
+      const db = await this.getDb();
+      const existingTables = await db.tableNames();
+      
+      if (existingTables.includes('knowledge_chunks')) {
+        const table = await db.openTable('knowledge_chunks');
+        
+        // Удаляем из LanceDB все записи по строговому совпадению document_id
+        // Внимание: LanceDB поддерживает SQL-подобный синтаксис в методе delete
+        await table.delete(`document_id = '${docId}'`);
+        console.log(`[LanceDB] Векторы для документа ${docId} успешно удалены.`);
+      }
+    } catch (error) {
+      console.error(`[LanceDB Ошибка] Не удалось удалить векторы для ${docId}:`, error);
+      // Не прерываем процесс, даже если в LanceDB векторов не нашлось
+    }
+
+    // 3. Удаляем физический файл с диска сервера
+    if (doc.storage_path && fs.existsSync(doc.storage_path)) {
+      try {
+        fs.unlinkSync(doc.storage_path);
+        console.log(`[Файловая система] Файл удален: ${doc.storage_path}`);
+      } catch (error) {
+        console.error(`[Ошибка диска] Не удалось стереть файл ${doc.storage_path}:`, error);
+      }
+    }
+
+    // 4. Удаляем запись из PostgreSQL
+    await doc.destroy();
+    console.log(`[PostgreSQL] Запись ${docId} успешно удалена из базы.`);
   }
 
   public static async indexProduct(product: any) {
@@ -223,7 +369,6 @@ export class AiService {
     return userSession.chat.slice(-6).join("\n");
   };
 
-
   handleUserMessage = async (req: Request, res: Response) => {
     const postdata = req.body;
     let productsForFrontend: any[] = [];
@@ -231,8 +376,193 @@ export class AiService {
     const userQuery = postdata.message;
     const directIntent = postdata.payload?.directIntent; 
     const directProductId = postdata.payload?.productId;
+
+    const sessionData = await redis.get(`session:${userId}`);
+    const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
     
-    console.log('postdata', postdata);
+    // Блок быстрого добавления в корзину (остается без изменений)
+    if (directIntent === 'add_to_cart' && directProductId) {
+      const fakeAiRes = {
+        intent: 'add_to_cart',
+        productId: directProductId,
+        quantity: 1,
+        text: `Конечно! Добавляю в корзину.`
+      };
+      const intentResult = await this.handleIntent(session, fakeAiRes);
+      session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message || fakeAiRes.text}`);
+      await redis.set(`session:${userId}`, JSON.stringify(session));
+      const productInfo = await productService.findById(directProductId);
+      return res.json({
+        success: true,
+        data: {
+          intent: 'add_to_cart',
+          text: intentResult?.message || fakeAiRes.text,
+          products: productInfo ? [productInfo] : []
+        },
+      });
+    }
+
+    // === ШАГ 1: Извлекаем динамические настройки из Postgres ===
+    const aiSettings = await AiService.getAiSettings();
+    const systemPromptBase = aiSettings?.system_prompt || "Вы — умный ИИ-продавец в чате интернет-магазина.";
+    const companyPromotions = aiSettings?.company_promotions || "";
+    
+    // Мапим уровень креативности (например, от 0 до 1, если в базе храните число или строку)
+    const currentTemperature = aiSettings?.creativity_level !== undefined 
+      ? Number(aiSettings.creativity_level) 
+      : 0;
+
+    // Инициализируем модель с температурой из настроек базы данных
+    const dynamicModel = new ChatOpenAI({
+      apiKey: process.env.AITUNNEL_API_KEY,
+      configuration: { baseURL: "https://api.aitunnel.ru/v1/" },
+      model: "gemini-2.5-flash-lite",
+      temperature: currentTemperature,
+    });
+
+    // === ШАГ 2: Параллельный векторный поиск (Товары + Документы RAG) ===
+    let productContext = "";
+    let documentContext = "";
+    let rawProductResults: any[] = [];
+
+    try {
+      const db = await AiService.getDb();
+      const tableNames = await db.tableNames();
+      const embeddingResponse = await client.embeddings.create({
+        model: "gemini-embedding-001",
+        input: userQuery,
+      });
+
+      const queryVector = embeddingResponse?.data[0]?.embedding;
+
+      if (!queryVector) {
+        throw new Error("Не удалось получить embedding для поискового запроса");
+      }
+
+      // А. Поиск по товарам
+      if (tableNames.includes(TABLE_NAME)) {
+        const prodTable = await db.openTable(TABLE_NAME);
+        rawProductResults = await prodTable.search(queryVector).limit(3).toArray();
+        productContext = rawProductResults.map(item => `id:${item.id} | text:${item.text}`).join('\n');
+      }
+
+      // Б. Поиск по загруженным PDF документам (knowledge_chunks)
+      if (tableNames.includes('knowledge_chunks')) {
+        const docTable = await db.openTable('knowledge_chunks');
+        const rawDocResults = await docTable.search(queryVector).limit(3).toArray();
+        documentContext = rawDocResults.map(item => `[Документ: ${item.file_name}, Стр. ${item.page_number}]: ${item.text}`).join('\n\n');
+      }
+    } catch (vectorError) {
+      console.error("[LanceDB] Ошибка параллельного поиска контекста:", vectorError);
+    }
+
+    // === ШАГ 3: Динамическое построение Промпта ===
+    const chatHistory = this.getChatHistoryString(session);
+
+    // Конструируем гибкий шаблон, внедряя настройки из базы данных прямо в системную часть
+    const dynamicTemplate = PromptTemplate.fromTemplate(`
+        ${systemPromptBase}
+
+        КРИТИЧЕСКИЕ ПРАВИЛА И АКТУАЛЬНЫЕ АКЦИИ КОМПАНИИ:
+        ${companyPromotions || "Специальных акций на данный момент нет."}
+        Отвечай строго по заданному контексту товаров и документов, ничего не придумывая от себя.
+
+        Дополнительный контекст из документов компании (инструкции, регламенты):
+        {document_context}
+
+        Контекст доступных товаров (Прайс):
+        {product_context}
+
+        История последних сообщений:
+        {chat_history}
+
+        Текущий запрос пользователя: {question}
+
+        {format_instructions}
+        `);
+
+    const prompt = await dynamicTemplate.invoke({
+      document_context: documentContext || "Дополнительные документы не найдены по запросу.",
+      product_context: productContext || "Товары не найдены по запросу.",
+      chat_history: chatHistory,
+      question: userQuery,
+      format_instructions: parser.getFormatInstructions(),
+    });
+
+    // === ШАГ 4: Запрос к LLM и формирование ответа ===
+    try {
+      const aiResRaw = await dynamicModel.invoke(prompt);
+      
+      const textContent = typeof aiResRaw.text === 'string' 
+        ? aiResRaw.text 
+        : JSON.stringify(aiResRaw.content);
+    
+      const aiRes = await parser.parse(textContent);
+      
+      session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
+      const intentResult = await this.handleIntent(session, aiRes);
+    
+      // --- НАЧАЛО ИСПРАВЛЕНИЯ ЛОГИКИ ПОДБОРА КАРТОЧЕК ---
+      
+      // Вариант 1: Модель сама явно вернула массив подходящих ID товаров
+      if (aiRes.productIds && aiRes.productIds.length > 0) {
+        for (const idStr of aiRes.productIds) {
+          const pInfo = await productService.findById(parseInt(idStr));
+          if (pInfo) productsForFrontend.push(AiService.mapProductToFrontend(pInfo));
+        }
+      } 
+      // Вариант 2: Модель считает, что это поиск ТОВАРОВ (intent === 'search'), 
+      // но не заполнила productIds. И при этом в контексте документов НЕТ данных.
+      else if (aiRes.intent === 'search' && rawProductResults.length > 0 && !documentContext) {
+        // Привязываем товары из векторного поиска только если запрос явно товарный
+        for (const item of rawProductResults.slice(0, 3)) {
+          const targetId = item.productId || item.id;
+          if (!targetId) continue;
+          const pInfo = await productService.findById(parseInt(targetId));
+          if (pInfo) productsForFrontend.push(AiService.mapProductToFrontend(pInfo));
+        }
+      }
+      
+      // Если intent другой (например, greeting, view_cart) или сработал RAG по документам (documentContext не пустой),
+      // мы НИЧЕГО не подмешиваем в продукты, оставляя массив пустмы.
+    
+      // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+    
+      await redis.set(`session:${userId}`, JSON.stringify(session));
+      
+      res.json({
+        success: true,
+        data: {
+          ...aiRes,
+          text: intentResult?.message || aiRes.text,
+          products: productsForFrontend // Теперь здесь будет пусто для вопросов про график работы
+        },
+      });
+      
+    } catch (error) {
+      console.error("Ошибка парсинга или вызова модели:", error);
+      res.status(500).json({ success: false, error: "Ошибка при обработке запроса нейросетью." });
+    }
+  }
+
+  // Небольшой хелпер для чистки кода маппинга
+  private static mapProductToFrontend(pInfo: any) {
+    return {
+      id: pInfo.id,
+      name_ru: pInfo.name_ru,
+      price: pInfo.price,
+      image_url: pInfo.image_url,
+      description_ru: pInfo.description_ru
+    };
+  }
+
+  handleUserMessage2 = async (req: Request, res: Response) => {
+    const postdata = req.body;
+    let productsForFrontend: any[] = [];
+    const userId = postdata.userId;
+    const userQuery = postdata.message;
+    const directIntent = postdata.payload?.directIntent; 
+    const directProductId = postdata.payload?.productId;
 
     const sessionData = await redis.get(`session:${userId}`);
     const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
@@ -294,8 +624,6 @@ export class AiService {
 
       const aiRes = await parser.parse(textContent);
       
-
-
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
       
       const intentResult = await this.handleIntent(session, aiRes);
