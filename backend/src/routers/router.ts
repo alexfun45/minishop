@@ -19,7 +19,7 @@ const upload = multer({ dest: 'uploads/temp/' });
 
 router.get('/product/search/:q/:lang', productController.search);
 router.get('/product/:id', productController.getById);
-router.use('/products/:catId/:lang', productController.getByCategory);
+router.use('/products/:catId/:lang', productController.getActiveByCategory);
 router.use('/categories/:lang', categoryController.getCategories);
 
 router.get('/order/getPaymentStatus/:id', orderController.getPaymentStatus);

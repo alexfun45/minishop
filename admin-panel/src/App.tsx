@@ -1,12 +1,12 @@
 import './App.css'
-import Rotes from './routes/routes'
+import Routes from './routes/routes'
 
 function App() {
 
   return (
     <>
       <div>
-        <Rotes />
+        <Routes />
       </div>
     </>
   )

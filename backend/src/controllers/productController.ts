@@ -28,6 +28,27 @@ class ProductController{
     }
   }
 
+  async getActiveByCategory(req: Request, res: Response) {
+
+    try {
+      const categoryId = parseInt(req.params.catId || '');
+      const language = (req.query.lang as string) || 'ru';
+
+      const products = await productService.findByCategory(categoryId, language, true);
+
+      res.json({
+        success: true,
+        data: products,
+      });
+    } catch (error) {
+      //console.error('Get products by category error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch products',
+      });
+    }
+  }
+
   // Получить все товары категории
   async getByCategory(req: Request, res: Response) {
 

@@ -46,20 +46,28 @@ export class ProductService {
   }
 
   // Получить товары по категории
-  async findByCategory(categoryId: number, language: string = 'ru') {
-    //const products2 = await Product.findAll();
-    const products = await Product.findAll({
-      where: {
-        category_id: categoryId,
-        //available: true,
-      },
-      /*include: [{
-        model: Category,
-        as: 'category',
-        attributes: ['id', 'name_ru', 'name_tj', 'name_uz'],
-      }],*/
-      order: [['name_ru', 'ASC']],
-    });
+  async findByCategory(categoryId: number, language: string = 'ru', onlyActive: boolean = false) {
+    
+    let products: Product[] = [];
+
+    if(onlyActive){
+      products = await Product.findAll({
+        where: {
+          category_id: categoryId,
+          available: true
+        },
+        order: [['name_ru', 'ASC']],
+      });
+    }
+    else{
+      products = await Product.findAll({
+        where: {
+          category_id: categoryId,
+        },
+        order: [['name_ru', 'ASC']],
+      });
+    }
+
 
     return products.map((product: any) => ({
       id: product.id,
