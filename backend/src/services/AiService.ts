@@ -53,7 +53,7 @@ const model = new ChatOpenAI({
 });
 
 const template = PromptTemplate.fromTemplate(`
-Вы — умный ИИ-продавец в чате интернет-магазина. Отвечай строго по заданнму контексту ничего не придумывая
+Вы — умный ИИ-продавец в чате интернет-магазина. Отвечай строго по заданному контексту ничего не придумывая
 Ваша задача — внимательно изучить товары в Контексте и ответить на вопрос пользователя.
 Прежде чем отвечать, просканируй список товаров. Если товара, который ищет пользователь нет в спсике товаров, вежливо сообщи что такого товара нет.
 
@@ -428,30 +428,35 @@ export class AiService {
     try {
       const db = await AiService.getDb();
       const tableNames = await db.tableNames();
+
       const embeddingResponse = await client.embeddings.create({
         model: "gemini-embedding-001",
         input: userQuery,
+        encoding_format: "float"
       });
 
-      const queryVector = embeddingResponse?.data[0]?.embedding;
+      const queryVector = embeddingResponse?.data && embeddingResponse.data[0] 
+        ? embeddingResponse.data[0].embedding 
+        : null;
 
       if (!queryVector) {
-        throw new Error("Не удалось получить embedding для поискового запроса");
+        console.error(`[AiService] Не удалось получить эмбеддинг для запроса: "${userQuery}". Ответ API:`, JSON.stringify(embeddingResponse));
       }
+      else{
+        // А. Поиск по товарам
+        if (tableNames.includes(TABLE_NAME)) {
+          const prodTable = await db.openTable(TABLE_NAME);
+          rawProductResults = await prodTable.search(queryVector).limit(3).toArray();
+          productContext = rawProductResults.map(item => `id:${item.id} | text:${item.text}`).join('\n');
+        }
 
-      // А. Поиск по товарам
-      if (tableNames.includes(TABLE_NAME)) {
-        const prodTable = await db.openTable(TABLE_NAME);
-        rawProductResults = await prodTable.search(queryVector).limit(3).toArray();
-        productContext = rawProductResults.map(item => `id:${item.id} | text:${item.text}`).join('\n');
-      }
-
-      // Б. Поиск по загруженным PDF документам (knowledge_chunks)
-      if (tableNames.includes('knowledge_chunks')) {
-        const docTable = await db.openTable('knowledge_chunks');
-        const rawDocResults = await docTable.search(queryVector).limit(3).toArray();
-        documentContext = rawDocResults.map(item => `[Документ: ${item.file_name}, Стр. ${item.page_number}]: ${item.text}`).join('\n\n');
-      }
+        // Б. Поиск по загруженным PDF документам (knowledge_chunks)
+        if (tableNames.includes('knowledge_chunks')) {
+          const docTable = await db.openTable('knowledge_chunks');
+          const rawDocResults = await docTable.search(queryVector).limit(3).toArray();
+          documentContext = rawDocResults.map(item => `[Документ: ${item.file_name}, Стр. ${item.page_number}]: ${item.text}`).join('\n\n');
+        }
+    }
     } catch (vectorError) {
       console.error("[LanceDB] Ошибка параллельного поиска контекста:", vectorError);
     }
