@@ -384,7 +384,7 @@ export class AiService {
     if (directIntent === 'add_to_cart' && directProductId) {
       const fakeAiRes = {
         intent: 'add_to_cart',
-        productId: directProductId,
+        productIds: [directProductId.toString()],
         quantity: 1,
         text: `Конечно! Добавляю в корзину.`
       };
