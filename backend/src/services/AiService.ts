@@ -397,7 +397,8 @@ export class AiService {
         data: {
           intent: 'add_to_cart',
           text: intentResult?.message || fakeAiRes.text,
-          products: productInfo ? [productInfo] : []
+          products: []
+          //products: productInfo ? [productInfo] : []
         },
       });
     }
@@ -596,7 +597,8 @@ export class AiService {
         data: {
           intent: 'add_to_cart',
           text: intentResult?.message || fakeAiRes.text,
-          products: productInfo ? [productInfo] : []
+          products: []
+          //products: productInfo ? [productInfo] : []
         },
       });
     }
