@@ -19,6 +19,8 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import axios from "axios";
 import type { Embedding } from "openai/resources";
+import {AICacheService} from './AICacheService.js'
+
 
 const client = new OpenAI({
   apiKey: process.env.AITUNNEL_API_KEY,
@@ -28,6 +30,8 @@ const client = new OpenAI({
 if (!process.env.YC_API_KEY || !process.env.YC_FOLDER_ID) {
   throw new Error("Missing Yandex API configuration in environment variables");
 }
+
+AICacheService.initIndex();
 
 const responseSchema = z.object({
   intent: z.enum(["search", "add_to_cart", "confirm", "cancel", "greeting", "view_cart"])
@@ -269,7 +273,6 @@ export class AiService {
       }
     }
 
-    // 4. Удаляем запись из PostgreSQL
     await doc.destroy();
     console.log(`[PostgreSQL] Запись ${docId} успешно удалена из базы.`);
   }
@@ -347,7 +350,6 @@ export class AiService {
       
       if (!tableNames.includes(TABLE_NAME)) return [];
 
-      // Для поиска используем embedQuery — он принимает чистую строку
       const queryVector = await embeddings.embedQuery(query);
 
       const table = await db.openTable(TABLE_NAME);
@@ -370,17 +372,76 @@ export class AiService {
   };
 
   handleUserMessage = async (req: Request, res: Response) => {
-    const postdata = req.body;
+    const postdata: any = req.body;
     let productsForFrontend: any[] = [];
     const userId = postdata.userId;
     const userQuery = postdata.message;
     const directIntent = postdata.payload?.directIntent; 
     const directProductId = postdata.payload?.productId;
 
+    /*if (!userQuery || typeof userQuery !== 'string' || userQuery.trim() === '') {
+      console.error('[AiService] Получен пустой или некорректный текст вопроса:', userQuery);
+      return 'Извините, я не смог распознать ваш вопрос.';
+    }*/
+
     const sessionData = await redis.get(`session:${userId}`);
     const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
     
-    // Блок быстрого добавления в корзину (остается без изменений)
+    //const userMessageVector: number[] = await embeddings.embedQuery(userQuery);
+
+    const embeddingResponse = await client.embeddings.create({
+      model: "gemini-embedding-001",
+      input: userQuery,
+      encoding_format: "float"
+    });
+
+    const queryVector = embeddingResponse?.data && embeddingResponse.data[0] 
+      ? embeddingResponse.data[0].embedding 
+      : [];
+    
+    const userMessageVector: number[] = queryVector;
+    console.log('получен вектор', userMessageVector.length);
+
+    const cachedAnswerRaw = await AICacheService.get(userMessageVector, 0.15);
+
+    if (cachedAnswerRaw) {
+      try {
+        // Парсим сохраненный JSON-объект кэша
+        const cachedData = JSON.parse(cachedAnswerRaw);
+        
+        // Добавляем запись в историю чата в сессии
+        session.chat.push(`Human: ${userQuery}`, `AI: ${cachedData.text}`);
+        await redis.set(`session:${userId}`, JSON.stringify(session));
+
+        // Вытаскиваем товары из базы данных, если в кэше сохранены productIds
+        if (cachedData.productIds && cachedData.productIds.length > 0) {
+          for (const idStr of cachedData.productIds) {
+            const pInfo = await productService.findById(parseInt(idStr));
+            if (pInfo) {
+              productsForFrontend.push(AiService.mapProductToFrontend(pInfo));
+            }
+          }
+        }
+
+        console.log(`[AICache] Возвращаем полноценный кэшированный ответ с ${productsForFrontend.length} товарами.`);
+
+        // Возвращаем полноценный Express Response с товарами!
+        return res.json({
+          success: true,
+          data: {
+            intent: cachedData.intent,
+            text: cachedData.text,
+            products: productsForFrontend
+          },
+        });
+
+      } catch (parseErr) {
+        console.error('[AICache] Ошибка парсинга кэшированного ответа:', parseErr);
+        // Если кэш старый или поврежден, код провалится дальше к обычному выполнению LLM
+      }
+    }
+
+    // Блок быстрого добавления в корзину
     if (directIntent === 'add_to_cart' && directProductId) {
       const fakeAiRes = {
         intent: 'add_to_cart',
@@ -436,9 +497,9 @@ export class AiService {
         encoding_format: "float"
       });
 
-      const queryVector = embeddingResponse?.data && embeddingResponse.data[0] 
-        ? embeddingResponse.data[0].embedding 
-        : null;
+      //const queryVector = embeddingResponse?.data && embeddingResponse.data[0] 
+      //  ? embeddingResponse.data[0].embedding 
+      //  : null;
 
       if (!queryVector) {
         console.error(`[AiService] Не удалось получить эмбеддинг для запроса: "${userQuery}". Ответ API:`, JSON.stringify(embeddingResponse));
@@ -528,11 +589,14 @@ export class AiService {
           if (pInfo) productsForFrontend.push(AiService.mapProductToFrontend(pInfo));
         }
       }
+
+      const cachedProductIds = productsForFrontend.map(p => p.id.toString());
       
-      // Если intent другой (например, greeting, view_cart) или сработал RAG по документам (documentContext не пустой),
-      // мы НИЧЕГО не подмешиваем в продукты, оставляя массив пустмы.
-    
-      // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+      await AICacheService.set(userQuery, userMessageVector, {
+        text: intentResult?.message || aiRes.text,
+        intent: aiRes.intent,
+        productIds: cachedProductIds
+      });
     
       await redis.set(`session:${userId}`, JSON.stringify(session));
       
