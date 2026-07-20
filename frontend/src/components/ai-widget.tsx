@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Sparkles, ShoppingCart } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { useVoiceInput } from '../hooks/useVoiceHook'
 import { apiClient } from '../services/api';
 
 // Описываем интерфейс продукта для типизации
@@ -31,6 +32,12 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       { sender: 'ai', text: 'Добро пожаловать. Я ваш личный сомелье по выпечке. Подсказать идеальный десерт?' }
     ];
   });
+
+  const { isListening, toggleListening } = useVoiceInput((transcriptText) => {
+    const finalText = transcriptText.slice(0, MAX_LENGTH);
+    handleSendMessage(undefined, finalText);
+  });
+
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [userId, setUserId] = useState<string>('');
@@ -255,13 +262,38 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
                 maxLength={500}
                 onKeyDown={handleKeyDown}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ваше пожелание..."
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all font-light"
-              />
+                placeholder={isListening ? "Слушаю ваш вопрос..." : "Ваше пожелание..."}
+                /*className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all font-light"
+                */
+                className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-sm text-white placeholder-stone-500 focus:outline-none transition-all font-light resize-none ${
+                  isListening 
+                    ? 'border-red-500/50 bg-red-500/5 animate-pulse' 
+                    : 'border-white/10 focus:border-amber-500/50 focus:bg-white/10'
+                }`}
+                />
               <div className={`text-[10px] text-right ${inputMessage.length > 450 ? 'text-amber-500 font-medium' : 'text-stone-500'}`}>
                 {inputMessage.length} / {MAX_LENGTH}
               </div>
             </div>
+
+            {/* Кнопка Голосового ввода (Микрофон) */}
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                isListening 
+                  ? 'bg-red-500 text-white animate-bounce' 
+                  : 'bg-white/5 hover:bg-white/10 text-stone-400 hover:text-white border border-white/10'
+              }`}
+              title="Голосовой поиск"
+            >
+              {/* Иконка микрофона (SVG) */}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+            
+            {/* Кнопка Отправки */}
             <button 
               id="chat-submit-btn" 
               type="submit" 

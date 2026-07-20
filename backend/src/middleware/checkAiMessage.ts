@@ -1,31 +1,47 @@
 import type { Request, Response, NextFunction } from 'express';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
-import redisClient from '../services/RedisService.js'
+import {Redis} from 'ioredis';
+
+const redisClient = new Redis({
+  host: process.env.REDIS_HOST || '127.0.0.1',
+  port: Number(process.env.REDIS_PORT) || 6379,
+  enableOfflineQueue: false,
+});
 
 // Настраиваем лимит (например, 500 символов — этого с головой хватит для любого вопроса про товары)
 const MAX_AI_PROMPT_LENGTH = 500;
 
-// Настройка: Не более 5 запросов за 10 секунд с одного IP/userId
+// Настройка: Не более 5 запросов за 15 секунд с одного IP/userId
 const rateLimiter = new RateLimiterRedis({
   storeClient: redisClient,
   keyPrefix: 'ratelimit_ai',
   points: 5,
-  duration: 30,
+  duration: 15,
 });
 
 export const aiRateLimiterMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Используем userId из тела запроса (для TG бота) или IP адрес (для сайта)
-    const key: any = req.body?.userId ? `user:${req.body.userId}` : req.ip;
+   
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const key = req.body?.userId ? `user:${req.body.userId}` : `ip:${ip}`;
     
     await rateLimiter.consume(key);
     next();
-  } catch (rejRes) {
+  } catch (rejRes: any) {
+    console.error(rejRes)
     // Если лимит превышен
-    res.status(429).json({ 
-      success: false, 
-      error: 'Вы отправляете сообщения слишком часто. Пожалуйста, подождите пару секунд.' 
-    });
+    if (rejRes && typeof rejRes.msBeforeNext === 'number') {
+      const secondsToWait = Math.ceil(rejRes.msBeforeNext / 1000) || 1;
+
+      return res.status(429).json({ 
+        success: false, 
+        error: `Вы отправляете сообщения слишком часто. Пожалуйста, подождите ${secondsToWait} сек.` 
+      });
+    }
+
+    console.error('CRITICAL: Redis Rate Limiter failed, skipping check:', rejRes?.message || rejRes);
+    next();
+
   }
 }; 
 
