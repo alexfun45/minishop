@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Sparkles, ShoppingCart } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 import { apiClient } from '../services/api';
 
 // Описываем интерфейс продукта для типизации
@@ -23,6 +24,7 @@ interface AiWidgetProps {
 
 export default function AiWidget({ addToCart }: AiWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const MAX_LENGTH = 500;
   const [messages, setMessages] = useState<Message[]>(() => {
     const saved = localStorage.getItem('bakery_chat_history');
     return saved ? JSON.parse(saved) : [
@@ -66,13 +68,25 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
+    }
+  };
+
   const handleSendMessage = async (e?: React.FormEvent, overrideText?: string, quickProductId?: string | number) => {
     if (e) e.preventDefault();
     
     // Берем либо текст из инпута, либо текст переданный кнопкой
     const userText = overrideText || inputMessage;
     if (!userText.trim() && !quickProductId) return;
-  
+    
+    if (userText.length > 500) {
+      toast.error('Сообщение слишком длинное (максимум 500 символов)');
+      return;
+    }
+
     // Если это клик по кнопке, мы не очищаем то, что юзер, возможно, уже начал писать в инпут
     if (!overrideText) {
       setInputMessage('');
@@ -126,6 +140,7 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
 
   return (
     <div className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50">
+      <Toaster position="top-right" />
       {!isOpen ? (
         <button 
           onClick={() => setIsOpen(true)} 
@@ -232,21 +247,29 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
           </div>
 
           {/* Форма ввода */}
-          <form onSubmit={handleSendMessage} className="p-4 bg-stone-900/50 border-t border-white/10 flex gap-3 backdrop-blur-md">
-            <input 
-              type="text" 
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Ваше пожелание..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all font-light"
-            />
+          <form onSubmit={handleSendMessage} className="p-4 bg-stone-900/50 border-t border-white/10 flex items-center gap-3 backdrop-blur-md">
+          <div className="flex-1 flex flex-col gap-1">
+              <textarea 
+                rows={2}
+                value={inputMessage}
+                maxLength={500}
+                onKeyDown={handleKeyDown}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Ваше пожелание..."
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all font-light"
+              />
+              <div className={`text-[10px] text-right ${inputMessage.length > 450 ? 'text-amber-500 font-medium' : 'text-stone-500'}`}>
+                {inputMessage.length} / {MAX_LENGTH}
+              </div>
+            </div>
             <button 
               id="chat-submit-btn" 
               type="submit" 
-              className="bg-amber-600 hover:bg-amber-500 text-stone-950 px-5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(217,119,6,0.2)] hover:shadow-[0_0_20px_rgba(217,119,6,0.4)]"
+              className="h-11 bg-amber-600 hover:bg-amber-500 text-stone-950 px-5 rounded-xl text-sm font-bold transition-all shadow-[0_0_15px_rgba(217,119,6,0.2)] hover:shadow-[0_0_20px_rgba(217,119,6,0.4)] flex items-center justify-center shrink-0 self-center"
             >
               Ок
             </button>
+            
           </form>
         </div>
       )}
