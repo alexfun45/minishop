@@ -592,14 +592,17 @@ export class AiService {
 
       const cachedProductIds = productsForFrontend.map(p => p.id.toString());
       
-      await AICacheService.set(userQuery, userMessageVector, {
-        text: intentResult?.message || aiRes.text,
-        intent: aiRes.intent,
-        productIds: cachedProductIds
-      });
-    
-      await redis.set(`session:${userId}`, JSON.stringify(session));
+      try {
+        await AICacheService.set(userQuery, userMessageVector, {
+          text: intentResult?.message || aiRes.text,
+          intent: aiRes.intent,
+          productIds: cachedProductIds
+        });
       
+        await redis.set(`session:${userId}`, JSON.stringify(session));
+      } catch (cacheError) {
+        console.error('[AICache Warning] Не удалось записать кэш:', cacheError.message);
+      }
       res.json({
         success: true,
         data: {
