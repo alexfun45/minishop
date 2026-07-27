@@ -425,7 +425,6 @@ export class AiService {
 
         console.log(`[AICache] Возвращаем полноценный кэшированный ответ с ${productsForFrontend.length} товарами.`);
 
-        // Возвращаем полноценный Express Response с товарами!
         return res.json({
           success: true,
           data: {

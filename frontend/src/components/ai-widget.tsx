@@ -123,13 +123,23 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       if(intent == 'add_to_cart' && aiProducts.length > 0){
         addToCart(aiProducts[0]);
       }
-      setMessages(prev => [...prev, { 
-        sender: 'ai', 
-        text: aiText,
-        products: aiProducts
-      }]);
+      console.log('response', response);
+      if(response?.success === false){
+        setMessages(prev => [...prev, { 
+          sender: 'ai', 
+          text: response?.error || 'Вы отправляете сообщения слишком часто.',
+        }]);
+      }
+      else{
+        setMessages(prev => [...prev, { 
+          sender: 'ai', 
+          text: aiText,
+          products: aiProducts
+        }]);
+      }
     } catch (error) {
       console.log('error', error);
+
       setMessages(prev => [...prev, { 
         sender: 'ai', 
         text: 'Связь с кухней временно прервалась. Попробуйте еще раз чуть позже.' 

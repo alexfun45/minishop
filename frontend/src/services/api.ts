@@ -124,14 +124,23 @@ class ApiClient {
 
   async sendAi(userId: string, message: string, payload?: any){
     const req = JSON.stringify({ userId, message, payload });
+    let response: any;
     try{
-      const response = await axios.post(`${this.baseURL}/api/ai/`, req, {
+      response = await axios.post(`${this.baseURL}/api/ai/`, req, {
         timeout: 30000,
         headers: { 'Content-Type': 'application/json' }
       });
       return response.data.data || null;
-    } catch(error){
-      console.log('Error with AI', error);
+    } catch(error: any){
+      
+      if (error.response?.data) {
+        return error.response.data; 
+      }
+
+      return {
+        success: false,
+        error: 'Связь с сервером прервалась. Попробуйте еще раз чуть позже.'
+      };
     }
   }
 }

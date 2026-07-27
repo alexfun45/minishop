@@ -15,7 +15,7 @@ const MAX_AI_PROMPT_LENGTH = 500;
 const rateLimiter = new RateLimiterRedis({
   storeClient: redisClient,
   keyPrefix: 'ratelimit_ai',
-  points: 5,
+  points: 3,
   duration: 15,
 });
 
@@ -24,7 +24,6 @@ export const aiRateLimiterMiddleware = async (req: Request, res: Response, next:
    
     const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
     const key = req.body?.userId ? `user:${req.body.userId}` : `ip:${ip}`;
-    
     await rateLimiter.consume(key);
     next();
   } catch (rejRes: any) {
