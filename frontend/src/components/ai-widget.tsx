@@ -156,7 +156,7 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
           <div className="bg-amber-500/20 p-2 rounded-full group-hover:scale-110 transition-transform">
             <MessageCircle className="w-5 h-5 text-amber-400" />
           </div>
-          <span className="font-semibold text-sm tracking-wide">Ваш Сомелье</span>
+          <span className="font-semibold text-sm tracking-wide">Ваш Консультант</span>
         </button>
       ) : (
         <div className="bg-stone-950/90 w-[calc(100vw-2rem)] sm:w-[420px] max-w-[420px] h-[560px] max-h-[calc(100vh-6rem)] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl">
@@ -169,7 +169,7 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
                 <Sparkles className="w-5 h-5 text-stone-950" />
               </div>
               <div>
-                <h4 className="font-serif font-bold text-base text-white tracking-wide">Нейро-сомелье</h4>
+                <h4 className="font-serif font-bold text-base text-white tracking-wide">Онлайн-консультант</h4>
                 <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1.5 uppercase tracking-wider mt-0.5">
                   <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(251,191,36,1)]" />
                   На связи

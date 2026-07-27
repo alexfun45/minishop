@@ -600,7 +600,7 @@ export class AiService {
         });
       
         await redis.set(`session:${userId}`, JSON.stringify(session));
-      } catch (cacheError) {
+      } catch (cacheError: any) {
         console.error('[AICache Warning] Не удалось записать кэш:', cacheError.message);
       }
       res.json({
@@ -840,29 +840,17 @@ export class AiService {
   }
 
 
-  public async downloadProductCard(imageUrl: string, outputFileName: string): Promise<string> {
+  public async downloadProductCard(base64data: string, outputFileName: string): Promise<string> {
     try {
-      // 1. Делаем запрос к серверу агрегатора
-      const response = await fetch(imageUrl);
-      
-      if (!response.ok) {
-        throw new Error(`Не удалось скачать изображение: ${response.statusText} (код: ${response.status})`);
-      }
-  
-      // 2. Получаем бинарные данные в виде ArrayBuffer и оборачиваем в NodeJS Buffer
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-  
-      // 3. Определяем путь для сохранения (например, в папку public/uploads)
       const uploadDir = path.join(process.cwd(), 'uploads', 'products');
       
-      // На всякий случай проверяем/создаем папку, если её нет
       //fs.mkdirSync(uploadDir);
       
       const finalPath = path.join(uploadDir, outputFileName);
-  
-      // 4. Записываем файл на диск
-      fs.writeFileSync(finalPath, buffer);
+      
+      const binaryData = Buffer.from(base64data, 'base64');
+
+      fs.writeFileSync(finalPath, binaryData);
       
       console.log(`[Storage] Файл успешно сохранен: ${finalPath}`);
       
@@ -929,6 +917,7 @@ export class AiService {
       if (req.file) {
         // Случай А: Юзер загрузил новый файл
         tempFilePath = req.file.path;
+        console.log('Определяем источник файла', tempFilePath);
       } else if (imageUrl) {
         // Случай Б: Передан URL уже существующего фото
         console.log('[AI Pipeline] Скачиваем исходное фото по URL:', imageUrl);
@@ -937,7 +926,7 @@ export class AiService {
         // Можно вытащить расширение из URL или по дефолту поставить .jpg
         const ext = path.extname(new URL(imageUrl).pathname) || '.jpg';
         tempFilePath = path.join('uploads/temp/', `downloaded-${uniqueSuffix}${ext}`);
-
+        console.log('помещаем временный файл в ', tempFilePath);
         // Скачиваем файл и сохраняем на диск
         const response = await axios({
           url: imageUrl,
@@ -990,13 +979,20 @@ export class AiService {
         size: "1024x1024",
       });
 
+
       if (response.data) {
-        const finalImageUrl = response?.data[0]?.url;
+        const finalImageUrl = response?.data[0]?.b64_json;
+        //console.log('response?.data[0]?.url', response?.data[0]?.b64_json);
         const outputFileName = `banner_${Date.now()}.jpg`;
+        console.log('Файл загружен успешно по пути', outputFileName);
         let publicUrl = "";
 
         if (finalImageUrl !== undefined) {
           publicUrl = await this.downloadProductCard(finalImageUrl, outputFileName);
+          console.log('publicUrl', publicUrl);
+        }
+        else{
+          console.log('finalImageUrl is undefined');
         }
 
         res.json({
