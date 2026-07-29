@@ -515,7 +515,7 @@ export class AiService {
         // А. Поиск по товарам
         if (tableNames.includes(TABLE_NAME)) {
           const prodTable = await db.openTable(TABLE_NAME);
-          rawProductResults = await prodTable.search(queryVector).limit(3).toArray();
+          rawProductResults = await prodTable.search(queryVector).limit(10).toArray();
           productContext = rawProductResults.map(item => `id:${item.id} | text:${item.text}`).join('\n');
         }
 
@@ -577,7 +577,6 @@ export class AiService {
       const intentResult = await this.handleIntent(session, aiRes);
 
       
-    
       // --- НАЧАЛО ИСПРАВЛЕНИЯ ЛОГИКИ ПОДБОРА КАРТОЧЕК ---
       
       // Вариант 1: Модель сама явно вернула массив подходящих ID товаров
@@ -739,7 +738,7 @@ export class AiService {
         // Если это был поиск, но модель не выбрала один конкретный ID, 
         // выкатим топ-2 товара из векторного поиска LanceDB, которые мы передавали в контекст
         // Предполагается, что в LanceDB лежат нужные поля или мы добираем их через productService
-        for (const item of context.slice(0, 2)) {
+        for (const item of context.slice(0, 10)) {
           const pInfo = await productService.findById(item.productId);
           if (pInfo) {
             productsForFrontend.push({

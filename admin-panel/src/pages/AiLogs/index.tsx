@@ -4,7 +4,7 @@ import { apiClient } from '../../services/api';
 interface ChatSession {
   user_id: string;
   total_messages: number;
-  last_activity: string;
+  lastActivity: string;
 }
 
 interface ChatLog {
@@ -12,7 +12,7 @@ interface ChatLog {
   user_message: string;
   ai_response: string;
   intent: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export const AiLogsAdmin: React.FC = () => {
@@ -24,9 +24,16 @@ export const AiLogsAdmin: React.FC = () => {
   // Загрузка списка пользователей
   useEffect(() => {
 
-    apiClient.get('/ai/sessions')
-      .then(res => res.json())
-      .then(res => res.success && setSessions(res.data));
+    (async () => {
+      const res = await apiClient.get('/ai/sessions');
+      const data = res;
+      if(data.success){
+        console.log('data', data.data);
+        setSessions(data.data);
+      }
+     })();
+      //.then(res => res.json())
+      //.then(res => { console.log('res', res); res.success && setSessions(res.data) });
   }, []);
 
   // Загрузка истории конкретного пользователя при клике
@@ -35,7 +42,7 @@ export const AiLogsAdmin: React.FC = () => {
     setLoading(true);
     try {
       const res = await apiClient.get(`/ai/history/${userId}`);
-      const data = await res.json();
+      const data = res;
       if (data.success) {
         setHistory(data.data);
       }
@@ -43,6 +50,15 @@ export const AiLogsAdmin: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const getIntentTranslate = (intentType: string) => {
+    switch(intentType){
+      case "add_to_cart": return "добавление в корзину"
+      case "view_cart": return "просмотр корзины"
+      case "search": return "поиск"
+      case "greeting": return "приветствие"
+    }
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -66,7 +82,7 @@ export const AiLogsAdmin: React.FC = () => {
                   ID: {session.user_id}
                 </span>
                 <span className="text-[10px] text-stone-500">
-                  {new Date(session.last_activity).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(session.lastActivity).toLocaleTimeString([], { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <div className="text-xs text-stone-400">
@@ -104,7 +120,7 @@ export const AiLogsAdmin: React.FC = () => {
                     <div className="flex justify-end">
                       <div className="bg-amber-600/20 text-amber-200 border border-amber-500/30 text-xs p-3 rounded-2xl max-w-[80%]">
                         <div className="text-[9px] text-amber-400/60 mb-1 font-mono">
-                          Пользователь • {new Date(log.created_at).toLocaleTimeString()}
+                          Пользователь • {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         {log.user_message}
                       </div>
@@ -117,7 +133,7 @@ export const AiLogsAdmin: React.FC = () => {
                           <span className="text-[9px] text-stone-400 font-mono">🤖 ИИ Ответ</span>
                           {log.intent && (
                             <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">
-                              intent: {log.intent}
+                              намерение: {getIntentTranslate(log.intent)}
                             </span>
                           )}
                         </div>

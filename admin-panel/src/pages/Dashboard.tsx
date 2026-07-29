@@ -10,10 +10,11 @@ import type { statItem } from '../types/index';
 import { useAuth } from '../hooks/useAuth';
 
 // ИМПОРТ КОМПОНЕНТОВ СТРАНИЦ
-import {StatisticsPage} from './Analytics/Analytics';
-import {CategoriesManagement} from '../pages/Categories/index';
-import {OrdersManagement} from '../pages/Orders/index';
-import {ProductsList} from '../pages/Products/index';
+import { StatisticsPage } from './Analytics/Analytics';
+import { CategoriesManagement } from '../pages/Categories/index';
+import { OrdersManagement } from '../pages/Orders/index';
+import { ProductsList } from '../pages/Products/index';
+import { AiLogsAdmin } from'../pages/AiLogs/index'
 import { AiSettingsPage } from '../pages/AI/AiSettingsPage'
 
 import { 
@@ -107,6 +108,7 @@ const Dashboard: React.FC = () => {
     { id: 'products', label: 'Продукты', icon: <Package className="w-5 h-5" />, count: activeProductsCount },
     { id: 'categories', label: 'Категории', icon: <Layers className="w-5 h-5" />, count: categories.length },
     { id: 'analytics', label: 'Аналитика', icon: <BarChart3 className="w-5 h-5" /> },
+    { id: 'ai-logs', label: 'История чат-бота', icon: <BarChart3 className="w-5 h-5" /> },
     { id: 'ai-assistant', label: 'Настройки ИИ', icon: <MessageSquare className="w-5 h-5" /> },
   ];
 
@@ -121,6 +123,8 @@ const Dashboard: React.FC = () => {
         return <OrdersManagement />;
       case 'products':
         return <ProductsList />;
+      case 'ai-logs':
+        return <AiLogsAdmin />;
       case 'ai-assistant':
         return <AiSettingsPage />
       case 'dashboard':

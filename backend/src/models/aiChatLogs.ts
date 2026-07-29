@@ -1,7 +1,6 @@
 import type { Optional } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database.js';
-import type { StringValidation } from 'zod/v3';
 
 interface AiChatAttributes {
   id: number;
