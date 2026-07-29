@@ -88,6 +88,7 @@ aiRouter.get('/ai/sessions', async (req, res) => {
   }
 });
 
+
 aiRouter.get('/ai/history/:userId', async (req: Request, res: Response) => {
   try {
     const user_id = req.params?.userId || '0';

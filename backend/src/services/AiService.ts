@@ -371,6 +371,10 @@ export class AiService {
     // Берем последние 6 реплик, чтобы не раздувать контекст
     return userSession.chat.slice(-6).join("\n");
   };
+  
+  clearHistory = async (userId: string) => {
+    await redis.unlink(`session:${userId}`);
+  }
 
   handleUserMessage = async (req: Request, res: Response) => {
     const postdata: any = req.body;
@@ -590,7 +594,7 @@ export class AiService {
       // но не заполнила productIds. И при этом в контексте документов НЕТ данных.
       else if (aiRes.intent === 'search' && rawProductResults.length > 0 && !documentContext) {
         // Привязываем товары из векторного поиска только если запрос явно товарный
-        for (const item of rawProductResults.slice(0, 3)) {
+        for (const item of rawProductResults.slice(0, 10)) {
           const targetId = item.productId || item.id;
           if (!targetId) continue;
           const pInfo = await productService.findById(parseInt(targetId));

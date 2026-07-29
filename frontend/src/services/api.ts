@@ -121,6 +121,15 @@ class ApiClient {
     }
   }
 
+  async clearHistory(userId: string){
+    try{
+      await axios.get(`${this.baseURL}/api/ai/clearHistory/${userId}`);
+      return true;
+    } catch(error: any){
+      console.log('error', error);
+      return false;
+    }
+  }
 
   async sendAi(userId: string, message: string, payload?: any){
     const req = JSON.stringify({ userId, message, payload });

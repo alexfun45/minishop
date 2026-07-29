@@ -7,6 +7,7 @@ import {AiService} from '../services/AiService.js'
 import {AnalyticsController} from '../controllers/analyticsController.js'
 import { checkAiMessageLength, aiRateLimiterMiddleware } from '../middleware/checkAiMessage.js';
 import path from 'path';
+import type { Request, Response } from 'express';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 
@@ -31,6 +32,13 @@ router.use('/orders/:userId', orderController.getUserOrders);
 
 router.post('/ai/generate-banner', upload.single('image'), aiService.generateCard);
 router.post('/ai/', aiRateLimiterMiddleware, checkAiMessageLength, aiService.handleUserMessage);
+router.get('/ai/clearHistory/:userId', async (req: Request, res: Response) => {
+  const user_id = req.params?.userId || '0';
+  await aiService.clearHistory(user_id);
+  res.json({
+    success: true
+  });
+});
 
 router.use('/payment/webhook', getPayment);
 

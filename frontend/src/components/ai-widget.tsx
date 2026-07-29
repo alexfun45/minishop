@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Sparkles, ShoppingCart } from 'lucide-react';
+import { MessageCircle, X, Sparkles, ShoppingCart, Trash2, AlertTriangle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { useVoiceInput } from '../hooks/useVoiceHook'
+import { useVoiceInput } from '../hooks/useVoiceHook';
 import { apiClient } from '../services/api';
 
 // Описываем интерфейс продукта для типизации
@@ -16,7 +16,7 @@ interface BotProduct {
 interface Message {
   sender: 'user' | 'ai';
   text: string;
-  products?: BotProduct[]; // Добавляем опциональное поле продуктов
+  products?: BotProduct[];
 }
 
 interface AiWidgetProps {
@@ -25,7 +25,9 @@ interface AiWidgetProps {
 
 export default function AiWidget({ addToCart }: AiWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Состояние для модального окна
   const MAX_LENGTH = 500;
+
   const [messages, setMessages] = useState<Message[]>(() => {
     const saved = localStorage.getItem('bakery_chat_history');
     return saved ? JSON.parse(saved) : [
@@ -49,11 +51,9 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
   }, [messages]);
 
   useEffect(() => {
-
     const tg = (window as any).Telegram?.WebApp;
     const tgUser = tg?.initDataUnsafe?.user;
     if (tgUser && tgUser.id) {
-      // Если мы в ТГ — берем настоящий, вечный ID юзера
       setUserId(tgUser.id.toString());
     } else {
       const LOCAL_STORAGE_KEY = 'bakery_ai_user_id';
@@ -67,8 +67,6 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       }
       setUserId(storedId);
     }
-
-    
   }, []); 
 
   useEffect(() => {
@@ -85,7 +83,6 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
   const handleSendMessage = async (e?: React.FormEvent, overrideText?: string, quickProductId?: string | number) => {
     if (e) e.preventDefault();
     
-    // Берем либо текст из инпута, либо текст переданный кнопкой
     const userText = overrideText || inputMessage;
     if (!userText.trim() && !quickProductId) return;
     
@@ -94,12 +91,10 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       return;
     }
 
-    // Если это клик по кнопке, мы не очищаем то, что юзер, возможно, уже начал писать в инпут
     if (!overrideText) {
       setInputMessage('');
     }
     
-    // Добавляем в чат текстовый пузырь от пользователя
     setMessages(prev => [...prev, { sender: 'user', text: userText }]);
     setIsTyping(true);
   
@@ -107,13 +102,11 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       let response;
       
       if (quickProductId) {
-        // Кнопка: Отправляем прямой запрос на добавление без долгой генерации ИИ
         response = await apiClient.sendAi(userId, userText, { 
           directIntent: 'add_to_cart', 
           productId: quickProductId.toString() 
         });
       } else {
-        // Текст: Обычный запрос, который ИИ будет распознавать сам
         response = await apiClient.sendAi(userId, userText);
       }
       
@@ -123,7 +116,6 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       if(intent == 'add_to_cart' && aiProducts.length > 0){
         addToCart(aiProducts[0]);
       }
-      console.log('response', response);
       if(response?.success === false){
         setMessages(prev => [...prev, { 
           sender: 'ai', 
@@ -149,10 +141,23 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
     }
   };
 
-  // Функция быстрой отправки команды в чат при клике "Добавить"
   const handleQuickAdd = (productId: string | number, productName: string) => {
-    // Вызываем отправку, передавая текст для красивого отображения в чате и ID товара для бэкенда
     handleSendMessage(undefined, `Добавь в корзину: ${productName}`, productId);
+  };
+
+  const confirmClearChatHistory = async () => {
+    try {
+      localStorage.removeItem('bakery_chat_history');
+      setMessages([
+        { sender: 'ai', text: 'История диалога очищена. Чем я могу помочь вам сейчас?' }
+      ]);
+      await apiClient.clearHistory(userId);
+      toast.success('История диалога успешно удалена');
+    } catch (err) {
+      toast.error('Не удалось очистить историю на сервере');
+    } finally {
+      setShowDeleteConfirm(false);
+    }
   };
 
   return (
@@ -169,8 +174,41 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
           <span className="font-semibold text-sm tracking-wide">Ваш Консультант</span>
         </button>
       ) : (
-        <div className="bg-stone-950/90 w-[calc(100vw-2rem)] sm:w-[420px] max-w-[420px] h-[560px] max-h-[calc(100vh-6rem)] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl">
+        <div className="bg-stone-950/90 w-[calc(100vw-2rem)] sm:w-[420px] max-w-[420px] h-[560px] max-h-[calc(100vh-6rem)] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl relative">
           
+          {/* МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ОЧИСТКИ */}
+          {showDeleteConfirm && (
+            <div className="absolute inset-0 z-50 bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+              <div className="bg-stone-900 border border-white/10 rounded-2xl p-6 w-full max-w-xs shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-200">
+                <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-400">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h5 className="text-white font-bold text-base">Очистить историю?</h5>
+                  <p className="text-stone-400 text-xs mt-1 leading-relaxed">
+                    Все предыдущие сообщения и рекомендованные варианты будут безвозвратно удалены.
+                  </p>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-stone-300 py-2.5 rounded-xl text-xs font-semibold transition-colors border border-white/10"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmClearChatHistory}
+                    className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-xs font-semibold transition-all shadow-[0_0_15px_rgba(220,38,38,0.3)]"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Шапка чата */}
           <div className="bg-transparent border-b border-white/10 px-6 py-5 flex justify-between items-center relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-amber-900/20 to-transparent pointer-events-none" />
@@ -186,9 +224,25 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
                 </span>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-stone-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full relative z-10 border border-white/5">
-              <X className="w-4 h-4" />
-            </button>
+
+            <div className="flex items-center gap-2 relative z-10">
+              {/* Кнопка очистки истории */}
+              <button 
+                onClick={() => setShowDeleteConfirm(true)} 
+                className="text-stone-400 hover:text-red-400 transition-colors bg-white/5 hover:bg-red-500/10 p-2 rounded-full border border-white/5 hover:border-red-500/20"
+                title="Очистить историю"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+              {/* Кнопка закрытия виджета */}
+              <button 
+                onClick={() => setIsOpen(false)} 
+                className="text-stone-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full border border-white/5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           
           {/* История сообщений */}
@@ -265,7 +319,7 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
 
           {/* Форма ввода */}
           <form onSubmit={handleSendMessage} className="p-4 bg-stone-900/50 border-t border-white/10 flex items-center gap-3 backdrop-blur-md">
-          <div className="flex-1 flex flex-col gap-1">
+            <div className="flex-1 flex flex-col gap-1">
               <textarea 
                 rows={2}
                 value={inputMessage}
@@ -273,14 +327,12 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
                 onKeyDown={handleKeyDown}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder={isListening ? "Слушаю ваш вопрос..." : "Ваше пожелание..."}
-                /*className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-stone-500 focus:outline-none focus:border-amber-500/50 focus:bg-white/10 transition-all font-light"
-                */
                 className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-sm text-white placeholder-stone-500 focus:outline-none transition-all font-light resize-none ${
                   isListening 
                     ? 'border-red-500/50 bg-red-500/5 animate-pulse' 
                     : 'border-white/10 focus:border-amber-500/50 focus:bg-white/10'
                 }`}
-                />
+              />
               <div className={`text-[10px] text-right ${inputMessage.length > 450 ? 'text-amber-500 font-medium' : 'text-stone-500'}`}>
                 {inputMessage.length} / {MAX_LENGTH}
               </div>
@@ -297,7 +349,6 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
               }`}
               title="Голосовой поиск"
             >
-              {/* Иконка микрофона (SVG) */}
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
               </svg>
@@ -311,7 +362,6 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
             >
               Ок
             </button>
-            
           </form>
         </div>
       )}
