@@ -65,11 +65,6 @@ AiChatLogs.init(
     tableName: 'aichatlogs',
     timestamps: true,
     underscored: true,
-    indexes: [
-      {
-        fields: ['status'], // Чтобы быстро находить документы в очереди на векторизацию
-      },
-    ],
   }
 );
 
