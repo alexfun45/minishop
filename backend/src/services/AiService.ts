@@ -20,6 +20,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import axios from "axios";
 import type { Embedding } from "openai/resources";
 import {AICacheService} from './AICacheService.js'
+import {AiChatLogs} from '../models/index.js'
 
 
 const client = new OpenAI({
@@ -378,7 +379,7 @@ export class AiService {
     const userQuery = postdata.message;
     const directIntent = postdata.payload?.directIntent; 
     const directProductId = postdata.payload?.productId;
-
+    let isFromCache = false;
     /*if (!userQuery || typeof userQuery !== 'string' || userQuery.trim() === '') {
       console.error('[AiService] Получен пустой или некорректный текст вопроса:', userQuery);
       return 'Извините, я не смог распознать ваш вопрос.';
@@ -408,7 +409,7 @@ export class AiService {
       try {
         // Парсим сохраненный JSON-объект кэша
         const cachedData = JSON.parse(cachedAnswerRaw);
-        
+        isFromCache = true;
         // Добавляем запись в историю чата в сессии
         session.chat.push(`Human: ${userQuery}`, `AI: ${cachedData.text}`);
         await redis.set(`session:${userId}`, JSON.stringify(session));
@@ -424,7 +425,14 @@ export class AiService {
         }
 
         console.log(`[AICache] Возвращаем полноценный кэшированный ответ с ${productsForFrontend.length} товарами.`);
-
+        AiChatLogs.create({
+          user_id: userId,
+          user_message: userQuery,
+          ai_response: cachedData.text,
+          intent: 'search',
+          is_cached: isFromCache,
+          created_at: new Date()
+        });
         return res.json({
           success: true,
           data: {
@@ -567,6 +575,8 @@ export class AiService {
       
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
       const intentResult = await this.handleIntent(session, aiRes);
+
+      
     
       // --- НАЧАЛО ИСПРАВЛЕНИЯ ЛОГИКИ ПОДБОРА КАРТОЧЕК ---
       
@@ -591,6 +601,17 @@ export class AiService {
 
       const cachedProductIds = productsForFrontend.map(p => p.id.toString());
       
+      // Сохраняем лог общения с чат-ботом
+      AiChatLogs.create({
+        user_id: userId,
+        user_message: userQuery,
+        ai_response: aiRes.text,
+        intent: aiRes.intent,
+        is_cached: isFromCache,
+        products_found: JSON.stringify(cachedProductIds),
+        created_at: new Date()
+      });
+
       try {
         await AICacheService.set(userQuery, userMessageVector, {
           text: intentResult?.message || aiRes.text,
@@ -854,7 +875,7 @@ export class AiService {
       console.log(`[Storage] Файл успешно сохранен: ${finalPath}`);
       
       // Возвращаем локальный путь или относительный URL для базы данных
-      return `/uploads/products/${outputFileName}`;
+      return `${process.env.SAVEDIR_PATH}/uploads/products/${outputFileName}`;
   
     } catch (error) {
       console.error('[Storage Error] Ошибка при сохранении картинки на сервер:', error);

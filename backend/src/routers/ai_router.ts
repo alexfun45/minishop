@@ -1,6 +1,8 @@
 import express from 'express'
 import {AiService} from '../services/AiService.js'
 import {aiController} from '../controllers/aiController.js'
+import { Sequelize } from 'sequelize';
+import { AiChatLogs } from '../models/index.js';
 import multer from 'multer';
 import path from 'path';
 
@@ -60,5 +62,45 @@ aiRouter.post('/ai/save-ai-settings', aiController.saveAiSettings);
 aiRouter.post('/ai/documents', upload_documents.single('file'), aiController.saveDocument);
 
 aiRouter.get(`/ai/documents/:docId`, aiController.deleteDocument);
+
+aiRouter.get('/sessions', async (req, res) => {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+    const sessions = await AiChatLogs.findAll({
+      attributes: [
+        'userId',
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'totalMessages'],
+        [Sequelize.fn('MAX', Sequelize.col('created_at')), 'lastActivity'],
+      ],
+      group: ['userId'],
+      order: [[Sequelize.literal('lastActivity'), 'DESC']],
+      limit,
+      offset,
+      raw: true, // возвращает чистые JSON-объекты
+    });
+
+    return res.json({ success: true, data: sessions });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Ошибка получения списка сессий' });
+  }
+});
+
+/*aiRouter.get('/history/:userId', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const messages = await AiChatLogs.findAll({
+      where: { userId },
+      order: [['createdAt', 'ASC']],
+    });
+
+    return res.json({ success: true, data: messages });
+  } catch (error: any) {
+    console.error('[Admin AI History Error]:', error);
+    return res.status(500).json({ success: false, error: 'Ошибка получения истории диалога' });
+  }
+});*/
 
 export default aiRouter

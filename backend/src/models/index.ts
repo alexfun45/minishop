@@ -4,6 +4,7 @@ import { Product } from './product.js';
 import { Category } from './category.js';
 import { Order } from './order.js';
 import { OrderItem } from './OrderItem.js';
+import { AiChatLogs } from './aiChatLogs.js';
 import {Event} from './events.js'
 
 // Импортируем ассоциации
@@ -15,5 +16,6 @@ export {
   Category,
   Order,
   OrderItem,
-  Event
+  Event,
+  AiChatLogs
 }
