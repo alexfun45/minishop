@@ -287,7 +287,8 @@ export class AiService {
       let embedding: number[] = [];
       const response  = await client.embeddings.create({
         model: 'gemini-embedding-001',
-        input: contextText
+        input: contextText,
+        encoding_format: 'float'
       });
       if(response?.data[0])
         embedding = response?.data[0].embedding;
@@ -299,6 +300,7 @@ export class AiService {
         text: contextText,
         productId: product.id,
         price: product.price,
+        available: Boolean(product.available),
         image_url: product.image_url || ""
       };
 
@@ -306,15 +308,11 @@ export class AiService {
       const tableNames = await db.tableNames();
       
       if (!tableNames.includes(TABLE_NAME)) {
-        // Если таблицы нет — создаем её с первой записью
         await db.createTable(TABLE_NAME, [record]);
         console.log(`[LanceDB] Таблица ${TABLE_NAME} успешно создана.`);
       } else {
-        // Если таблица есть — открываем её
         const table = await db.openTable(TABLE_NAME);
         
-        // Чтобы избежать дубликатов при обновлении товара, используем merge (upsert)
-        // Если id совпадет — запись обновится, если нет — добавится новая
         await table.mergeInsert("id") // сравниваем приходящие записи по полю "id"
         .whenMatchedUpdateAll()     // если id уже есть — полностью обновляем поля записи
         .whenNotMatchedInsertAll()  // если id нет — создаем новую строчку
@@ -405,9 +403,8 @@ export class AiService {
       : [];
     
     const userMessageVector: number[] = queryVector;
-    console.log('получен вектор', userMessageVector.length);
 
-    const cachedAnswerRaw = await AICacheService.get(userMessageVector, 0.15);
+    const cachedAnswerRaw = await AICacheService.get(userMessageVector, 0.25);
 
     if (cachedAnswerRaw) {
       try {
@@ -429,11 +426,14 @@ export class AiService {
         }
 
         console.log(`[AICache] Возвращаем полноценный кэшированный ответ с ${productsForFrontend.length} товарами.`);
+        const cachedProductIds = productsForFrontend.map(p => p.id.toString()) || [];
+
         AiChatLogs.create({
           user_id: userId,
           user_message: userQuery,
           ai_response: cachedData.text,
           intent: 'search',
+          products_found: JSON.stringify(cachedProductIds),
           is_cached: isFromCache,
           created_at: new Date()
         });
@@ -519,8 +519,10 @@ export class AiService {
         // А. Поиск по товарам
         if (tableNames.includes(TABLE_NAME)) {
           const prodTable = await db.openTable(TABLE_NAME);
-          rawProductResults = await prodTable.search(queryVector).limit(10).toArray();
+          rawProductResults = await prodTable.search(queryVector).where('available = true').limit(10).toArray();
+          console.log('rawProductResults', rawProductResults);
           productContext = rawProductResults.map(item => `id:${item.id} | text:${item.text}`).join('\n');
+          console.log('productContext', productContext);
         }
 
         // Б. Поиск по загруженным PDF документам (knowledge_chunks)
@@ -602,7 +604,7 @@ export class AiService {
         }
       }
 
-      const cachedProductIds = productsForFrontend.map(p => p.id.toString());
+      const cachedProductIds = productsForFrontend.map(p => p.id.toString()) || [];
       
       // Сохраняем лог общения с чат-ботом
       AiChatLogs.create({

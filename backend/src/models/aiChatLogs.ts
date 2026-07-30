@@ -9,7 +9,7 @@ interface AiChatAttributes {
   ai_response: string;
   intent: string;
   is_cached: boolean;
-  products_found?: string;
+  products_found?: string | null;
   created_at?: Date;
 }
 
@@ -56,7 +56,7 @@ AiChatLogs.init(
     },
     products_found: {
       type: DataTypes.STRING(150),
-      allowNull: false,
+      allowNull: true,
     },
   },
   {
