@@ -1,16 +1,17 @@
 type userAction = {
-  type: 'ADD';
+  type: 'ADD' | 'ORDER';
   productId: number;
-  quantity: number;
-  name: string | null;
-  price: number; 
+  quantity?: number;
+  name?: string | null;
+  price?: number;
+  step?: number; 
 } | null;
 
 export interface UserSession {
   cart: CartItem[];
   chat: string[];
   lastViewedProductId: number;
-  pendingAction: userAction;
+  pendingAction?: userAction;
   userPhone: string;
   userId: number;
   awaitingPhoneForOrders?: boolean;
@@ -25,8 +26,8 @@ export type Language = 'ru' | 'tj' | 'uz';
 
 export interface CartItem {
   productId: number;
-  name: string | null;
-  price: number;
-  quantity: number;
+  name?: string | null;
+  price?: number;
+  quantity?: number;
   imageUrl?: string;
 }

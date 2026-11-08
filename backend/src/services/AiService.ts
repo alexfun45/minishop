@@ -25,7 +25,7 @@ import {AiChatLogs} from '../models/index.js'
 
 const client = new OpenAI({
   apiKey: process.env.AITUNNEL_API_KEY,
-  baseURL: "https://api.aitunnel.ru/v1/",
+  baseURL: "https://routerai.ru/api/v1",
 });
 
 if (!process.env.YC_API_KEY || !process.env.YC_FOLDER_ID) {
@@ -34,8 +34,10 @@ if (!process.env.YC_API_KEY || !process.env.YC_FOLDER_ID) {
 
 AICacheService.initIndex();
 
+const user_intents = ["add_to_cart", "view_cart", "order", "greeting"];
+
 const responseSchema = z.object({
-  intent: z.enum(["search", "add_to_cart", "confirm", "cancel", "greeting", "view_cart"])
+  intent: z.enum(["search", "add_to_cart", "confirm", "cancel", "greeting", "view_cart", "order"])
     .describe("Классификация намерения..."),
   productIds: z.array(z.string()).nullable().optional()
   .describe("Массив артикулов товаров (только цифры/ID), которые подходят под запрос пользователя и упомянуты в ответе text. Если ничего не найдено или не применимо — пустой массив или null"),
@@ -51,9 +53,9 @@ const parser = StructuredOutputParser.fromZodSchema(responseSchema);
 const model = new ChatOpenAI({
   apiKey: process.env.AITUNNEL_API_KEY,
   configuration: {
-    baseURL: "https://api.aitunnel.ru/v1/",
+    baseURL: "https://routerai.ru/api/v1",
   },
-  model: "gemini-2.5-flash-lite",
+  model: "google/gemini-2.5-flash-lite",
   temperature: 0,
 });
 
@@ -84,9 +86,9 @@ const template = PromptTemplate.fromTemplate(`
 
 const embeddings = new OpenAIEmbeddings({
   apiKey: process.env.AITUNNEL_API_KEY,
-  model: "gemini-embedding-001",
+  model: "google/gemini-embedding-001",
   configuration: {
-    baseURL: "https://api.aitunnel.ru/v1/"
+    baseURL: "https://routerai.ru/api/v1"
   }
 });
 
@@ -179,7 +181,7 @@ export class AiService {
       console.log(`[RAG] Отправляем пакет из ${textInputs.length} чанков в aitunnel...`);
 
       const embeddingResponse = await client.embeddings.create({
-        model: "gemini-embedding-001",
+        model: "google/gemini-embedding-001",
         input: textInputs,
       });
 
@@ -286,7 +288,7 @@ export class AiService {
       //const vectors = await embeddings.embedDocuments([contextText]);
       let embedding: number[] = [];
       const response  = await client.embeddings.create({
-        model: 'gemini-embedding-001',
+        model: 'google/gemini-embedding-001',
         input: contextText,
         encoding_format: 'float'
       });
@@ -393,7 +395,7 @@ export class AiService {
     //const userMessageVector: number[] = await embeddings.embedQuery(userQuery);
 
     const embeddingResponse = await client.embeddings.create({
-      model: "gemini-embedding-001",
+      model: "google/gemini-embedding-001",
       input: userQuery,
       encoding_format: "float"
     });
@@ -403,6 +405,30 @@ export class AiService {
       : [];
     
     const userMessageVector: number[] = queryVector;
+
+    // Блок быстрого добавления в корзину
+    //if (directIntent === 'add_to_cart' && directProductId) {
+    if(user_intents.includes(directIntent)){
+      const fakeAiRes = {
+        intent: directIntent,
+        productIds: [directProductId.toString()],
+        quantity: 1,
+        text: `Конечно! Добавляю в корзину.`
+      };
+      const intentResult = await this.handleIntent(session, fakeAiRes);
+      session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message || fakeAiRes.text}`);
+      await redis.set(`session:${userId}`, JSON.stringify(session));
+      const productInfo = await productService.findById(directProductId);
+      return res.json({
+        success: true,
+        data: {
+          intent: 'add_to_cart',
+          text: intentResult?.message || fakeAiRes.text,
+          products: []
+          //products: productInfo ? [productInfo] : []
+        },
+      });
+    }
 
     const cachedAnswerRaw = await AICacheService.get(userMessageVector, 0.25);
 
@@ -452,28 +478,7 @@ export class AiService {
       }
     }
 
-    // Блок быстрого добавления в корзину
-    if (directIntent === 'add_to_cart' && directProductId) {
-      const fakeAiRes = {
-        intent: 'add_to_cart',
-        productIds: [directProductId.toString()],
-        quantity: 1,
-        text: `Конечно! Добавляю в корзину.`
-      };
-      const intentResult = await this.handleIntent(session, fakeAiRes);
-      session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message || fakeAiRes.text}`);
-      await redis.set(`session:${userId}`, JSON.stringify(session));
-      const productInfo = await productService.findById(directProductId);
-      return res.json({
-        success: true,
-        data: {
-          intent: 'add_to_cart',
-          text: intentResult?.message || fakeAiRes.text,
-          products: []
-          //products: productInfo ? [productInfo] : []
-        },
-      });
-    }
+    
 
     // === ШАГ 1: Извлекаем динамические настройки из Postgres ===
     const aiSettings = await AiService.getAiSettings();
@@ -488,8 +493,8 @@ export class AiService {
     // Инициализируем модель с температурой из настроек базы данных
     const dynamicModel = new ChatOpenAI({
       apiKey: process.env.AITUNNEL_API_KEY,
-      configuration: { baseURL: "https://api.aitunnel.ru/v1/" },
-      model: "gemini-2.5-flash-lite",
+      configuration: { baseURL: "https://routerai.ru/api/v1" },
+      model: "google/gemini-2.5-flash-lite",
       temperature: currentTemperature,
     });
 
@@ -503,7 +508,7 @@ export class AiService {
       const tableNames = await db.tableNames();
 
       const embeddingResponse = await client.embeddings.create({
-        model: "gemini-embedding-001",
+        model: "google/gemini-embedding-001",
         input: userQuery,
         encoding_format: "float"
       });
@@ -520,9 +525,9 @@ export class AiService {
         if (tableNames.includes(TABLE_NAME)) {
           const prodTable = await db.openTable(TABLE_NAME);
           rawProductResults = await prodTable.search(queryVector).where('available = true').limit(10).toArray();
-          console.log('rawProductResults', rawProductResults);
+          //console.log('rawProductResults', rawProductResults);
           productContext = rawProductResults.map(item => `id:${item.id} | text:${item.text}`).join('\n');
-          console.log('productContext', productContext);
+          //console.log('productContext', productContext);
         }
 
         // Б. Поиск по загруженным PDF документам (knowledge_chunks)
@@ -827,7 +832,24 @@ export class AiService {
         session.cart.push(session.pendingAction);
         session.pendingAction = null;
         return { message: text };
+      case 'order':
+        if (!firstProductId) {
+          return { message: "Не могу оформить товар" };
+        }
         
+        if(session.cart == null || session.cart.length==0){
+          return { message: "Корзина пуста. ПОжалуйста, добавьте товары в корзину" };
+        }
+        if(!session.pendingAction){
+          session.pendingAction = { 
+            type: 'ORDER', 
+            productId: 0, 
+            step: 0
+          };
+        } else
+        session.pendingAction.step = (session.pendingAction.step ?? 0) + 1;
+        return { message: 'Начинаю оформление. Укажите как будете получать товар: Доставка или самовывоз?' };
+
       case 'confirm':
         if (session.pendingAction?.type === 'ADD') {
           const item = session.pendingAction;
@@ -841,7 +863,7 @@ export class AiService {
         session.pendingAction = null;
         return { message: "Хорошо, отменил. " + text };
 
-      case 'view_cart':
+      /*case 'view_cart':
           if (!session.cart || session.cart.length === 0) {
             return { message: "Ваша корзина пока пуста. Найти что-нибудь?" };
           }
@@ -857,7 +879,7 @@ export class AiService {
           const report = `🛒 **Ваш текущий расчет:**\n\n${cartLines.join('\n')}\n\n**Итого: ${totalSum} руб.**\n\nСформировать КП в PDF или добавим что-то еще?`;
           
           return { message: report };
-
+          */
       case 'search':
       default:
         return { message: text };
@@ -891,7 +913,7 @@ export class AiService {
   public async genDescription(name: string, ingredients: string) {
     const ingrd = (ingredients) ? ingredients : '';
     const completion: any = await client.chat.completions.create({
-      model: 'gemini-2.5-flash-lite',
+      model: 'google/gemini-2.5-flash-lite',
       messages: [
         { role: "system", content: "Ты — помощник для заполнения карточек товаров. Верни вкусное описание товара по его названию и ингредиентам. Напиши один вариант без вводного текста, только описание" },
         { role: "user", content: `Придумай описание на основе: ${name}, ${ingrd}` }
@@ -908,7 +930,7 @@ export class AiService {
 
   public async fillProductFields(prompt: string) {
     const completion: any = await client.chat.completions.create({
-      model: 'gemini-2.5-flash-lite',
+      model: 'google/gemini-2.5-flash-lite',
       messages: [
         { role: "system", content: "Ты — помощник для заполнения карточек товаров. Верни результат строго в JSON формате с ключами: name_ru, price, weight, ingredients_ru, description_ru." },
         { role: "user", content: `Заполни данные товара на основе: ${prompt}` }
