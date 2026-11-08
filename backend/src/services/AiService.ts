@@ -833,10 +833,7 @@ export class AiService {
         session.pendingAction = null;
         return { message: text };
       case 'order':
-        if (!firstProductId) {
-          return { message: "Не могу оформить товар" };
-        }
-        
+               
         if(session.cart == null || session.cart.length==0){
           return { message: "Корзина пуста. ПОжалуйста, добавьте товары в корзину" };
         }
