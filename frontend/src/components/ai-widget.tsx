@@ -21,9 +21,10 @@ interface Message {
 
 interface AiWidgetProps {
   addToCart: (product: any) => void;
+  clearCart?: () => void;
 }
 
-export default function AiWidget({ addToCart }: AiWidgetProps) {
+export default function AiWidget({ addToCart, clearCart }: AiWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Состояние для модального окна
   const MAX_LENGTH = 500;
@@ -113,9 +114,17 @@ export default function AiWidget({ addToCart }: AiWidgetProps) {
       const aiText = response?.data?.text || response?.text || 'Прошу прощения, задумался о пропорциях кардамона. Повторите, пожалуйста.';
       const aiProducts = response?.data?.products || response?.products || [];
       const intent = response?.intent;
+      const shouldClearCart = response?.data?.clearCart || response?.clearCart;
+
       if(intent == 'add_to_cart' && aiProducts.length > 0){
         addToCart(aiProducts[0]);
       }
+
+      if (shouldClearCart && clearCart) {
+        clearCart(); // Вызываем функцию очистки корзины из родительского компонента
+        toast.success('Корзина успешно очищена!');
+      }
+
       if(response?.success === false){
         setMessages(prev => [...prev, { 
           sender: 'ai', 

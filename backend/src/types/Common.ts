@@ -3,6 +3,10 @@ type userAction = {
   productId: number;
   quantity?: number;
   name?: string | null;
+  customerName?: string;
+  deliveryType?: string; 
+  phone?: string;
+  address?: string;
   price?: number;
   step?: number; 
 } | null;

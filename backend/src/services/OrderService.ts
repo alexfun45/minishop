@@ -57,27 +57,57 @@ export class OrderService {
     const { items, user_id, telegram_id, ...orderMainData } = orderData;
 
     try {
-      // Сначала находим или создаем пользователя
-      let user = await User.findOne({
-        where: {
-          [Op.or]: [
-            { user_id: user_id },       // Условие 1: совпадает внутренний ID
-            { telegram_id: telegram_id } // Условие 2: совпадает Telegram ID
-          ]
-        }
-      });
+      let user = null;
+      
+      const searchConditions = [];
+    
+      if (telegram_id) {
+        searchConditions.push({ telegram_id });
+      }
+      if (orderMainData.phone) {
+        searchConditions.push({ phone: orderMainData.phone });
+      }
+      if (user_id) {
+        searchConditions.push({ user_id });
+      }
+
+      if (searchConditions.length > 0) {
+        user = await User.findOne({
+          where: { [Op.or]: searchConditions }
+        });
+      }
      
       if (!user) {
         // Создаем нового пользователя
         user = await User.create({
-          user_id: user_id,
-          telegram_id: (orderMainData.telegram_id) ? orderMainData.telegram_id : null, 
-          role: 'user',
-          username: orderData.customer_name || 'Пользователь',
-          phone: orderData.customer_phone,
-          //created_at: new Date()
+          user_id: user_id || null,
+          telegram_id: telegram_id || null,
+          role: telegram_id ? 'user' : 'guest', // Разделяем гостей с сайта и пользователей бота
+          username: orderMainData.name || 'Гость',
+          phone: orderMainData.phone || null,
         });
       } else{
+
+        let needsUpdate = false;
+
+        if (orderMainData.name && user.username !== orderMainData.name && user.username === 'Гость') {
+          user.username = orderMainData.name;
+          needsUpdate = true;
+        }
+        if (orderMainData.phone && !user.phone) {
+          user.phone = orderMainData.phone;
+          needsUpdate = true;
+        }
+        // Если клиент с сайта впервые написал в телеграм и мы узнали его телефон, связываем аккаунты!
+        if (telegram_id && !user.telegram_id) {
+          user.telegram_id = telegram_id;
+          needsUpdate = true;
+        }
+  
+        if (needsUpdate) {
+          await user.save();
+        }
+
         if (user.username !== orderMainData.name || user.phone !== orderMainData.phone) {
           user.username = orderMainData.name;
           user.phone = orderMainData.phone;

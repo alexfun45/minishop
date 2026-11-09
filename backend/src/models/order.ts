@@ -9,6 +9,7 @@ interface OrderAttribute{
   telegram_id: number;
   total_amount: number;
   status: string;
+  deliveryType: string;
   delivery_address: string;
   order_created: string;
   delivery_time: string;
@@ -23,7 +24,7 @@ interface OrderAttribute{
 }
 
 interface OrderCreationAttribute extends Optional<OrderAttribute,
- 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'order_created' | 'telegram_id' | 'payment_method' | 'payment_status' | 'comment' | 'delivery_lat' | 'delivery_lng'> {}
+ 'id' | 'status' | 'delivery_address' | 'delivery_time' | 'customer_phone' | 'order_created' | 'telegram_id' | 'payment_method' | 'payment_status' | 'comment' | 'delivery_lat' | 'delivery_lng' | 'deliveryType'> {}
 
  class Order extends Model<OrderAttribute, OrderCreationAttribute> implements OrderAttribute{
   declare id: number;
@@ -39,6 +40,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   declare payment_method: string;
   declare payment_status: string;
   declare comment: string;
+  declare deliveryType: string;
   declare delivery_lat: string;
   declare delivery_lng: string;
   declare payment_url: string;
@@ -104,6 +106,10 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   comment: {
     type: DataTypes.TEXT,
     allowNull: true,
+  },
+  deliveryType: {
+    type: DataTypes.ENUM('delivery', 'pickup'),
+    defaultValue: 'cash',
   },
   delivery_lat: {
     type: DataTypes.DECIMAL(10, 8),

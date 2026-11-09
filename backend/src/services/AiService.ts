@@ -1,6 +1,7 @@
 import * as lancedb from "@lancedb/lancedb";
 import type { Request, Response } from 'express';
 import { OpenAIEmbeddings } from "@langchain/openai";
+import { orderService } from "../services/OrderService.js";
 import redis from './RedisService.js'
 import path from "path";
 import fs from "fs"
@@ -43,6 +44,12 @@ const responseSchema = z.object({
   .describe("Массив артикулов товаров (только цифры/ID), которые подходят под запрос пользователя и упомянуты в ответе text. Если ничего не найдено или не применимо — пустой массив или null"),
   quantity: z.number().nullable().optional().default(1)
     .describe("Количество товара, которое упомянул пользователь или null, если не применимо"),
+
+  customerName: z.string().nullable().optional().describe("Имя пользователя, если он его назвал"),
+  phone: z.string().nullable().optional().describe("Номер телефона, если пользователь его указал"),
+  address: z.string().nullable().optional().describe("Адрес доставки, если пользователь его указал"),
+  deliveryType: z.enum(["delivery", "pickup"]).nullable().optional().describe("Способ получения: доставка или самовывоз"),
+
   text: z.string()
     .describe("Твой вежливый ответ пользователю на русском языке")
 });
@@ -415,7 +422,7 @@ export class AiService {
         quantity: 1,
         text: `Конечно! Добавляю в корзину.`
       };
-      const intentResult = await this.handleIntent(session, fakeAiRes);
+      const intentResult = await this.handleIntent(session, fakeAiRes, userQuery);
       session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message || fakeAiRes.text}`);
       await redis.set(`session:${userId}`, JSON.stringify(session));
       const productInfo = await productService.findById(directProductId);
@@ -424,6 +431,7 @@ export class AiService {
         data: {
           intent: 'add_to_cart',
           text: intentResult?.message || fakeAiRes.text,
+          clearCart: intentResult?.clearCart || false,
           products: []
           //products: productInfo ? [productInfo] : []
         },
@@ -801,13 +809,77 @@ export class AiService {
     }
   }
 
-  async handleIntent(session: UserSession, aiRes: any) {
-    const { intent, productIds, quantity, text } = aiRes;
+  async handleIntent(session: UserSession, aiRes: any, userQuery: string = '') {
+    const { intent, productIds, quantity, text, customerName, phone, address, deliveryType} = aiRes;
    
     const firstProductId = productIds && productIds.length > 0 ? productIds[0] : null;
 
     if (firstProductId) {
       session.lastViewedProductId = firstProductId;
+    }
+
+    if (session.pendingAction?.type === 'ORDER') {
+      const orderData = session.pendingAction;
+  
+      // Сохраняем данные, если пользователь их передал на текущем шаге
+      if (customerName) orderData.customerName = customerName;
+      if (phone) orderData.phone = phone;
+      if (address) orderData.address = address;
+      if (deliveryType) orderData.deliveryType = deliveryType;
+  
+      // Если пользователь написал текстовый адрес или телефон (и LLM распарсила их не в те поля, либо это просто текст)
+      // Можно подстраховаться и записать весь текст в адрес, если мы на шаге ввода адреса:
+      if (orderData.step === 2 && !orderData.address && aiRes.text) {
+        orderData.address = userQuery; // (Передайте userQuery в handleIntent, если нужно)
+      }
+  
+      // --- АВТОМАТ СОСТОЯНИЙ (FSM) ДЛЯ ОФОРМЛЕНИЯ ---
+      switch (orderData.step) {
+        case 0: // Шаг 0: Спрашиваем способ получения (Доставка / Самовывоз)
+          if (!orderData.deliveryType) {
+            return { message: "Уточните, пожалуйста, как вам удобнее получить заказ: **Доставка** или **Самовывоз**?" };
+          }
+          orderData.step = 1;
+          // проваливаемся дальше на шаг 1 или запрашиваем имя/телефон
+  
+        case 1: // Шаг 1: Запрашиваем Имя и Телефон
+          if (!orderData.customerName || !orderData.phone) {
+            // Если чего-то не хватает, просим оба контакта или недостающий
+            if (!orderData.customerName) {
+              return { message: "Как к вам обращаться? Напишите ваше имя." };
+            }
+            return { message: `Приятно познакомиться, ${orderData.customerName}! Укажите, пожалуйста, ваш номер телефона для связи.` };
+          }
+          orderData.step = 2;
+  
+        case 2: // Шаг 2: Если выбрана доставка — запрашиваем адрес
+          if (orderData.deliveryType === 'delivery' && !orderData.address) {
+            return { message: "Напишите, пожалуйста, полный адрес доставки (город, улица, дом, квартира)." };
+          }
+          orderData.step = 3;
+  
+        case 3: // Шаг 3: Финальное подтверждение заказа
+          const cartSummary = session.cart.map((i: any) => `- ${i.name} (${i.quantity} шт.)`).join('\n');
+          const totalSum = session.cart.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0);
+          
+          // Очищаем pendingAction, так как заказ сформирован (или сохраняем в БД заказов)
+          const finalOrder = { ...orderData, items: session.cart, total: totalSum };
+          // TODO: Сохранить finalOrder в базу данных PostgreSQL через Sequelize
+          const order = await orderService.create(finalOrder);
+          session.pendingAction = null;
+          session.cart = []; // Очищаем корзину после успешного заказа
+          
+          return { 
+            clearCart: true,
+            message: `🎉 **Заказ успешно оформлен!**\n\n` +
+                     `📦 Состав заказа:\n${cartSummary}\n` +
+                     `💰 Итого: ${totalSum} руб.\n` +
+                     `🚚 Способ: ${orderData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
+                     (orderData.address ? `📍 Адрес: ${orderData.address}\n` : '') +
+                     `👤 Получатель: ${orderData.customerName} (${orderData.phone})\n\n` +
+                     `Менеджер скоро свяжется с вами для подтверждения!` 
+          };
+      }
     }
 
     switch (intent) {

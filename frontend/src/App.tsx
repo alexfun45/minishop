@@ -490,7 +490,7 @@ export default function App() {
         onClearCart={clearCart}
       />
       {!isCartOpen && (
-        <AiWidget addToCart={(prod) => addToCart(prod, 'ai_chat')} />
+        <AiWidget addToCart={(prod) => addToCart(prod, 'ai_chat')} clearCart={clearCart}/>
       )}
     </div>
   );

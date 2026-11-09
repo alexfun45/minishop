@@ -6,7 +6,7 @@ interface UserAttributes {
   id: number;
   telegram_id: number;
   user_id: number;
-  role: 'user' | 'admin' | 'manager';
+  role: 'user' | 'admin' | 'manager' | 'guest';
   username: string | null;
   password: string | null;
   first_name: string | null;
@@ -28,7 +28,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare user_id: number;
   declare telegram_id: number;
   declare password: string;
-  declare role: 'user' | 'admin' | 'manager';
+  declare role: 'user' | 'admin' | 'manager' | 'guest';
   declare username: string | null;
   declare first_name: string | null;
   declare last_name: string | null;
@@ -61,7 +61,7 @@ User.init({
     allowNull: true
   },
   role: {
-    type: DataTypes.ENUM('user', 'admin', 'manager'),
+    type: DataTypes.ENUM('user', 'admin', 'manager', 'guest'),
     defaultValue: 'user',
   },
   username: {
