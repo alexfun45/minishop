@@ -109,7 +109,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   },
   deliveryType: {
     type: DataTypes.ENUM('delivery', 'pickup'),
-    defaultValue: 'cash',
+    defaultValue: 'delivery',
   },
   delivery_lat: {
     type: DataTypes.DECIMAL(10, 8),

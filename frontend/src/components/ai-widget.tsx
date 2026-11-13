@@ -117,7 +117,8 @@ export default function AiWidget({ addToCart, clearCart }: AiWidgetProps) {
       const shouldClearCart = response?.data?.clearCart || response?.clearCart;
 
       if(intent == 'add_to_cart' && aiProducts.length > 0){
-        addToCart(aiProducts[0]);
+        console.log('aiProducts', aiProducts);
+        addToCart(aiProducts);
       }
 
       if (shouldClearCart && clearCart) {

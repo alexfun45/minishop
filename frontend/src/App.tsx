@@ -76,22 +76,24 @@ export default function App() {
   // Логика управления корзиной
   const addToCart = (incomingProduct: any, source: 'catalog' | 'ai_chat' | 'product_detail' = 'catalog') => {
     if (!incomingProduct) return;
-    const product = incomingProduct.product ? incomingProduct.product : incomingProduct;
+    const products = incomingProduct.product ? incomingProduct.product : incomingProduct;
     const initialCount = incomingProduct.count || incomingProduct.quantity || 1;
-  
-    if (product.id === undefined || product.price === undefined) {
+    console.log('products', products);
+    /*if (product.id === undefined || product.price === undefined) {
       console.error("Некорректный формат товара:", incomingProduct);
       return;
-    }
-
-    AnalyticsService.track('add_to_cart', {
-      productId: product.id,
-      productName: product.name_ru || product.name || 'Товар без названия',
-      price: Number(product.price),
-      quantity: initialCount,
-      source: source
-    });
-  
+    }*/
+    products.map((product)=>{
+      AnalyticsService.track('add_to_cart', {
+        productId: product.id,
+        productName: product.name_ru || product.name || 'Товар без названия',
+        price: Number(product.price),
+        quantity: product.quantity || 1,
+        source: source
+      });
+    })
+    
+   products.map((product) => {
     setCart((prevCart) => {
       const currentCartArray = Array.isArray(prevCart) ? prevCart : Object.values(prevCart);
       const existingItemIndex = currentCartArray.findIndex(
@@ -102,12 +104,12 @@ export default function App() {
         const newCart = [...currentCartArray];
         newCart[existingItemIndex] = {
           ...newCart[existingItemIndex],
-          count: newCart[existingItemIndex].count + initialCount
+          count: newCart[existingItemIndex].count + product.quantity
         };
         return newCart;
       } else {
         const newCartItem = {
-          count: initialCount,
+          count: product.quantity,
           product: {
             id: product.id,
             name_ru: product.name_ru || product.name || 'Товар без названия',
@@ -117,6 +119,7 @@ export default function App() {
         };
         return [...currentCartArray, newCartItem];
       }
+    });
     });
   };
 

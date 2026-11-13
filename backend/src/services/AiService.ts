@@ -401,6 +401,40 @@ export class AiService {
     
     //const userMessageVector: number[] = await embeddings.embedQuery(userQuery);
 
+    if (session.pendingAction?.type === 'ORDER') {
+      const normalizedQuery = userQuery.trim().toLowerCase();
+      
+      // Возможность отменить оформление
+      if (['отмена', 'отменить', 'стоп', 'передумал'].includes(normalizedQuery)) {
+        session.pendingAction = null;
+        await redis.set(`session:${userId}`, JSON.stringify(session));
+        return res.json({
+          success: true,
+          data: {
+            intent: 'cancel',
+            text: 'Оформление заказа отменено. Чем еще я могу помочь?',
+            products: []
+          }
+        });
+      }
+  
+      // Передаем сообщение напрямую в логику шагов оформления
+      const intentResult = await this.handleIntent(session, { intent: 'order' }, userQuery);
+      
+      session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message}`);
+      await redis.set(`session:${userId}`, JSON.stringify(session));
+  
+      return res.json({
+        success: true,
+        data: {
+          intent: 'order',
+          text: intentResult.message,
+          clearCart: intentResult?.clearCart || false,
+          products: []
+        }
+      });
+    }
+
     const embeddingResponse = await client.embeddings.create({
       model: "google/gemini-embedding-001",
       input: userQuery,
@@ -438,7 +472,7 @@ export class AiService {
       });
     }
 
-    const cachedAnswerRaw = await AICacheService.get(userMessageVector, 0.25);
+    /*const cachedAnswerRaw = await AICacheService.get(userMessageVector, 0.25);
 
     if (cachedAnswerRaw) {
       try {
@@ -484,10 +518,9 @@ export class AiService {
         console.error('[AICache] Ошибка парсинга кэшированного ответа:', parseErr);
         // Если кэш старый или поврежден, код провалится дальше к обычному выполнению LLM
       }
-    }
+    }*/
 
     
-
     // === ШАГ 1: Извлекаем динамические настройки из Postgres ===
     const aiSettings = await AiService.getAiSettings();
     const systemPromptBase = aiSettings?.system_prompt || "Вы — умный ИИ-продавец в чате интернет-магазина.";
@@ -583,26 +616,41 @@ export class AiService {
     });
 
     // === ШАГ 4: Запрос к LLM и формирование ответа ===
+    let aiResRaw;
+
     try {
-      const aiResRaw = await dynamicModel.invoke(prompt);
+      aiResRaw = await dynamicModel.invoke(prompt);
+    } catch (llmError: any) {
+      console.error("[AI Model Error] Сбой при вызове модели:", llmError?.message || llmError);
       
+      // Возвращаем пользователю безопасный ответ, чтобы чат не ломался
+      return res.json({
+        success: true,
+        data: {
+          intent: 'search',
+          text: 'Хм, я немного запутался в формулировке или запрос получился слишком сложным. Пожалуйста, уточните, что именно вы имеете в виду?',
+          products: []
+        },
+      });
+    }
+
+   try {
       const textContent = typeof aiResRaw.text === 'string' 
         ? aiResRaw.text 
         : JSON.stringify(aiResRaw.content);
     
       const aiRes = await parser.parse(textContent);
-      
+      console.log('отправка сообщения LLM...');
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
       const intentResult = await this.handleIntent(session, aiRes);
-
-      
+      console.log('ответ ИИ:', aiRes);
       // --- НАЧАЛО ИСПРАВЛЕНИЯ ЛОГИКИ ПОДБОРА КАРТОЧЕК ---
-      
+      const itemQty = aiRes.quantity || 1;
       // Вариант 1: Модель сама явно вернула массив подходящих ID товаров
       if (aiRes.productIds && aiRes.productIds.length > 0) {
         for (const idStr of aiRes.productIds) {
-          const pInfo = await productService.findById(parseInt(idStr));
-          if (pInfo) productsForFrontend.push(AiService.mapProductToFrontend(pInfo));
+          const pInfo:any = await productService.findById(parseInt(idStr));
+          if (pInfo) productsForFrontend.push(AiService.mapProductToFrontend(pInfo, itemQty));
         }
       } 
       // Вариант 2: Модель считает, что это поиск ТОВАРОВ (intent === 'search'), 
@@ -631,13 +679,13 @@ export class AiService {
       });
 
       try {
-        await AICacheService.set(userQuery, userMessageVector, {
+        /*await AICacheService.set(userQuery, userMessageVector, {
           text: intentResult?.message || aiRes.text,
           intent: aiRes.intent,
           productIds: cachedProductIds
         });
       
-        await redis.set(`session:${userId}`, JSON.stringify(session));
+        await redis.set(`session:${userId}`, JSON.stringify(session));*/
       } catch (cacheError: any) {
         console.error('[AICache Warning] Не удалось записать кэш:', cacheError.message);
       }
@@ -657,162 +705,23 @@ export class AiService {
   }
 
   // Небольшой хелпер для чистки кода маппинга
-  private static mapProductToFrontend(pInfo: any) {
+  private static mapProductToFrontend(pInfo: any, quantity: number = 1) {
     return {
       id: pInfo.id,
       name_ru: pInfo.name_ru,
       price: pInfo.price,
       image_url: pInfo.image_url,
-      description_ru: pInfo.description_ru
+      description_ru: pInfo.description_ru,
+      quantity: quantity
     };
-  }
-
-  handleUserMessage2 = async (req: Request, res: Response) => {
-    const postdata = req.body;
-    let productsForFrontend: any[] = [];
-    const userId = postdata.userId;
-    const userQuery = postdata.message;
-    const directIntent = postdata.payload?.directIntent; 
-    const directProductId = postdata.payload?.productId;
-
-    const sessionData = await redis.get(`session:${userId}`);
-    const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
-    
-    if (directIntent === 'add_to_cart' && directProductId) {
-      // Формируем фейковый ответ ИИ-структуризатора, имитируя, что сеть сама всё поняла
-      const fakeAiRes = {
-        intent: 'add_to_cart',
-        productId: directProductId,
-        quantity: 1,
-        text: `Конечно! Добавляю в корзину.`
-      };
-  
-      // Вызываем вашу стандартную бизнес-логику добавления
-      const intentResult = await this.handleIntent(session, fakeAiRes);
-      
-      // Сохраняем лог в историю чата
-      session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message || fakeAiRes.text}`);
-      await redis.set(`session:${userId}`, JSON.stringify(session));
-  
-      // Вытягиваем инфо о товаре, чтобы вернуть карточку обратно на фронтенд
-      const productInfo = await productService.findById(directProductId);
-  
-      return res.json({
-        success: true,
-        data: {
-          intent: 'add_to_cart',
-          text: intentResult?.message || fakeAiRes.text,
-          products: []
-          //products: productInfo ? [productInfo] : []
-        },
-      });
-    }
-
-    const context = await AiService.searchProducts(userQuery);
-    //console.log('search', context);
-
-    const chatHistory = this.getChatHistoryString(session);
-    //console.log('chatHistory', chatHistory);
-    const formattedContext = Array.isArray(context)
-      ? context.map(item => ('text:'+item.text+' productId:' + item.id)).join('\n\n---\n\n')
-      : '';
-    //console.log('formattedContext', formattedContext);
-    // Формируем промпт, подмешивая инструкции от парсера
-    const prompt = await template.invoke({
-      context: formattedContext,
-      chat_history: chatHistory,
-      question: userQuery,
-      format_instructions: parser.getFormatInstructions(),
-    });
-
-    try {
-      
-      const aiResRaw = await model.invoke(prompt);
-      console.log('aiResRaw', aiResRaw);
-      // Парсим ответ Яндекса в JS-объект, валидируя через Zod
-      const textContent = typeof aiResRaw.text === 'string' 
-        ? aiResRaw.text 
-        : JSON.stringify(aiResRaw.content);
-
-      const aiRes = await parser.parse(textContent);
-      
-      session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
-      
-      const intentResult = await this.handleIntent(session, aiRes);
-
-      if (aiRes.productIds && aiRes.productIds.length > 0) {
-        for (const idStr of aiRes.productIds) {
-          const pInfo = await productService.findById(parseInt(idStr));
-          if (pInfo) {
-            productsForFrontend.push({
-              id: pInfo.id,
-              name_ru: pInfo.name_ru,
-              price: pInfo.price,
-              image_url: pInfo.image_url,
-              description_ru: pInfo.description_ru
-            });
-          }
-        }
-      } else if (aiRes.intent === 'search' && Array.isArray(context)) {
-        // Если это был поиск, но модель не выбрала один конкретный ID, 
-        // выкатим топ-2 товара из векторного поиска LanceDB, которые мы передавали в контекст
-        // Предполагается, что в LanceDB лежат нужные поля или мы добираем их через productService
-        for (const item of context.slice(0, 10)) {
-          const pInfo = await productService.findById(item.productId);
-          if (pInfo) {
-            productsForFrontend.push({
-              id: pInfo.id,
-              name_ru: pInfo.name_ru,
-              price: pInfo.price,
-              image_url: pInfo.image_url,
-              description_ru: pInfo.description_ru
-            });
-          }
-        }
-      }
-
-      if (productsForFrontend.length === 0 && Array.isArray(context) && context.length > 0) {
-        // Берем топ-3 найденных товаров из базы данных
-        for (const item of context.slice(0, 3)) {
-          // В зависимости от того, как LanceDB возвращает поле, проверяем item.productId или item.id
-          const targetId = item.productId || item.id;
-          if (!targetId) continue;
-      
-          const pInfo = await productService.findById(parseInt(targetId));
-          if (pInfo) {
-            productsForFrontend.push({
-              id: pInfo.id,
-              name_ru: pInfo.name_ru,
-              price: pInfo.price,
-              image_url: pInfo.image_url,
-              description_ru: pInfo.description_ru
-            });
-          }
-        }
-      }
-
-      await redis.set(`session:${userId}`, JSON.stringify(session));
-      // Дальше твоя логика работает как раньше
-      res.json({
-        success: true,
-        data: {
-          ...aiRes,
-          text: intentResult?.message || aiRes.text,
-          products: productsForFrontend
-        },
-      });
-      //return this.handleIntent(session, aiRes);
-      
-    } catch (error) {
-      console.error("Ошибка парсинга или вызова модели:", error);
-      return { message: "Извините, произошла ошибка при обработке запроса." };
-    }
   }
 
   async handleIntent(session: UserSession, aiRes: any, userQuery: string = '') {
     const { intent, productIds, quantity, text, customerName, phone, address, deliveryType} = aiRes;
    
     const firstProductId = productIds && productIds.length > 0 ? productIds[0] : null;
+
+    console.log('pendingAction', session.pendingAction);
 
     if (firstProductId) {
       session.lastViewedProductId = firstProductId;
@@ -836,11 +745,19 @@ export class AiService {
       // --- АВТОМАТ СОСТОЯНИЙ (FSM) ДЛЯ ОФОРМЛЕНИЯ ---
       switch (orderData.step) {
         case 0: // Шаг 0: Спрашиваем способ получения (Доставка / Самовывоз)
-          if (!orderData.deliveryType) {
-            return { message: "Уточните, пожалуйста, как вам удобнее получить заказ: **Доставка** или **Самовывоз**?" };
-          }
-          orderData.step = 1;
-          // проваливаемся дальше на шаг 1 или запрашиваем имя/телефон
+        const lowerQuery = userQuery.toLowerCase();
+        if (lowerQuery.includes('доставк')) {
+          orderData.deliveryType = 'delivery';
+        } else if (lowerQuery.includes('самовывоз') || lowerQuery.includes('сам')) {
+          orderData.deliveryType = 'pickup';
+        }
+
+        if (!orderData.deliveryType) {
+          return { message: "Уточните, пожалуйста, как вам удобнее получить заказ: **Доставка** или **Самовывоз**?" };
+        }
+        
+        orderData.step = 1; // Переходим к следующему шагу
+        break; // <--- ОБЯЗАТЕЛЬНО, чтобы не проваливаться дальше!
   
         case 1: // Шаг 1: Запрашиваем Имя и Телефон
           if (!orderData.customerName || !orderData.phone) {
@@ -851,12 +768,14 @@ export class AiService {
             return { message: `Приятно познакомиться, ${orderData.customerName}! Укажите, пожалуйста, ваш номер телефона для связи.` };
           }
           orderData.step = 2;
+          break;
   
         case 2: // Шаг 2: Если выбрана доставка — запрашиваем адрес
           if (orderData.deliveryType === 'delivery' && !orderData.address) {
             return { message: "Напишите, пожалуйста, полный адрес доставки (город, улица, дом, квартира)." };
           }
           orderData.step = 3;
+          break;
   
         case 3: // Шаг 3: Финальное подтверждение заказа
           const cartSummary = session.cart.map((i: any) => `- ${i.name} (${i.quantity} шт.)`).join('\n');
@@ -885,38 +804,53 @@ export class AiService {
     switch (intent) {
       case 'add_to_cart':
         // Запоминаем, что пользователь ХОЧЕТ добавить, но ждем подтверждения
-        if (!firstProductId) {
+        if (!firstProductId || aiRes.productIds.length === 0) {
           return { message: "Уточните, пожалуйста, какой именно товар вы хотите добавить?" };
         }
-        const productInfo = await productService.findById(parseInt(firstProductId));
 
-        if (productInfo === null) {
-          return { message: "К сожалению, этот товар сейчас недоступен для заказа." };
+        const qty = quantity || 1;
+        const addedItemsSummary = [];
+        //const productInfo = await productService.findById(parseInt(firstProductId));
+
+        //if (productInfo === null) {
+        //  return { message: "К сожалению, этот товар сейчас недоступен для заказа." };
+        //}
+
+        for (const idStr of aiRes.productIds) {
+          const productInfo = await productService.findById(parseInt(idStr));
+
+          if (productInfo) {
+            const cartItem = { 
+              type: 'ADD', 
+              productId: idStr, 
+              name: productInfo.name_ru, 
+              price: productInfo.price, 
+              quantity: qty 
+            };
+
+            session.pendingAction = cartItem;
+
+          session.cart.push(cartItem);
+          addedItemsSummary.push(`${productInfo.name_ru} — ${qty} шт.`);
+          }
         }
-
-        session.pendingAction = { 
-          type: 'ADD', 
-          productId: firstProductId, 
-          name: productInfo.name_ru, 
-          price: productInfo.price, 
-          quantity: quantity || 1 
-        };
-        session.cart.push(session.pendingAction);
         session.pendingAction = null;
-        return { message: text };
+        return { 
+          message: text || `✅ Успешно добавил в корзину:\n${addedItemsSummary.join('\n')}` 
+        };
       case 'order':
-               
+        console.log('order');  
         if(session.cart == null || session.cart.length==0){
           return { message: "Корзина пуста. ПОжалуйста, добавьте товары в корзину" };
         }
         if(!session.pendingAction){
+          console.log('pendingAction'); 
           session.pendingAction = { 
             type: 'ORDER', 
             productId: 0, 
             step: 0
           };
-        } else
-        session.pendingAction.step = (session.pendingAction.step ?? 0) + 1;
+        } 
         return { message: 'Начинаю оформление. Укажите как будете получать товар: Доставка или самовывоз?' };
 
       case 'confirm':
