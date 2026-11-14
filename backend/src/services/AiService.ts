@@ -642,12 +642,14 @@ export class AiService {
       const aiRes = await parser.parse(textContent);
       console.log('отправка сообщения LLM...');
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
-      const intentResult = await this.handleIntent(session, aiRes);
+      const intentResult = await this.handleIntent(session, aiRes, userQuery);
+      const targetProductIds = (intentResult.products) ? intentResult.products : aiRes.productIds;
       console.log('ответ ИИ:', aiRes);
       // --- НАЧАЛО ИСПРАВЛЕНИЯ ЛОГИКИ ПОДБОРА КАРТОЧЕК ---
       const itemQty = aiRes.quantity || 1;
       // Вариант 1: Модель сама явно вернула массив подходящих ID товаров
       if (aiRes.productIds && aiRes.productIds.length > 0) {
+        console.log('Модель сама явно вернула массив подходящих', aiRes.productIds);
         for (const idStr of aiRes.productIds) {
           const pInfo:any = await productService.findById(parseInt(idStr));
           if (pInfo) productsForFrontend.push(AiService.mapProductToFrontend(pInfo, itemQty));
@@ -663,6 +665,11 @@ export class AiService {
           const pInfo = await productService.findById(parseInt(targetId));
           if (pInfo) productsForFrontend.push(AiService.mapProductToFrontend(pInfo));
         }
+      }
+
+      if (aiRes.intent === 'search' && productsForFrontend.length > 0) {
+        console.log('productsForFrontend', productsForFrontend);
+        session.lastViewedProductId = productsForFrontend.map(p => p.id.toString());
       }
 
       const cachedProductIds = productsForFrontend.map(p => p.id.toString()) || [];
@@ -685,7 +692,8 @@ export class AiService {
           productIds: cachedProductIds
         });
       
-        await redis.set(`session:${userId}`, JSON.stringify(session));*/
+        ;*/
+        await redis.set(`session:${userId}`, JSON.stringify(session))
       } catch (cacheError: any) {
         console.error('[AICache Warning] Не удалось записать кэш:', cacheError.message);
       }
@@ -721,26 +729,10 @@ export class AiService {
    
     const firstProductId = productIds && productIds.length > 0 ? productIds[0] : null;
 
-    console.log('pendingAction', session.pendingAction);
-
-    if (firstProductId) {
-      session.lastViewedProductId = firstProductId;
-    }
 
     if (session.pendingAction?.type === 'ORDER') {
       const orderData = session.pendingAction;
-  
-      // Сохраняем данные, если пользователь их передал на текущем шаге
-      if (customerName) orderData.customerName = customerName;
-      if (phone) orderData.phone = phone;
-      if (address) orderData.address = address;
-      if (deliveryType) orderData.deliveryType = deliveryType;
-  
-      // Если пользователь написал текстовый адрес или телефон (и LLM распарсила их не в те поля, либо это просто текст)
-      // Можно подстраховаться и записать весь текст в адрес, если мы на шаге ввода адреса:
-      if (orderData.step === 2 && !orderData.address && aiRes.text) {
-        orderData.address = userQuery; // (Передайте userQuery в handleIntent, если нужно)
-      }
+      const cleanInput = userQuery.trim().toLowerCase();
   
       // --- АВТОМАТ СОСТОЯНИЙ (FSM) ДЛЯ ОФОРМЛЕНИЯ ---
       switch (orderData.step) {
@@ -757,25 +749,46 @@ export class AiService {
         }
         
         orderData.step = 1; // Переходим к следующему шагу
-        break; // <--- ОБЯЗАТЕЛЬНО, чтобы не проваливаться дальше!
+        return { message: "Как к вам обращаться? Напишите ваше имя." };
   
         case 1: // Шаг 1: Запрашиваем Имя и Телефон
-          if (!orderData.customerName || !orderData.phone) {
-            // Если чего-то не хватает, просим оба контакта или недостающий
-            if (!orderData.customerName) {
-              return { message: "Как к вам обращаться? Напишите ваше имя." };
+          if (!orderData.customer_name) {
+            // Защита от случайного ввода цифр вместо имени
+            if (/^\+?\d[\d\s\-()]{5,}$/.test(cleanInput)) {
+              return { message: "Похоже, вы ввели номер телефона. Напишите, пожалуйста, сначала ваше имя." };
             }
-            return { message: `Приятно познакомиться, ${orderData.customerName}! Укажите, пожалуйста, ваш номер телефона для связи.` };
+            orderData.customer_name = cleanInput;
+            return { message: `Приятно познакомиться, ${orderData.customer_name}! Укажите, пожалуйста, ваш номер телефона для связи.` };
           }
-          orderData.step = 2;
+
+          // Подэтап 1.2: Имя уже есть, ждем телефон
+          if (!orderData.customer_phone) {
+            // Очищаем всё, кроме цифр и плюса, чтобы проверить длину номера
+            const digitsOnly = cleanInput.replace(/\D/g, '');
+            if (digitsOnly.length < 10) {
+              return { message: "Некорректный формат номера. Укажите, пожалуйста, действующий номер телефона (минимум 10 цифр)." };
+            }
+            orderData.customer_phone = cleanInput;
+          }
+
+          // Оба поля заполнены — двигаемся дальше!
+          if (orderData.deliveryType === 'delivery') {
+            orderData.step = 2;
+            return { message: "Напишите, пожалуйста, полный адрес доставки (город, улица, дом, квартира)." };
+          } else {
+            // Если самовывоз — адрес не нужен, сразу переходим к оформлению (шаг 3)
+            orderData.step = 3;
+          }
           break;
   
         case 2: // Шаг 2: Если выбрана доставка — запрашиваем адрес
-          if (orderData.deliveryType === 'delivery' && !orderData.address) {
-            return { message: "Напишите, пожалуйста, полный адрес доставки (город, улица, дом, квартира)." };
+          if (orderData.step === 2) {
+            if (cleanInput.length < 5) {
+              return { message: "Пожалуйста, укажите более подробный адрес доставки." };
+            }
+            orderData.delivery_address = cleanInput;
+            orderData.step = 3;
           }
-          orderData.step = 3;
-          break;
   
         case 3: // Шаг 3: Финальное подтверждение заказа
           const cartSummary = session.cart.map((i: any) => `- ${i.name} (${i.quantity} шт.)`).join('\n');
@@ -783,6 +796,7 @@ export class AiService {
           
           // Очищаем pendingAction, так как заказ сформирован (или сохраняем в БД заказов)
           const finalOrder = { ...orderData, items: session.cart, total: totalSum };
+          console.log('finalOrder', finalOrder);
           // TODO: Сохранить finalOrder в базу данных PostgreSQL через Sequelize
           const order = await orderService.create(finalOrder);
           session.pendingAction = null;
@@ -794,8 +808,8 @@ export class AiService {
                      `📦 Состав заказа:\n${cartSummary}\n` +
                      `💰 Итого: ${totalSum} руб.\n` +
                      `🚚 Способ: ${orderData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
-                     (orderData.address ? `📍 Адрес: ${orderData.address}\n` : '') +
-                     `👤 Получатель: ${orderData.customerName} (${orderData.phone})\n\n` +
+                     (orderData.address ? `📍 Адрес: ${orderData.customer_address}\n` : '') +
+                     `👤 Получатель: ${orderData.customer_name} (${orderData.customer_phone})\n\n` +
                      `Менеджер скоро свяжется с вами для подтверждения!` 
           };
       }
@@ -803,11 +817,21 @@ export class AiService {
 
     switch (intent) {
       case 'add_to_cart':
+        const queryLower = userQuery.toLowerCase();
+        console.log('queryLower', queryLower);
+        const isBulkAdd = queryLower.includes('все') || queryLower.includes('всё') || queryLower.includes('их') || queryLower.includes('эти');
+        console.log('isBulkAdd', isBulkAdd);
         // Запоминаем, что пользователь ХОЧЕТ добавить, но ждем подтверждения
-        if (!firstProductId || aiRes.productIds.length === 0) {
-          return { message: "Уточните, пожалуйста, какой именно товар вы хотите добавить?" };
-        }
+        const targetProductIds = (isBulkAdd || !aiRes.productIds || aiRes.productIds.length === 0)
+          ? session.lastViewedProductId
+          : aiRes.productIds;
+        console.log('targetProductIds', targetProductIds);
+        console.log('session.lastViewedProductId', session.lastViewedProductId);
 
+        if (!targetProductIds || targetProductIds.length === 0) {
+            return { message: "Уточните, пожалуйста, какой именно товар вы хотите добавить в корзину?" };
+          }
+        
         const qty = quantity || 1;
         const addedItemsSummary = [];
         //const productInfo = await productService.findById(parseInt(firstProductId));
@@ -816,13 +840,13 @@ export class AiService {
         //  return { message: "К сожалению, этот товар сейчас недоступен для заказа." };
         //}
 
-        for (const idStr of aiRes.productIds) {
+        for (const idStr of targetProductIds) {
           const productInfo = await productService.findById(parseInt(idStr));
 
           if (productInfo) {
             const cartItem = { 
               type: 'ADD', 
-              productId: idStr, 
+              product_id: idStr, 
               name: productInfo.name_ru, 
               price: productInfo.price, 
               quantity: qty 
@@ -836,7 +860,8 @@ export class AiService {
         }
         session.pendingAction = null;
         return { 
-          message: text || `✅ Успешно добавил в корзину:\n${addedItemsSummary.join('\n')}` 
+          message: text || `✅ Успешно добавил в корзину:\n${addedItemsSummary.join('\n')}`,
+          products: targetProductIds
         };
       case 'order':
         console.log('order');  

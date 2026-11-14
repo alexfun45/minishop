@@ -2,6 +2,9 @@ type userAction = {
   type: 'ADD' | 'ORDER';
   productId: number;
   quantity?: number;
+  customer_name?: string;
+  customer_phone?: string;
+  delivery_address?: string;
   name?: string | null;
   customerName?: string;
   deliveryType?: string; 
