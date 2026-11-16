@@ -3,6 +3,7 @@ import { orderItemService } from './OrderItemService.js';
 import {sendStatusUpdateNotification} from '../api/telegramNotification.js'
 import { Op, fn, col, literal } from 'sequelize';
 import {AnalyticsEvent} from '../models/analytics.js'
+import type {OrderAttribute} from '../models/order.js'
 
 export class OrderService {
 
@@ -220,21 +221,80 @@ export class OrderService {
   }
 
   // Найти заказы пользователя
-  async findByUserId(userId: number, limit: number = 10) {
-    return await Order.findAll({
-      where: { telegram_id: userId },
-      include: [{
-        model: OrderItem,
-        as: 'order_items',
-        include: [{
-          model: Product,
-          as: 'product',
-          attributes: ['id', 'name_ru', 'name_tj', 'name_uz'],
-        }],
-      }],
-      order: [['created_at', 'DESC']],
-      limit,
-    });
+  async findByUserId(identifier: number | string, limit: number = 10){
+    try {
+      // 1. Сначала находим пользователя в таблице Users по любому из возможных идентификаторов:
+      // Внутренний PK (id), фронтовый идентификатор (user_id) или telegram_id
+      const user = await User.findOne({
+        where: {
+          [Op.or]: [
+            { id: identifier },
+            { user_id: identifier },
+            { telegram_id: identifier }
+          ]
+        }
+      });
+
+      if (!user) {
+        return []; // Если пользователя в базе еще нет, то и заказов у него нет
+      }
+
+      // 2. Ищем заказы по реальному первичному ключу пользователя (user.id), 
+      // который был записан в Order.user_id при создании заказа
+      const orderInstances = await Order.findAll({
+        where: { user_id: user.id },
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['id', 'user_id', 'username', 'first_name', 'phone'],
+          },
+          {
+            model: OrderItem,
+            as: 'order_items',
+            include: [{
+              model: Product,
+              as: 'product',
+              attributes: ['id', 'name_ru', 'name_tj', 'name_uz', 'image_url'],
+            }],
+          },
+        ],
+        order: [['createdAt', 'DESC']], // Проверьте название поля даты в модели (createdAt или created_at)
+        limit,
+      });
+
+      if (!orderInstances || orderInstances.length === 0) return [];
+
+      // Превращаем каждый инстанс в чистый объект и мапим под нужды бота
+      return orderInstances.map(orderInstance => {
+        const order = orderInstance.get({ plain: true }) as any;
+
+        return {
+          id: order.id,
+          user_id: order.user_id,
+          telegram_id: order.telegram_id,
+          total_amount: order.total_amount,
+          status: order.status,
+          delivery_time: order.delivery_time,
+          delivery_address: order.delivery_address,
+          customer_name: order.customer_name,
+          customer_phone: order.customer_phone,
+          payment_method: order.payment_method,
+          comment: order.comment,
+          payment_url: order.payment_url,
+          createdAt: order.createdAt || order.created_at,
+          items: (order.order_items || []).map((item: any) => ({
+            product_id: item.product_id,
+            product_name: item.product ? item.product.name_ru : 'Товар',
+            quantity: item.quantity,
+            price: item.price
+          }))
+        };
+      });
+    } catch (error) {
+      console.error('[findByUserId Error]:', error);
+      return [];
+    }
   }
 
   async updatePaymentStatus(orderId: number, status: string){

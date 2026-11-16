@@ -38,8 +38,16 @@ AICacheService.initIndex();
 const user_intents = ["add_to_cart", "view_cart", "order", "greeting"];
 
 const responseSchema = z.object({
-  intent: z.enum(["search", "add_to_cart", "confirm", "cancel", "greeting", "view_cart", "order"])
-    .describe("Классификация намерения..."),
+  intent: z.enum([
+    "search", 
+    "add_to_cart", 
+    "confirm", 
+    "cancel", 
+    "greeting", 
+    "view_cart", 
+    "order", 
+    "order_status" // <--- Добавили новый интент
+  ]).describe("Классификация намерения: search — поиск товаров, view_cart - посмотреть список товаров добавленных в корзину, add_to_cart — добавить в корзину, order — оформить заказ, order_status — узнать статус текущего или ранее оформленного заказа, и т.д."),
   productIds: z.array(z.string()).nullable().optional()
   .describe("Массив артикулов товаров (только цифры/ID), которые подходят под запрос пользователя и упомянуты в ответе text. Если ничего не найдено или не применимо — пустой массив или null"),
   quantity: z.number().nullable().optional().default(1)
@@ -104,7 +112,7 @@ const TABLE_NAME = "products_vectors";
 
 export class AiService {
   private static dbInstance: lancedb.Connection | null = null;
-
+  userId: number = 0;
   // Подключение к БД (Singleton)
   private static async getDb() {
     if (!this.dbInstance) {
@@ -411,6 +419,7 @@ export class AiService {
     const postdata: any = req.body;
     let productsForFrontend: any[] = [];
     const userId = postdata.userId;
+    this.userId = userId;
     const userQuery = postdata.message;
     const directIntent = postdata.payload?.directIntent; 
     const directProductId = postdata.payload?.productId;
@@ -630,6 +639,8 @@ export class AiService {
 
         {format_instructions}
         `);
+
+    console.log('productContext', productContext);
 
     const prompt = await dynamicTemplate.invoke({
       document_context: documentContext || "Дополнительные документы не найдены по запросу.",
@@ -926,6 +937,52 @@ export class AiService {
           };
         } 
         return { message: 'Начинаю оформление. Укажите как будете получать товар: Доставка или самовывоз?' };
+
+        case 'order_status':
+          try {
+            let targetOrder = null;
+  
+            // Если пользователь явно указал номер заказа (например, "где 42 заказ?")
+            if (aiRes.orderId) {
+              targetOrder = await orderService.findById(aiRes.orderId);
+            } else {
+              // Иначе ищем самый свежий активный/последний заказ этого пользователя в базе
+              targetOrder = await orderService.findByUserId(this.userId);
+              console.log('userId', this.userId);
+              console.log('targetOrder', targetOrder);
+            }
+  
+            if (!targetOrder) {
+              return { message: "Хм, я не нашел активных или недавних заказов по вашей истории. Хотите оформить новый?" };
+            }
+  
+            // Словарь для красивого вывода статусов на русском
+            const statusLabelsRu: Record<string, string> = {
+              pending: 'Ожидает подтверждения ⏳',
+              confirmed: 'Подтвержден ✓',
+              preparing: 'Готовится на кухне 👨‍🍳',
+              ready: 'Готов к выдаче / доставке 📦',
+              delivered: 'Доставлен 🎉',
+              cancelled: 'Отменен ❌'
+            };
+
+            const lastOrder: any = (Array.isArray(targetOrder)) ? targetOrder.pop() : targetOrder;
+            
+            const currentStatusText = statusLabelsRu[lastOrder.status] || lastOrder.status;
+            const paymentText = lastOrder.status === 'payment_success' ? 'Оплачено онлайн 💳' : 'Не оплачено / Наличными 💵';
+  
+            return {
+              message: `📋 **Информация о вашем заказе #${lastOrder.id}:**\n\n` +
+                       `• Статус: **${currentStatusText}**\n` +
+                       `• Сумма: **${lastOrder.total_amount} ₽**\n` +
+                       `• Оплата: ${paymentText}\n` +
+                       `• Способ получения: ${lastOrder.delivery_address.includes('Самовывоз') ? 'Самовывоз' : 'Доставка'}\n\n` +
+                       `Если у вас есть вопросы по заказу, наш менеджер всегда на связи!`
+            };
+          } catch (dbError) {
+            console.error('[Order Status Error] Ошибка при поиске заказа в БД:', dbError);
+            return { message: "К сожалению, произошла ошибка при проверке статуса заказа. Попробуйте чуть позже." };
+          }
 
       /*case 'confirm':
         if (session.pendingAction?.type === 'ADD') {

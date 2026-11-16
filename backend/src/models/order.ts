@@ -3,7 +3,7 @@ import type {Optional} from 'sequelize';
 import {DataTypes, Model} from 'sequelize'
 import sequelize from '../config/database.js';
 
-interface OrderAttribute{
+export interface OrderAttribute{
   id: number;
   user_id: number;
   telegram_id: number;
