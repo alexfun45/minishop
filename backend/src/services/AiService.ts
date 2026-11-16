@@ -383,6 +383,30 @@ export class AiService {
     await redis.unlink(`session:${userId}`);
   }
 
+  clearCart = async (userId: string) => {
+    try {
+      const sessionKey = `session:${userId}`;
+      const sessionData = await redis.get(sessionKey);
+
+      if (sessionData) {
+        const session = JSON.parse(sessionData);
+        session.cart = [];
+        
+        // Если пользователь был в середине оформления заказа через бота — сбрасываем FSM
+        if (session.pendingAction?.type === 'ORDER') {
+          session.pendingAction = null;
+        }
+
+        await redis.set(sessionKey, JSON.stringify(session));
+      }
+      return true;
+    } catch (error) {
+      console.error('[AiService] Ошибка очистки корзины в Redis:', error);
+      return false;
+      //return res.status(500).json({ success: false, error: 'Не удалось очистить корзину' });
+    }
+  }
+
   handleUserMessage = async (req: Request, res: Response) => {
     const postdata: any = req.body;
     let productsForFrontend: any[] = [];
@@ -648,7 +672,7 @@ export class AiService {
       // --- НАЧАЛО ИСПРАВЛЕНИЯ ЛОГИКИ ПОДБОРА КАРТОЧЕК ---
       const itemQty = aiRes.quantity || 1;
       // Вариант 1: Модель сама явно вернула массив подходящих ID товаров
-      if (aiRes.productIds && aiRes.productIds.length > 0) {
+      if (aiRes.productIds && aiRes.productIds.length > 0 && aiRes.intent!='view_cart') {
         console.log('Модель сама явно вернула массив подходящих', aiRes.productIds);
         for (const idStr of aiRes.productIds) {
           const pInfo:any = await productService.findById(parseInt(idStr));
@@ -668,7 +692,6 @@ export class AiService {
       }
 
       if (aiRes.intent === 'search' && productsForFrontend.length > 0) {
-        console.log('productsForFrontend', productsForFrontend);
         session.lastViewedProductId = productsForFrontend.map(p => p.id.toString());
       }
 
@@ -723,6 +746,36 @@ export class AiService {
       quantity: quantity
     };
   }
+
+  syncCart = async (userId: string, items: any) => {
+    try {  
+      const sessionKey = `session:${userId}`;
+      const sessionData = await redis.get(sessionKey);
+      const session = sessionData
+        ? JSON.parse(sessionData)
+        : { cart: [], chat: [], pendingAction: null, lastViewedProductId: null };
+  
+      // Приводим формат фронтенда к формату, который ожидает ваш FSM в handleIntent
+      session.cart = items.map((item: any) => ({
+        type: 'ADD',
+        product_id: item.productId.toString(),
+        name: item.name,
+        price: Number(item.price),
+        quantity: Number(item.quantity),
+      }));
+  
+      // Если корзину очистили полностью — сбрасываем незавершенный заказ
+      if (session.cart.length === 0 && session.pendingAction?.type === 'ORDER') {
+        session.pendingAction = null;
+      }
+  
+      await redis.set(sessionKey, JSON.stringify(session));
+      return true;
+    } catch (error) {
+      console.error('[AiService] Ошибка синхронизации корзины:', error);
+      return false;
+    }
+  };
 
   async handleIntent(session: UserSession, aiRes: any, userQuery: string = '') {
     const { intent, productIds, quantity, text, customerName, phone, address, deliveryType} = aiRes;
@@ -825,8 +878,6 @@ export class AiService {
         const targetProductIds = (isBulkAdd || !aiRes.productIds || aiRes.productIds.length === 0)
           ? session.lastViewedProductId
           : aiRes.productIds;
-        console.log('targetProductIds', targetProductIds);
-        console.log('session.lastViewedProductId', session.lastViewedProductId);
 
         if (!targetProductIds || targetProductIds.length === 0) {
             return { message: "Уточните, пожалуйста, какой именно товар вы хотите добавить в корзину?" };
@@ -864,21 +915,19 @@ export class AiService {
           products: targetProductIds
         };
       case 'order':
-        console.log('order');  
         if(session.cart == null || session.cart.length==0){
           return { message: "Корзина пуста. ПОжалуйста, добавьте товары в корзину" };
         }
         if(!session.pendingAction){
-          console.log('pendingAction'); 
           session.pendingAction = { 
             type: 'ORDER', 
-            productId: 0, 
+            product_id: 0, 
             step: 0
           };
         } 
         return { message: 'Начинаю оформление. Укажите как будете получать товар: Доставка или самовывоз?' };
 
-      case 'confirm':
+      /*case 'confirm':
         if (session.pendingAction?.type === 'ADD') {
           const item = session.pendingAction;
           session.cart.push(item); // Добавляем в реальную корзину
@@ -886,28 +935,45 @@ export class AiService {
           return { message: "✅ Добавлено в расчет! " + text };
         }
         return { message: text };
+        */
 
       case 'cancel':
         session.pendingAction = null;
         return { message: "Хорошо, отменил. " + text };
 
-      /*case 'view_cart':
+      case 'view_cart':
+        if (!session.cart || session.cart.length === 0) {
+          return { message: "Ваша корзина пока пуста. Найти что-нибудь?" };
+        }
+        let total = 0;
+        const cartLines = session.cart.map((item, index) => {
+          const itemTotal = item.price * item.quantity;
+          total += itemTotal;
+          return `${index + 1}. ${item.name} — ${item.quantity} шт. x ${item.price} руб. = ${itemTotal} руб.`;
+        });
+
+        const cart_report = `**Ваша текущая корзина:**\n\n${cartLines.join('\n')}\n\n**Итого: ${total} руб.**\n\n`;
+          
+        return { message: cart_report };
+
+      
+      case 'view_order':
           if (!session.cart || session.cart.length === 0) {
             return { message: "Ваша корзина пока пуста. Найти что-нибудь?" };
           }
         
           let totalSum = 0;
           // Формируем текстовый список
-          const cartLines = session.cart.map((item, index) => {
+          const cartLinesOrder = session.cart.map((item, index) => {
             const itemTotal = item.price * item.quantity;
             totalSum += itemTotal;
             return `${index + 1}. ${item.name} — ${item.quantity} шт. x ${item.price} руб. = ${itemTotal} руб.`;
           });
         
-          const report = `🛒 **Ваш текущий расчет:**\n\n${cartLines.join('\n')}\n\n**Итого: ${totalSum} руб.**\n\nСформировать КП в PDF или добавим что-то еще?`;
+          const report = `🛒 **Ваш текущий расчет:**\n\n${cartLinesOrder.join('\n')}\n\n**Итого: ${totalSum} руб.**\n\nСформировать КП в PDF или добавим что-то еще?`;
           
           return { message: report };
-          */
+          
       case 'search':
       default:
         return { message: text };

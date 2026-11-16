@@ -44,4 +44,21 @@ router.use('/payment/webhook', getPayment);
 
 // ротуер аналитики
 router.post('/analytics/track', AnalyticsController.track);
+
+router.post('/ai/cart/sync', async (req: Request, res: Response) => {
+  const { userId, items } = req.body;
+  if (!userId || !items) {
+    return res.status(400).json({ success: false, error: 'Поля данных обязательны' });
+  }
+  await aiService.syncCart(userId, items);
+})
+
+router.post('/ai/cart/clear', async (req: Request, res: Response) => {
+  const { userId } = req.body;
+  if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId обязателен' });
+    }
+   await aiService.clearCart(userId);
+});
+
 export default router;

@@ -76,9 +76,10 @@ export default function App() {
   // Логика управления корзиной
   const addToCart = (incomingProduct: any, source: 'catalog' | 'ai_chat' | 'product_detail' = 'catalog') => {
     if (!incomingProduct) return;
-    const products = incomingProduct.product ? incomingProduct.product : incomingProduct;
+    //const products = incomingProduct.product ? incomingProduct.product : incomingProduct;
+    const products = Array.isArray(incomingProduct) ? incomingProduct : [incomingProduct];
+    console.log('add to cart', incomingProduct);
     const initialCount = incomingProduct.count || incomingProduct.quantity || 1;
-    console.log('products', products);
     /*if (product.id === undefined || product.price === undefined) {
       console.error("Некорректный формат товара:", incomingProduct);
       return;
@@ -157,6 +158,27 @@ export default function App() {
     totalCartItems = cartItemsArray.reduce((acc, item) => acc + item.count, 0);
     totalCartPrice = cartItemsArray.reduce((acc, item) => acc + (item.product.price * item.count), 0);
   }
+  
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    const userId = tg?.initDataUnsafe?.user?.id?.toString() || localStorage.getItem('bakery_ai_user_id');
+    if (!userId) return;
+  
+    const timer = setTimeout(() => {
+      const payload = cart.map(({ product, count }) => ({
+        productId: product.id,
+        name: product.name_ru,
+        price: product.price,
+        quantity: count,
+      }));
+  
+      apiClient.syncCart(userId, payload).catch((err) => {
+        console.error('Ошибка фоновой синхронизации корзины:', err);
+      });
+    }, 300);
+  
+    return () => clearTimeout(timer);
+  }, [cart]);
 
   // Эффект для дебаунса поиска (теперь просто выставляет стейт для React Query)
   useEffect(() => {

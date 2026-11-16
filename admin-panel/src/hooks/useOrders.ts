@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../services/api';
 import type {Order} from '../types/index'
+
+const POLLING_INTERVAL_MS = 5000;
 
 /*export interface Order {
   id: number;
@@ -24,20 +26,52 @@ export const useOrders = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchOrders = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const _orders = await apiClient.get('/orders/');
+      const freshOrders: Order[] = _orders.data || _orders || [];
+      setOrders((prevOrders) => {
+        if (JSON.stringify(prevOrders) === JSON.stringify(freshOrders)) {
+          return prevOrders;
+        }
+        return freshOrders;
+      });
+
+      //setOrders(_orders.data);
+      
+    } catch (err) {
+      setError('Ошибка загрузки заказов');
+      setLoading(false);
+    }
+    finally {
+      if (!silent) setLoading(false);
+    }
+  }, []  )
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const _orders = await apiClient.get('/orders/');
-        setOrders(_orders.data);
-        setLoading(false);
-      } catch (err) {
-        setError('Ошибка загрузки категорий');
-        setLoading(false);
+    fetchOrders(false);
+
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchOrders(true);
+      }
+    }, POLLING_INTERVAL_MS);
+
+    // 3. Мгновенное обновление при возвращении на вкладку браузера
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchOrders(true);
       }
     };
 
-    fetchOrders();
-  }, []);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchOrders]);
 
   const updateOrder= async (id: number, orderData: string) => {
     

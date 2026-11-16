@@ -48,7 +48,7 @@ export default function CartDrawer({
   const [orderNumber, setOrderNumber] = useState('');
   const [paymentUrl, setPaymentUrl] = useState<string>('');
   const [isLinkFollowed, setIsLinkFollowed] = useState(false);
-
+  const [isClearing, setIsClearing] = useState(false);
   // Новые стейты для отслеживания статуса онлайн-оплаты
   const [isPaid, setIsPaid] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
@@ -78,6 +78,36 @@ export default function CartDrawer({
   }, [checkoutStep, paymentUrl, orderNumber, isPaid]);
 
   if (!isOpen) return null;
+
+  const getCurrentUserId = (): string => {
+    const tg = (window as any).Telegram?.WebApp;
+    const tgUser = tg?.initDataUnsafe?.user;
+    if (tgUser && tgUser.id) {
+      return tgUser.id.toString();
+    }
+    return localStorage.getItem('bakery_ai_user_id') || '';
+  };
+
+  // Очистка корзины на бэкенде и фронтенде
+  const handleClearAll = async () => {
+    if (isClearing || cartItems.length === 0) return;
+
+    const userId = getCurrentUserId();
+    setIsClearing(true);
+    onClearCart();
+    try {
+      //if (userId) {
+      //  await apiClient.clearCart(userId);
+      //}
+      onClearCart();
+    } catch (error) {
+      console.error('Ошибка при очистке корзины на сервере:', error);
+      // Даже если запрос на бэкенд упал, очищаем UI, чтобы не блокировать пользователя
+      onClearCart();
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   const handlePlaceOrder = async () => {
     setIsSubmitting(false); 
@@ -168,6 +198,28 @@ export default function CartDrawer({
             {checkoutStep === 'payment' && '3. Оплата'}
             {checkoutStep === 'success' && (isPaid ? 'Заказ оплачен!' : 'Заказ принят!')}
           </h3>
+
+          <div className="flex items-center gap-2">
+            {/* Кнопка полной очистки корзины (показываем только на экране списка товаров, если корзина не пуста) */}
+            {checkoutStep === 'cart' && cartItems.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                disabled={isClearing}
+                title="Очистить всю корзину"
+                className="flex items-center gap-1.5 text-xs font-medium text-stone-400 hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 px-3 py-2 rounded-xl transition-all disabled:opacity-50"
+              >
+                {isClearing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Очистить</span>
+              </button>
+            )}
+
+        </div>
+
           {/* Прячем крестик закрытия, если идет ожидание платежа */}
           {checkoutStep !== 'success' || (paymentUrl && isPaid) || !paymentUrl ? (
             <button onClick={handleClose} className="text-stone-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">

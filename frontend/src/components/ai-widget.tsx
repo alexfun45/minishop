@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Sparkles, ShoppingCart, Trash2, AlertTriangle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useVoiceInput } from '../hooks/useVoiceHook';
+import { renderFormattedText } from '../helpers/parser'
 import { apiClient } from '../services/api';
 
 // Описываем интерфейс продукта для типизации
@@ -117,7 +118,6 @@ export default function AiWidget({ addToCart, clearCart }: AiWidgetProps) {
       const shouldClearCart = response?.data?.clearCart || response?.clearCart;
 
       if(intent == 'add_to_cart' && aiProducts.length > 0){
-        console.log('aiProducts', aiProducts);
         addToCart(aiProducts);
       }
 
@@ -265,7 +265,7 @@ export default function AiWidget({ addToCart, clearCart }: AiWidgetProps) {
                       ? 'bg-gradient-to-br from-amber-600 to-amber-700 text-stone-950 rounded-tr-sm font-medium' 
                       : 'bg-white/10 text-stone-200 border border-white/10 rounded-tl-sm leading-relaxed font-light'
                   }`}>
-                    {msg.text}
+                    {renderFormattedText(msg.text)}
                   </div>
                 </div>
 

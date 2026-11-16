@@ -6,6 +6,7 @@ interface Product {
   description: string;
   price: number;
   image_url?: string;
+  quantity?: number;
 }
 
 
@@ -29,6 +30,7 @@ export default function ProductCard({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Чтобы не срабатывал клик по карточке (открытие модалки)
+    product.quantity = 1;
     onAddToCart(product);
     
     /*AnalyticsService.track('add_to_cart', {

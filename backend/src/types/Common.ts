@@ -1,12 +1,12 @@
 type userAction = {
-  type: 'ADD' | 'ORDER';
-  productId: number;
+  type: string;
+  product_id: number;
   quantity?: number;
-  customer_name?: string;
   customer_phone?: string;
   delivery_address?: string;
   name?: string | null;
-  customerName?: string;
+  customer_name?: string;
+  customer_address?: string;
   deliveryType?: string; 
   phone?: string;
   address?: string;
@@ -32,9 +32,9 @@ export interface UserSession {
 export type Language = 'ru' | 'tj' | 'uz';
 
 export interface CartItem {
-  productId: number;
+  product_id: number;
   name?: string | null;
-  price?: number;
-  quantity?: number;
+  price: number;
+  quantity: number;
   imageUrl?: string;
 }

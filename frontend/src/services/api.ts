@@ -20,6 +20,28 @@ class ApiClient {
     }
   }
 
+  async clearCart(userId: string) {
+    /*const response = await fetch(`${this.baseURL}/api/ai/clear`, { // подставьте ваш базовый путь роутера ИИ
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });*/
+    axios.post(`${this.baseURL}/api/ai/cart/clear`, {userId}).catch(err => {
+      console.error('Failed clear cart', err);
+    });
+  }
+
+  async syncCart(userId: string, items: any) {
+    /*const response = await fetch(`${this.baseURL}/api/ai/cart/sync`, { // подставьте ваш базовый путь роутера ИИ
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, payload }),
+      });*/
+      axios.post(`${this.baseURL}/api/ai/cart/sync`, {userId, items}).catch(err => {
+        console.error('Failed to sync cart', err);
+      });
+    }
+
   async track(payload: any) {
     try {
       axios.post(`${this.baseURL}/api/analytics/track`, payload).catch(err => {
