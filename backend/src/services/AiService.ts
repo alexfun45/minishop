@@ -1190,7 +1190,7 @@ export class AiService {
       // --- Шаг 3. Генерация нового окружения ---
       console.log('[AI Pipeline] Отправляем в нейросеть для генерации фона...');
       const response = await client.images.edit({
-        model: "flux.2-klein-4b", 
+        model: "black-forest-labs/flux.2-klein-4b",
         image: imageFile,
         prompt: `Professional product photography. ${prompt}, highly detailed, photorealistic, 4k, realistic shadows under the object, commercial lighting`,
         n: 1,
