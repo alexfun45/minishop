@@ -76,10 +76,12 @@ export class OrderService {
         user = await User.findOne({
           where: { [Op.or]: searchConditions }
         });
+        console.log('user exist', user);
       }
      
       if (!user) {
         // Создаем нового пользователя
+        console.log('user not exist user_id', user_id);
         user = await User.create({
           user_id: user_id || null,
           telegram_id: telegram_id || null,
@@ -122,7 +124,7 @@ export class OrderService {
       // Создаем заказ с user_id из найденного/созданного пользователя
       const order = await Order.create({
         ...orderMainData,
-        user_id: user.id, // Используем id из таблицы users
+        user_id: user.id,
         telegram_id: (telegram_id) ? telegram_id : null,
       });
       
@@ -221,19 +223,23 @@ export class OrderService {
   }
 
   // Найти заказы пользователя
-  async findByUserId(identifier: number | string, limit: number = 10){
+  async findByUserId(identifier: any, limit: number = 10){
     try {
       // 1. Сначала находим пользователя в таблице Users по любому из возможных идентификаторов:
       // Внутренний PK (id), фронтовый идентификатор (user_id) или telegram_id
+      const user_id = parseInt(identifier);
       const user = await User.findOne({
         where: {
           [Op.or]: [
-            { id: identifier },
-            { user_id: identifier },
-            { telegram_id: identifier }
+            { id: user_id },
+            { user_id: user_id },
+            { telegram_id: user_id }
           ]
         }
       });
+
+      console.log('identifier', identifier);
+      console.log('find user', user);
 
       if (!user) {
         return []; // Если пользователя в базе еще нет, то и заказов у него нет
@@ -277,6 +283,7 @@ export class OrderService {
           status: order.status,
           delivery_time: order.delivery_time,
           delivery_address: order.delivery_address,
+          delivery_type: order.deliveryType,
           customer_name: order.customer_name,
           customer_phone: order.customer_phone,
           payment_method: order.payment_method,

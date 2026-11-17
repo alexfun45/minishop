@@ -79,20 +79,10 @@ export default function CartDrawer({
 
   if (!isOpen) return null;
 
-  const getCurrentUserId = (): string => {
-    const tg = (window as any).Telegram?.WebApp;
-    const tgUser = tg?.initDataUnsafe?.user;
-    if (tgUser && tgUser.id) {
-      return tgUser.id.toString();
-    }
-    return localStorage.getItem('bakery_ai_user_id') || '';
-  };
-
   // Очистка корзины на бэкенде и фронтенде
   const handleClearAll = async () => {
     if (isClearing || cartItems.length === 0) return;
 
-    const userId = getCurrentUserId();
     setIsClearing(true);
     onClearCart();
     try {

@@ -53,6 +53,7 @@ export class UserService {
   async findByTelegramId(telegramId: number) {
     return await User.findOne({ where: { telegram_id: telegramId } });
   }
+
 }
 
 export const userService = new UserService();

@@ -56,6 +56,7 @@ const responseSchema = z.object({
   customerName: z.string().nullable().optional().describe("Имя пользователя, если он его назвал"),
   phone: z.string().nullable().optional().describe("Номер телефона, если пользователь его указал"),
   address: z.string().nullable().optional().describe("Адрес доставки, если пользователь его указал"),
+  orderId: z.string().nullable().optional().describe("Номер заказа, если пользователь его указал"),
   deliveryType: z.enum(["delivery", "pickup"]).nullable().optional().describe("Способ получения: доставка или самовывоз"),
 
   text: z.string()
@@ -482,7 +483,7 @@ export class AiService {
 
     // Блок быстрого добавления в корзину
     //if (directIntent === 'add_to_cart' && directProductId) {
-    if(user_intents.includes(directIntent)){
+    /*if(user_intents.includes(directIntent)){
       const fakeAiRes = {
         intent: directIntent,
         productIds: [directProductId.toString()],
@@ -503,7 +504,7 @@ export class AiService {
           //products: productInfo ? [productInfo] : []
         },
       });
-    }
+    }*/
 
     /*const cachedAnswerRaw = await AICacheService.get(userMessageVector, 0.25);
 
@@ -640,7 +641,6 @@ export class AiService {
         {format_instructions}
         `);
 
-    console.log('productContext', productContext);
 
     const prompt = await dynamicTemplate.invoke({
       document_context: documentContext || "Дополнительные документы не найдены по запросу.",
@@ -797,20 +797,20 @@ export class AiService {
     if (session.pendingAction?.type === 'ORDER') {
       const orderData = session.pendingAction;
       const cleanInput = userQuery.trim().toLowerCase();
-  
+      orderData.user_id = this.userId;
       // --- АВТОМАТ СОСТОЯНИЙ (FSM) ДЛЯ ОФОРМЛЕНИЯ ---
       switch (orderData.step) {
         case 0: // Шаг 0: Спрашиваем способ получения (Доставка / Самовывоз)
-        const lowerQuery = userQuery.toLowerCase();
-        if (lowerQuery.includes('доставк')) {
-          orderData.deliveryType = 'delivery';
-        } else if (lowerQuery.includes('самовывоз') || lowerQuery.includes('сам')) {
-          orderData.deliveryType = 'pickup';
-        }
+          const lowerQuery = userQuery.toLowerCase();
+          if (lowerQuery.includes('доставк')) {
+            orderData.deliveryType = 'delivery';
+          } else if (lowerQuery.includes('самовывоз') || lowerQuery.includes('сам')) {
+            orderData.deliveryType = 'pickup';
+          }
 
-        if (!orderData.deliveryType) {
-          return { message: "Уточните, пожалуйста, как вам удобнее получить заказ: **Доставка** или **Самовывоз**?" };
-        }
+          if (!orderData.deliveryType) {
+            return { message: "Уточните, пожалуйста, как вам удобнее получить заказ: **Доставка** или **Самовывоз**?" };
+          }
         
         orderData.step = 1; // Переходим к следующему шагу
         return { message: "Как к вам обращаться? Напишите ваше имя." };
@@ -821,8 +821,10 @@ export class AiService {
             if (/^\+?\d[\d\s\-()]{5,}$/.test(cleanInput)) {
               return { message: "Похоже, вы ввели номер телефона. Напишите, пожалуйста, сначала ваше имя." };
             }
-            orderData.customer_name = cleanInput;
-            return { message: `Приятно познакомиться, ${orderData.customer_name}! Укажите, пожалуйста, ваш номер телефона для связи.` };
+
+            const formattedName = cleanInput.charAt(0).toUpperCase() + cleanInput.slice(1).toLowerCase();
+            orderData.customer_name = formattedName;
+            return { message: `Приятно познакомиться, ${formattedName}! Укажите, пожалуйста, ваш номер телефона для связи.` };
           }
 
           // Подэтап 1.2: Имя уже есть, ждем телефон
@@ -843,7 +845,6 @@ export class AiService {
             // Если самовывоз — адрес не нужен, сразу переходим к оформлению (шаг 3)
             orderData.step = 3;
           }
-          break;
   
         case 2: // Шаг 2: Если выбрана доставка — запрашиваем адрес
           if (orderData.step === 2) {
@@ -853,6 +854,10 @@ export class AiService {
             orderData.delivery_address = cleanInput;
             orderData.step = 3;
           }
+
+          if (orderData.step !== 3) {
+            break;
+          }
   
         case 3: // Шаг 3: Финальное подтверждение заказа
           const cartSummary = session.cart.map((i: any) => `- ${i.name} (${i.quantity} шт.)`).join('\n');
@@ -860,7 +865,6 @@ export class AiService {
           
           // Очищаем pendingAction, так как заказ сформирован (или сохраняем в БД заказов)
           const finalOrder = { ...orderData, items: session.cart, total: totalSum };
-          console.log('finalOrder', finalOrder);
           // TODO: Сохранить finalOrder в базу данных PostgreSQL через Sequelize
           const order = await orderService.create(finalOrder);
           session.pendingAction = null;
@@ -882,9 +886,7 @@ export class AiService {
     switch (intent) {
       case 'add_to_cart':
         const queryLower = userQuery.toLowerCase();
-        console.log('queryLower', queryLower);
         const isBulkAdd = queryLower.includes('все') || queryLower.includes('всё') || queryLower.includes('их') || queryLower.includes('эти');
-        console.log('isBulkAdd', isBulkAdd);
         // Запоминаем, что пользователь ХОЧЕТ добавить, но ждем подтверждения
         const targetProductIds = (isBulkAdd || !aiRes.productIds || aiRes.productIds.length === 0)
           ? session.lastViewedProductId
@@ -940,19 +942,18 @@ export class AiService {
 
         case 'order_status':
           try {
-            let targetOrder = null;
+            let targetOrders = null;
   
             // Если пользователь явно указал номер заказа (например, "где 42 заказ?")
             if (aiRes.orderId) {
-              targetOrder = await orderService.findById(aiRes.orderId);
+              const specificOrder = await orderService.findById(aiRes.orderId);
+              if (specificOrder) targetOrders = [specificOrder];
             } else {
               // Иначе ищем самый свежий активный/последний заказ этого пользователя в базе
-              targetOrder = await orderService.findByUserId(this.userId);
-              console.log('userId', this.userId);
-              console.log('targetOrder', targetOrder);
+              targetOrders = await orderService.findByUserId(this.userId, 5);
             }
   
-            if (!targetOrder) {
+            if (!targetOrders || targetOrders.length === 0) {
               return { message: "Хм, я не нашел активных или недавних заказов по вашей истории. Хотите оформить новый?" };
             }
   
@@ -966,9 +967,28 @@ export class AiService {
               cancelled: 'Отменен ❌'
             };
 
-            const lastOrder: any = (Array.isArray(targetOrder)) ? targetOrder.pop() : targetOrder;
+            let message = `📋 **Ваши последние заказы:**\n\n`;
+
+            targetOrders.forEach((order, index) => {
+              const statusText = statusLabelsRu[order.status] || order.status;
+              const dateStr = new Date(order.delivery_time).toLocaleDateString('ru-RU', { 
+                day: 'numeric', 
+                month: 'short', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
+  
+              message += `🔹 **Заказ #${order.id}** от ${dateStr}\n` +
+                         `   • Статус: **${statusText}**\n` +
+                         `   • Сумма: **${order.total_amount} ₽**\n` +
+                         `   • Способ: ${order.delivery_address?.includes('delivery') ? 'Самовывоз' : 'Доставка'}\n\n`;
+            });
+  
+            message += `Если у вас есть вопросы по конкретному заказу, просто назовите его номер!`;
+  
+            return { message };
             
-            const currentStatusText = statusLabelsRu[lastOrder.status] || lastOrder.status;
+            /*const currentStatusText = statusLabelsRu[lastOrder.status] || lastOrder.status;
             const paymentText = lastOrder.status === 'payment_success' ? 'Оплачено онлайн 💳' : 'Не оплачено / Наличными 💵';
   
             return {
@@ -976,9 +996,9 @@ export class AiService {
                        `• Статус: **${currentStatusText}**\n` +
                        `• Сумма: **${lastOrder.total_amount} ₽**\n` +
                        `• Оплата: ${paymentText}\n` +
-                       `• Способ получения: ${lastOrder.delivery_address.includes('Самовывоз') ? 'Самовывоз' : 'Доставка'}\n\n` +
+                       `• Способ получения: ${lastOrder.delivery_type.includes('delivery') ? 'Самовывоз' : 'Доставка'}\n\n` +
                        `Если у вас есть вопросы по заказу, наш менеджер всегда на связи!`
-            };
+            };*/
           } catch (dbError) {
             console.error('[Order Status Error] Ошибка при поиске заказа в БД:', dbError);
             return { message: "К сожалению, произошла ошибка при проверке статуса заказа. Попробуйте чуть позже." };

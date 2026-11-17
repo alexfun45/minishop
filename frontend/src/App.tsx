@@ -78,8 +78,6 @@ export default function App() {
     if (!incomingProduct) return;
     //const products = incomingProduct.product ? incomingProduct.product : incomingProduct;
     const products = Array.isArray(incomingProduct) ? incomingProduct : [incomingProduct];
-    console.log('add to cart', incomingProduct);
-    const initialCount = incomingProduct.count || incomingProduct.quantity || 1;
     /*if (product.id === undefined || product.price === undefined) {
       console.error("Некорректный формат товара:", incomingProduct);
       return;

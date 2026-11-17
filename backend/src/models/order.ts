@@ -76,7 +76,7 @@ interface OrderCreationAttribute extends Optional<OrderAttribute,
   },
   delivery_address: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true,
   },
   delivery_time: {
     type: DataTypes.DATE,

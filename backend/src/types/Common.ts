@@ -1,5 +1,6 @@
 type userAction = {
   type: string;
+  user_id?: number;
   product_id: number;
   quantity?: number;
   customer_phone?: string;
