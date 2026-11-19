@@ -75,31 +75,6 @@ const model = new ChatOpenAI({
   temperature: 0,
 });
 
-const template = PromptTemplate.fromTemplate(`
-Вы — умный ИИ-продавец в чате интернет-магазина. Отвечай строго по заданному контексту ничего не придумывая
-Ваша задача — внимательно изучить товары в Контексте и ответить на вопрос пользователя.
-Прежде чем отвечать, просканируй список товаров. Если товара, который ищет пользователь нет в спсике товаров, вежливо сообщи что такого товара нет.
-
-КРИТИЧЕСКИЕ ПРАВИЛА:
-1. Если пользователь ищет продукт с отрицанием или определенным свойством (например: "без сахара", "без лактозы", "постный"), вы обязаны проверить как состав (ингредиенты), так и строку "Особенности".
-2. Если в поле "Особенности" ЯВНО написано "без сахара", этот товар ИДЕАЛЬНО подходит под запрос "без сахара". Внимательно посмотри на товар "Улитка слоеная сырная" — у неё в Особенностях это написано!
-3. Если пользователь указывает условие цены, то ищи соответствие в строчке цена
-4. Ответ оборачивайте строго в формат JSON, указанный ниже.
-Если подходящего товара нет, можешь предложить наиболее близкий аналог но только из существующих позиций в контексте, указав что по данным критериям среди текущих позиций ты найти не смог, но можешь предложить наиболее подходящий вариант. 
-Если похожих аналогов нет, то скажи что по заданному запросу ничего не можешь найти.
-Если пользователь подтверждает добавление товара, но не называет артикул заново, используй артикул из предыдущего сообщения AI в истории диалога и овтеть что товар добавлен в корзину
-
-Контекст Прайса: {context}
-
-История последних сообщений:
-{chat_history}
-
-Текущий запрос пользователя: {question}
-
-{format_instructions}
-`);
-
-
 const embeddings = new OpenAIEmbeddings({
   apiKey: process.env.AITUNNEL_API_KEY,
   model: "google/gemini-embedding-001",
@@ -113,7 +88,6 @@ const TABLE_NAME = "products_vectors";
 
 export class AiService {
   private static dbInstance: lancedb.Connection | null = null;
-  userId: number = 0;
   // Подключение к БД (Singleton)
   private static async getDb() {
     if (!this.dbInstance) {
@@ -130,15 +104,17 @@ export class AiService {
    * Шаг А: Создаем понятный для ИИ текстовый текст из всех полей товара.
    * Важно объединить языки, чтобы ассистент понимал запросы на любом из них.
    */
-  private static createProductContext(product: any): string {
+  private static createProductContext(product: any, dietaryTags: string = ''): string {
     return `
-      артикул: ${product.id}
-      Название (RU): ${product.name_ru || ''}
+      Артикул (ID): ${product.id}
+      Название: ${product.name_ru || ''}
       Описание: ${product.description_ru || ''}
-      Ингредиенты: ${product.ingredients_ru || ''}
+      Ингредиенты (Состав): ${product.ingredients_ru || 'Состав не указан'}
+      Особенности: ${product.features_ru || product.features || 'Нет'}
+      Диетический профиль и здоровье: ${dietaryTags}
+      Вес: ${product.weight || 'не указан'}
       Цена: ${product.price} руб
-      Категория ID: ${product.category_id}
-    `.trim().replace(/\s+/g, ' '); // убираем лишние пробелы
+    `.trim().replace(/\s+/g, ' ');
   }
 
   public static async getAiSettings(){
@@ -299,6 +275,54 @@ export class AiService {
   public static async indexProduct(product: any) {
     try {
       const db = await this.getDb();
+      
+      // 1. Генерируем медицинские/диетические теги с помощью ИИ
+      const dietaryTags = await this.generateDietaryTags(product);
+      
+      // 2. Собираем богатый контекст
+      const contextText = this.createProductContext(product, dietaryTags);
+      
+      let embedding: number[] = [];
+      const response = await client.embeddings.create({
+        model: 'google/gemini-embedding-001',
+        input: contextText,
+        encoding_format: 'float'
+      });
+      
+      if (response?.data?.[0]) {
+        embedding = response.data[0].embedding;
+      }
+
+      const record = {
+        id: product.id.toString(),
+        vector: embedding,
+        text: contextText,
+        productId: product.id,
+        price: Number(product.price),
+        available: Boolean(product.available),
+        image_url: product.image_url || ""
+      };
+
+      const tableNames = await db.tableNames();
+      if (!tableNames.includes(TABLE_NAME)) {
+        await db.createTable(TABLE_NAME, [record]);
+        console.log(`[LanceDB] Таблица ${TABLE_NAME} успешно создана.`);
+      } else {
+        const table = await db.openTable(TABLE_NAME);
+        await table.mergeInsert("id")
+          .whenMatchedUpdateAll()
+          .whenNotMatchedInsertAll()
+          .execute([record]);
+        console.log(`[LanceDB] Товар ID ${product.id} успешно проиндексирован с диет-тегами.`);
+      }
+    } catch (error) {
+      console.error(`[LanceDB] Ошибка индексации товара ${product.id}:`, error);
+    }
+  }
+
+  public static async indexProduct2(product: any) {
+    try {
+      const db = await this.getDb();
       const contextText = this.createProductContext(product);
       //const vector = await this.generateEmbedding(contextText);
       //const vectors = await embeddings.embedDocuments([contextText]);
@@ -357,6 +381,35 @@ export class AiService {
       }
     } catch (error) {
       console.error(`[LanceDB] Ошибка удаления товара ${productId}:`, error);
+    }
+  }
+
+  private static async generateDietaryTags(product: any): Promise<string> {
+    try {
+      const completion = await client.chat.completions.create({
+        model: 'google/gemini-2.5-flash-lite',
+        temperature: 0,
+        messages: [
+          { 
+            role: "system", 
+            content: `Ты — диетолог-технолог пекарни. Проанализируй название, состав и описание продукта. 
+Выпиши через запятую ключевые диетические свойства, показания и противопоказания.
+Обязательно укажи:
+- Подходит ли диабетикам (есть ли добавленный сахар, белая мука высшего сорта или это цельнозерновой/ржаной продукт без сахара).
+- Как влияет на ЖКТ / желудок / кишечник (например: тяжелая сдоба, жареное, острое ИЛИ диетическое, бездрожжевое, на закваске, легко усваивается, много клетчатки).
+- Наличие аллергенов и особенности (лактоза/молоко, глютен, яйца, постный/веганский продукт).
+Формат ответа: только строка с ключевыми словами и короткими фразами через запятую, без вводных слов.` 
+          },
+          { 
+            role: "user", 
+            content: `Товар: ${product.name_ru}. Состав: ${product.ingredients_ru || 'не указан'}. Описание: ${product.description_ru || ''}. Особенности: ${product.features_ru || product.features || ''}` 
+          }
+        ]
+      });
+      return completion.choices[0]?.message?.content || '';
+    } catch (e) {
+      console.error("[DietaryTags Error] Не удалось сгенерировать теги:", e);
+      return '';
     }
   }
 
@@ -420,7 +473,6 @@ export class AiService {
     const postdata: any = req.body;
     let productsForFrontend: any[] = [];
     const userId = postdata.userId;
-    this.userId = userId;
     const userQuery = postdata.message;
     const directIntent = postdata.payload?.directIntent; 
     const directProductId = postdata.payload?.productId;
@@ -453,7 +505,7 @@ export class AiService {
       }
   
       // Передаем сообщение напрямую в логику шагов оформления
-      const intentResult = await this.handleIntent(session, { intent: 'order' }, userQuery);
+      const intentResult = await this.handleIntent(session, { intent: 'order' }, userQuery, userId);
       
       session.chat.push(`Human: ${userQuery}`, `AI: ${intentResult?.message}`);
       await redis.set(`session:${userId}`, JSON.stringify(session));
@@ -557,8 +609,8 @@ export class AiService {
     
     // === ШАГ 1: Извлекаем динамические настройки из Postgres ===
     const aiSettings = await AiService.getAiSettings();
-    const systemPromptBase = aiSettings?.system_prompt || "Вы — умный ИИ-продавец в чате интернет-магазина.";
-    const companyPromotions = aiSettings?.company_promotions || "";
+    const systemPromptBase = aiSettings?.system_prompt || "Вы — умный ИИ-консультант и нутрициолог в интернет-магазине пекарни.";
+    const companyPromotions = aiSettings?.company_promotions || "Специальных акций на данный момент нет.";
     
     // Мапим уровень креативности (например, от 0 до 1, если в базе храните число или строку)
     const currentTemperature = aiSettings?.creativity_level !== undefined 
@@ -574,13 +626,20 @@ export class AiService {
     });
 
     // === ШАГ 2: Параллельный векторный поиск (Товары + Документы RAG) ===
+    let expandedQuery = userQuery;
+    const lowerQ = userQuery.toLowerCase();
+    if (lowerQ.includes('диабет') || lowerQ.includes('сахар') || lowerQ.includes('гликемич')) {
+      expandedQuery += " без сахара диетический диабетикам ржаной цельнозерновой низкий гликемический индекс";
+    }
+    if (lowerQ.includes('желуд') || lowerQ.includes('кишечн') || lowerQ.includes('жкт') || lowerQ.includes('гастрит') || lowerQ.includes('изжог')) {
+      expandedQuery += " легко усваивается бездрожжевой на закваске диетический не жареный без маргарина клетчатка ЖКТ";
+    }
+
     let productContext = "";
     let documentContext = "";
     let rawProductResults: any[] = [];
 
     try {
-      const db = await AiService.getDb();
-      const tableNames = await db.tableNames();
 
       const embeddingResponse = await client.embeddings.create({
         model: "google/gemini-embedding-001",
@@ -592,17 +651,24 @@ export class AiService {
       //  ? embeddingResponse.data[0].embedding 
       //  : null;
 
+      
+
       if (!queryVector) {
         console.error(`[AiService] Не удалось получить эмбеддинг для запроса: "${userQuery}". Ответ API:`, JSON.stringify(embeddingResponse));
       }
       else{
         // А. Поиск по товарам
-        if (tableNames.includes(TABLE_NAME)) {
-          const prodTable = await db.openTable(TABLE_NAME);
-          rawProductResults = await prodTable.search(queryVector).where('available = true').limit(10).toArray();
-          //console.log('rawProductResults', rawProductResults);
-          productContext = rawProductResults.map(item => `id:${item.id} | text:${item.text}`).join('\n');
-          //console.log('productContext', productContext);
+          const db = await AiService.getDb();
+          const tableNames = await db.tableNames();
+          if (tableNames.includes(TABLE_NAME)) {
+            const prodTable = await db.openTable(TABLE_NAME);
+            rawProductResults = await prodTable
+            .search(queryVector)
+            .where('available = true')
+            .limit(20) 
+            .toArray();
+
+            productContext = rawProductResults.map(item => item.text).join('\n---\n');
         }
 
         // Б. Поиск по загруженным PDF документам (knowledge_chunks)
@@ -620,35 +686,47 @@ export class AiService {
     const chatHistory = this.getChatHistoryString(session);
 
     // Конструируем гибкий шаблон, внедряя настройки из базы данных прямо в системную часть
+
     const dynamicTemplate = PromptTemplate.fromTemplate(`
-        ${systemPromptBase}
+      ${systemPromptBase}
 
-        КРИТИЧЕСКИЕ ПРАВИЛА И АКТУАЛЬНЫЕ АКЦИИ КОМПАНИИ:
-        ${companyPromotions || "Специальных акций на данный момент нет."}
-        Отвечай строго по заданному контексту товаров и документов, ничего не придумывая от себя.
+      Актуальные акции:
+      ${companyPromotions}
 
-        Дополнительный контекст из документов компании (инструкции, регламенты):
-        {document_context}
+      КРИТИЧЕСКИЕ ПРАВИЛА КОНСУЛЬТАЦИИ И ПОДБОРА ЕДЫ:
+      1. Отвечай СТРОГО на основе переданного ниже "Контекста доступных товаров" и "Документов". Ничего не придумывай от себя.
+      2. АНАЛИЗ СОСТАВА И ЗДОРОВЬЯ:
+        - Если пользователь спрашивает товары для ДИАБЕТИКОВ (или "без сахара"): внимательно проверяй поля "Ингредиенты", "Особенности" и "Диетический профиль". Категорически исключай товары, где в составе есть сахар, сироп, мед, сгущенка, джем или сладкая начинка. Предлагай товары, где явно указано "без сахара" (например, несладкую выпечку, ржаной/цельнозерновой хлеб, слоеную сырную улитку, если она без сахара).
+        - Если у пользователя ПРОБЛЕМЫ С ЖЕЛУДКОМ ИЛИ КИШЕЧНИКОМ (ЖКТ, гастрит, изжога, тяжесть): исключай жареные пирожки, острое, жирный крем, тяжелую дрожжевую сдобу с маргарином, кислые ягоды (вишню, лимон). Рекомендуй легкие позиции: бездрожжевую выпечку, хлеб на закваске, подсушенные изделия, нежирные начинки (творог, печеное яблоко, нежирный сыр) или продукты с клетчаткой (отруби, злаки — если речь о моторике кишечника).
+        - Если в составе товара нет точной информации, честно предупреди пользователя: "Судя по описанию, сахара там нет, но рекомендую уточнить полный состав у пекаря".
+      3. ПРАВИЛО ЗАПОЛНЕНИЯ productIds:
+        - В массив productIds добавляй ТОЛЬКО те артикулы (ID), которые реально подошли под критерии пользователя и которые ты порекомендовал в тексте ответа.
+        - Если подходящих товаров НЕТ — обязательно верни пустой массив productIds: [] и вежливо напиши в text, что по таким строгим диетическим критериям сейчас ничего нет.
+      4. РАБОТА С КОРЗИНОЙ:
+        - Если пользователь просит добавить товар или подтверждает покупку ("давай", "добавь", "беру"), но не называет артикул, возьми ID товара из предыдущих реплик в "Истории последних сообщений" и установи intent = "add_to_cart".
 
-        Контекст доступных товаров (Прайс):
-        {product_context}
+      Дополнительный контекст из документов компании:
+      {document_context}
 
-        История последних сообщений:
-        {chat_history}
+      Контекст доступных товаров (Прайс и составы):
+      {product_context}
 
-        Текущий запрос пользователя: {question}
+      История последних сообщений:
+      {chat_history}
 
-        {format_instructions}
-        `);
+      Текущий запрос пользователя: {question}
+
+      {format_instructions}
+      `);
 
 
-    const prompt = await dynamicTemplate.invoke({
-      document_context: documentContext || "Дополнительные документы не найдены по запросу.",
-      product_context: productContext || "Товары не найдены по запросу.",
-      chat_history: chatHistory,
-      question: userQuery,
-      format_instructions: parser.getFormatInstructions(),
-    });
+      const prompt = await dynamicTemplate.invoke({
+        document_context: documentContext || "Дополнительные документы не найдены.",
+        product_context: productContext || "Товары в базе не найдены.",
+        chat_history: chatHistory,
+        question: userQuery,
+        format_instructions: parser.getFormatInstructions(),
+      });
 
     // === ШАГ 4: Запрос к LLM и формирование ответа ===
     let aiResRaw;
@@ -677,13 +755,14 @@ export class AiService {
       const aiRes = await parser.parse(textContent);
       console.log('отправка сообщения LLM...');
       session.chat.push(`Human: ${userQuery}`, `AI: ${aiRes.text}`);
-      const intentResult = await this.handleIntent(session, aiRes, userQuery);
-      const targetProductIds = (intentResult.products) ? intentResult.products : aiRes.productIds;
+      const intentResult = await this.handleIntent(session, aiRes, userQuery, userId);
+
       console.log('ответ ИИ:', aiRes);
       // --- НАЧАЛО ИСПРАВЛЕНИЯ ЛОГИКИ ПОДБОРА КАРТОЧЕК ---
       const itemQty = aiRes.quantity || 1;
+      
       // Вариант 1: Модель сама явно вернула массив подходящих ID товаров
-      if (aiRes.productIds && aiRes.productIds.length > 0 && aiRes.intent!='view_cart') {
+      /*if (aiRes.productIds && aiRes.productIds.length > 0 && aiRes.intent!='view_cart') {
         console.log('Модель сама явно вернула массив подходящих', aiRes.productIds);
         for (const idStr of aiRes.productIds) {
           const pInfo:any = await productService.findById(parseInt(idStr));
@@ -704,6 +783,24 @@ export class AiService {
 
       if (aiRes.intent === 'search' && productsForFrontend.length > 0) {
         session.lastViewedProductId = productsForFrontend.map(p => p.id.toString());
+      }*/
+
+      if (aiRes.productIds && aiRes.productIds.length > 0 && aiRes.intent !== 'view_cart') {
+        console.log('ИИ отобрал подходящие товары по критериям:', aiRes.productIds);
+        for (const idStr of aiRes.productIds) {
+          const cleanId = parseInt(idStr.replace(/\D/g, ''), 10); // Защита, если ИИ вернул "id:15" вместо "15"
+          if (isNaN(cleanId)) continue;
+          
+          const pInfo: any = await productService.findById(cleanId);
+          if (pInfo) {
+            productsForFrontend.push(AiService.mapProductToFrontend(pInfo, itemQty));
+          }
+        }
+      }
+
+      // Запоминаем показанные товары, чтобы пользователь мог сказать "добавь их в корзину"
+      if (aiRes.intent === 'search' && productsForFrontend.length > 0) {
+        session.lastViewedProductId = productsForFrontend.map(p => p.id.toString());
       }
 
       const cachedProductIds = productsForFrontend.map(p => p.id.toString()) || [];
@@ -712,31 +809,23 @@ export class AiService {
       AiChatLogs.create({
         user_id: userId,
         user_message: userQuery,
-        ai_response: aiRes.text,
+        ai_response: intentResult?.message || aiRes.text,
         intent: aiRes.intent,
         is_cached: isFromCache,
         products_found: JSON.stringify(cachedProductIds),
         created_at: new Date()
       });
 
-      try {
-        /*await AICacheService.set(userQuery, userMessageVector, {
-          text: intentResult?.message || aiRes.text,
-          intent: aiRes.intent,
-          productIds: cachedProductIds
-        });
       
-        ;*/
-        await redis.set(`session:${userId}`, JSON.stringify(session))
-      } catch (cacheError: any) {
-        console.error('[AICache Warning] Не удалось записать кэш:', cacheError.message);
-      }
-      res.json({
+      await redis.set(`session:${userId}`, JSON.stringify(session))
+     
+      return res.json({
         success: true,
         data: {
           ...aiRes,
           text: intentResult?.message || aiRes.text,
-          products: productsForFrontend // Теперь здесь будет пусто для вопросов про график работы
+          clearCart: intentResult?.clearCart || false,
+          products: productsForFrontend
         },
       });
       
@@ -788,7 +877,7 @@ export class AiService {
     }
   };
 
-  async handleIntent(session: UserSession, aiRes: any, userQuery: string = '') {
+  async handleIntent(session: UserSession, aiRes: any, userQuery: string = '', userId = null) {
     const { intent, productIds, quantity, text, customerName, phone, address, deliveryType} = aiRes;
    
     const firstProductId = productIds && productIds.length > 0 ? productIds[0] : null;
@@ -797,7 +886,8 @@ export class AiService {
     if (session.pendingAction?.type === 'ORDER') {
       const orderData = session.pendingAction;
       const cleanInput = userQuery.trim().toLowerCase();
-      orderData.user_id = this.userId;
+      if(userId)
+        orderData.user_id = userId;
       // --- АВТОМАТ СОСТОЯНИЙ (FSM) ДЛЯ ОФОРМЛЕНИЯ ---
       switch (orderData.step) {
         case 0: // Шаг 0: Спрашиваем способ получения (Доставка / Самовывоз)
@@ -876,7 +966,7 @@ export class AiService {
                      `📦 Состав заказа:\n${cartSummary}\n` +
                      `💰 Итого: ${totalSum} руб.\n` +
                      `🚚 Способ: ${orderData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
-                     (orderData.address ? `📍 Адрес: ${orderData.customer_address}\n` : '') +
+                     (orderData.delivery_address ? `📍 Адрес: ${orderData.delivery_address}\n` : '') +
                      `👤 Получатель: ${orderData.customer_name} (${orderData.customer_phone})\n\n` +
                      `Менеджер скоро свяжется с вами для подтверждения!` 
           };
@@ -950,7 +1040,7 @@ export class AiService {
               if (specificOrder) targetOrders = [specificOrder];
             } else {
               // Иначе ищем самый свежий активный/последний заказ этого пользователя в базе
-              targetOrders = await orderService.findByUserId(this.userId, 5);
+              targetOrders = await orderService.findByUserId(userId, 5);
             }
   
             if (!targetOrders || targetOrders.length === 0) {
@@ -1103,17 +1193,25 @@ export class AiService {
     const completion: any = await client.chat.completions.create({
       model: 'google/gemini-2.5-flash-lite',
       messages: [
-        { role: "system", content: "Ты — помощник для заполнения карточек товаров. Верни результат строго в JSON формате с ключами: name_ru, price, weight, ingredients_ru, description_ru." },
+        { 
+          role: "system", 
+          content: `Ты — технолог-нутрициолог пекарни и помощник для заполнения карточек товаров. 
+Верни результат строго в JSON формате с ключами: 
+- name_ru (название)
+- price (только число)
+- weight (вес в граммах)
+- ingredients_ru (подробный реалистичный состав)
+- features_ru (диетические особенности через запятую, например: "без добавленного сахара, на натуральной закваске, подходит при диете, не содержит лактозы" или "содержит сахар, глютен, сдобное тесто")
+- description_ru (аппетитное описание).` 
+        },
         { role: "user", content: `Заполни данные товара на основе: ${prompt}` }
       ],
       response_format: { type: "json_object" }
     });
     
-    //return JSON.parse(completion.choices[0].message.content);
-    if(completion.choices[0]){
+    if (completion.choices?.[0]?.message?.content) {
       return JSON.parse(completion.choices[0].message.content);
-    }
-    else{
+    } else {
       return false;
     }
   }
