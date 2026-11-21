@@ -184,7 +184,7 @@ export default function AiWidget({ addToCart, clearCart }: AiWidgetProps) {
           <span className="font-semibold text-sm tracking-wide">Ваш Консультант</span>
         </button>
       ) : (
-        <div className="bg-stone-950/90 w-[calc(100vw-2rem)] sm:w-[420px] max-w-[420px] h-[560px] max-h-[calc(100vh-6rem)] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl relative">
+        <div className="bg-stone-950/90 w-[calc(100vw-2rem)] sm:w-[560px] max-w-[560px] h-[760px] max-h-[calc(100vh-4rem)] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border border-white/10 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl relative">
           
           {/* МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ОЧИСТКИ */}
           {showDeleteConfirm && (
