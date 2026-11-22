@@ -56,6 +56,8 @@ export class OrderService {
   // Создать заказ
   async create(orderData: any) {
     const { items, user_id, telegram_id, ...orderMainData } = orderData;
+    const customerName = orderMainData.customer_name || orderMainData.name || 'Гость';
+    const customerPhone = orderMainData.customer_phone || orderMainData.phone || null;
 
     try {
       let user = null;
@@ -86,8 +88,8 @@ export class OrderService {
           user_id: user_id || null,
           telegram_id: telegram_id || null,
           role: telegram_id ? 'user' : 'guest', // Разделяем гостей с сайта и пользователей бота
-          username: orderMainData.name || 'Гость',
-          phone: orderMainData.phone || null,
+          username: customerName,
+          phone: customerPhone,
         });
       } else{
 
@@ -111,28 +113,48 @@ export class OrderService {
           await user.save();
         }
 
-        if (user.username !== orderMainData.name || user.phone !== orderMainData.phone) {
+        /*if (user.username !== orderMainData.name || user.phone !== orderMainData.phone) {
           user.username = orderMainData.name;
           user.phone = orderMainData.phone;
           if (telegram_id && !user.telegram_id) {
               user.telegram_id = telegram_id;
           }
           await user.save();
-        }
+        }*/
       }
   
       // Создаем заказ с user_id из найденного/созданного пользователя
       const order = await Order.create({
         ...orderMainData,
+        customer_name: customerName,
+        customer_phone: customerPhone,
         user_id: user.id,
         telegram_id: (telegram_id) ? telegram_id : null,
       });
       
       const itemsToCreate = [];
+      const mergedItemsMap = new Map<number, { product_id: number; quantity: number; price: number }>();
 
-      for (const item of orderData.items) {
+      for (const rawItem of (items || [])) {
+        const prodId = Number(rawItem.product_id);
+        const qty = Number(rawItem.quantity) || 1;
+        const price = Number(rawItem.price) || 0;
+
+        if (mergedItemsMap.has(prodId)) {
+          const existing = mergedItemsMap.get(prodId)!;
+          existing.quantity += qty;
+        } else {
+          mergedItemsMap.set(prodId, {
+            product_id: prodId,
+            quantity: qty,
+            price: price
+          });
+        }
+      }
+
+       for (const [prodId, item] of mergedItemsMap.entries()) {
         // Находим продукт в базе данных по его id, чтобы взять имя и картинку
-        const product = await Product.findByPk(item.product_id);
+        const product = await Product.findByPk(prodId);
         
         if (!product) {
           throw new Error(`Продукт с ID ${item.product_id} не найден`);
@@ -140,18 +162,17 @@ export class OrderService {
 
         itemsToCreate.push({
           order_id: order.id,
-          product_id: item.product_id,
+          product_id: prodId,
           quantity: item.quantity,
-          price: item.price, 
+          price: item.price || Number(product.price), 
           product_name: product.name_ru,
           product_image: product.image_url
         });
 
       }
       // Добавляем товары в заказ
-      if (itemsToCreate && itemsToCreate.length > 0) {
+       if (itemsToCreate.length > 0) {
         await OrderItem.bulkCreate(itemsToCreate);
-        //await orderItemService.addItemsToOrder(order.id, items);
       }
   
       // Пересчитываем общую сумму

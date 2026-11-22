@@ -33,6 +33,7 @@ export interface UserSession {
 export type Language = 'ru' | 'tj' | 'uz';
 
 export interface CartItem {
+  type: string;
   product_id: number;
   name?: string | null;
   price: number;

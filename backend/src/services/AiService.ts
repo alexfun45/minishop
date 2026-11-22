@@ -38,6 +38,7 @@ AICacheService.initIndex();
 const user_intents = ["add_to_cart", "view_cart", "order", "greeting"];
 
 const responseSchema = z.object({
+  reasoning: z.string().describe("Короткое рассуждение: 1) Какой ТИП блюда ищет клиент (только десерт, только хлеб, сытный перекус или что угодно)? 2) Какие диетические ограничения? 3) Какие товары из контекста подходят под ОБА условия одновременно?"),
   intent: z.enum([
     "search", 
     "add_to_cart", 
@@ -393,12 +394,12 @@ export class AiService {
           { 
             role: "system", 
             content: `Ты — диетолог-технолог пекарни. Проанализируй название, состав и описание продукта. 
-Выпиши через запятую ключевые диетические свойства, показания и противопоказания.
-Обязательно укажи:
-- Подходит ли диабетикам (есть ли добавленный сахар, белая мука высшего сорта или это цельнозерновой/ржаной продукт без сахара).
-- Как влияет на ЖКТ / желудок / кишечник (например: тяжелая сдоба, жареное, острое ИЛИ диетическое, бездрожжевое, на закваске, легко усваивается, много клетчатки).
-- Наличие аллергенов и особенности (лактоза/молоко, глютен, яйца, постный/веганский продукт).
-Формат ответа: только строка с ключевыми словами и короткими фразами через запятую, без вводных слов.` 
+            Выпиши через запятую характеристики по 4 пунктам:
+            1. Тип продукта (выбери ровно одно: Десерт и сладкое к чаю / Хлеб и багеты / Сытная несладкая выпечка и пироги / Напиток).
+            2. Подходит ли диабетикам (есть ли сахар/сироп/мед или это продукт без сахара / на сахарозаменителе / с низким ГИ).
+            3. Влияние на ЖКТ (легко усваивается, диетическое, бездрожжевое ИЛИ тяжелая сдоба, жареное, острое).
+            4. Особенности (без лактозы, без глютена, постный/веганский).
+            Формат ответа: только строка с ключевыми словами через запятую, без вводных слов.` 
           },
           { 
             role: "user", 
@@ -486,24 +487,30 @@ export class AiService {
     const session = sessionData ? JSON.parse(sessionData) : { cart: [], chat: [], pendingItem: null, lastViewedProductId: null };
     
     //const userMessageVector: number[] = await embeddings.embedQuery(userQuery);
-
+    console.log('session', session);
     if (session.pendingAction?.type === 'ORDER') {
-      const normalizedQuery = userQuery.trim().toLowerCase();
+       const cleanVoiceQuery = userQuery
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, '')
+        .trim();
       
+      const cancelWords = ['отмен', 'стоп', 'передумал', 'не надо', 'выход', 'прекрат', 'сброс', 'назад'];
+      const isCancel = cancelWords.some(word => cleanVoiceQuery.includes(word));
       // Возможность отменить оформление
-      if (['отмена', 'отменить', 'стоп', 'передумал'].includes(normalizedQuery)) {
+       if (isCancel) {
         session.pendingAction = null;
         await redis.set(`session:${userId}`, JSON.stringify(session));
         return res.json({
           success: true,
           data: {
             intent: 'cancel',
-            text: 'Оформление заказа отменено. Чем еще я могу помочь?',
+            text: 'Оформление заказа отменено. Чем еще я могу вам помочь?',
             products: []
           }
         });
       }
-  
+      
+      try {
       // Передаем сообщение напрямую в логику шагов оформления
       const intentResult = await this.handleIntent(session, { intent: 'order' }, userQuery, userId);
       
@@ -519,6 +526,21 @@ export class AiService {
           products: []
         }
       });
+    } catch (orderErr) {
+        console.error('[Order FSM Error] Сбой при оформлении заказа:', orderErr);
+        // Сбрасываем зависший шаг, чтобы пользователь не попал в бесконечный цикл!
+        session.pendingAction = null;
+        await redis.set(`session:${userId}`, JSON.stringify(session));
+        
+        return res.json({
+          success: true,
+          data: {
+            intent: 'cancel',
+            text: 'Произошла техническая ошибка при сохранении заказа. Я сбросил процесс оформления — пожалуйста, попробуйте оформить заказ еще раз или очистите корзину.',
+            products: []
+          }
+        });
+      }
     }
 
     const embeddingResponse = await client.embeddings.create({
@@ -629,7 +651,7 @@ export class AiService {
     let expandedQuery = userQuery;
     const lowerQ = userQuery.toLowerCase();
     if (lowerQ.includes('диабет') || lowerQ.includes('сахар') || lowerQ.includes('гликемич')) {
-      expandedQuery += " без сахара диетический диабетикам ржаной цельнозерновой низкий гликемический индекс";
+      expandedQuery += " без сахара диетический диабетикам низкий гликемический индекс сахарозаменитель";
     }
     if (lowerQ.includes('желуд') || lowerQ.includes('кишечн') || lowerQ.includes('жкт') || lowerQ.includes('гастрит') || lowerQ.includes('изжог')) {
       expandedQuery += " легко усваивается бездрожжевой на закваске диетический не жареный без маргарина клетчатка ЖКТ";
@@ -695,14 +717,19 @@ export class AiService {
 
       КРИТИЧЕСКИЕ ПРАВИЛА КОНСУЛЬТАЦИИ И ПОДБОРА ЕДЫ:
       1. Отвечай СТРОГО на основе переданного ниже "Контекста доступных товаров" и "Документов". Ничего не придумывай от себя.
-      2. АНАЛИЗ СОСТАВА И ЗДОРОВЬЯ:
-        - Если пользователь спрашивает товары для ДИАБЕТИКОВ (или "без сахара"): внимательно проверяй поля "Ингредиенты", "Особенности" и "Диетический профиль". Категорически исключай товары, где в составе есть сахар, сироп, мед, сгущенка, джем или сладкая начинка. Предлагай товары, где явно указано "без сахара" (например, несладкую выпечку, ржаной/цельнозерновой хлеб, слоеную сырную улитку, если она без сахара).
-        - Если у пользователя ПРОБЛЕМЫ С ЖЕЛУДКОМ ИЛИ КИШЕЧНИКОМ (ЖКТ, гастрит, изжога, тяжесть): исключай жареные пирожки, острое, жирный крем, тяжелую дрожжевую сдобу с маргарином, кислые ягоды (вишню, лимон). Рекомендуй легкие позиции: бездрожжевую выпечку, хлеб на закваске, подсушенные изделия, нежирные начинки (творог, печеное яблоко, нежирный сыр) или продукты с клетчаткой (отруби, злаки — если речь о моторике кишечника).
-        - Если в составе товара нет точной информации, честно предупреди пользователя: "Судя по описанию, сахара там нет, но рекомендую уточнить полный состав у пекаря".
-      3. ПРАВИЛО ЗАПОЛНЕНИЯ productIds:
+      2. ПРАВИЛО ПЕРЕСЕЧЕНИЯ КРИТЕРИЕВ (КАТЕГОРИЯ + ДИЕТА):
+   - Всегда проверяй, совпадает ли ТИП продукта с тем, что просит пользователь!
+   - Если пользователь просит **ДЕСЕРТ, сладкое или что-то к чаю** (например: "десерт для диабетика") — предлагай ТОЛЬКО сладкие изделия/десерты без сахара (зефир, маффины на сахарозаменителе, ягодные/творожные десерты без сахара). **КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО** предлагать обычный хлеб, багеты или сытные пироги (с мясом/капустой/сыром) под видом десерта, даже если они не содержат сахара!
+   - Если пользователь просит **ХЛЕБ** — предлагай только хлеб.
+   - Если пользователь просит **сытно поесть / перекусить** — предлагай несладкую выпечку, пироги, улитки, киши.
+   - Предлагать все категории сразу можно ТОЛЬКО если запрос общий (например: "что у вас вообще можно при диабете?").
+      3. АНАЛИЗ СОСТАВА И ЗДОРОВЬЯ:
+      - Для ДИАБЕТИКОВ (или "без сахара"): проверяй "Ингредиенты", "Особенности" и "Диетический профиль". Исключай всё, где есть обычный сахар, сироп, мед, сгущенка, сладкий джем.
+      - Для ПРОБЛЕМ С ЖКТ (желудок, кишечник, гастрит): исключай жареное, острое, жирный крем, тяжелую сдобу, кислые ягоды. Рекомендуй легкие позиции в рамках запрошенной категории.
+      4. ПРАВИЛО ЗАПОЛНЕНИЯ productIds:
         - В массив productIds добавляй ТОЛЬКО те артикулы (ID), которые реально подошли под критерии пользователя и которые ты порекомендовал в тексте ответа.
         - Если подходящих товаров НЕТ — обязательно верни пустой массив productIds: [] и вежливо напиши в text, что по таким строгим диетическим критериям сейчас ничего нет.
-      4. РАБОТА С КОРЗИНОЙ:
+      5. РАБОТА С КОРЗИНОЙ:
         - Если пользователь просит добавить товар или подтверждает покупку ("давай", "добавь", "беру"), но не называет артикул, возьми ID товара из предыдущих реплик в "Истории последних сообщений" и установи intent = "add_to_cart".
 
       Дополнительный контекст из документов компании:
@@ -955,21 +982,28 @@ export class AiService {
           
           // Очищаем pendingAction, так как заказ сформирован (или сохраняем в БД заказов)
           const finalOrder = { ...orderData, items: session.cart, total: totalSum };
-          // TODO: Сохранить finalOrder в базу данных PostgreSQL через Sequelize
-          const order = await orderService.create(finalOrder);
-          session.pendingAction = null;
-          session.cart = []; // Очищаем корзину после успешного заказа
-          
-          return { 
-            clearCart: true,
-            message: `🎉 **Заказ успешно оформлен!**\n\n` +
-                     `📦 Состав заказа:\n${cartSummary}\n` +
-                     `💰 Итого: ${totalSum} руб.\n` +
-                     `🚚 Способ: ${orderData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
-                     (orderData.delivery_address ? `📍 Адрес: ${orderData.delivery_address}\n` : '') +
-                     `👤 Получатель: ${orderData.customer_name} (${orderData.customer_phone})\n\n` +
-                     `Менеджер скоро свяжется с вами для подтверждения!` 
-          };
+
+          try {
+            // TODO: Сохранить finalOrder в базу данных PostgreSQL через Sequelize
+            const order = await orderService.create(finalOrder);
+            session.pendingAction = null;
+            session.cart = []; // Очищаем корзину после успешного заказа
+            
+            return { 
+              clearCart: true,
+              message: `🎉 **Заказ успешно оформлен!**\n\n` +
+                      `📦 Состав заказа:\n${cartSummary}\n` +
+                      `💰 Итого: ${totalSum} руб.\n` +
+                      `🚚 Способ: ${orderData.deliveryType === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
+                      (orderData.delivery_address ? `📍 Адрес: ${orderData.delivery_address}\n` : '') +
+                      `👤 Получатель: ${orderData.customer_name} (${orderData.customer_phone})\n\n` +
+                      `Менеджер скоро свяжется с вами для подтверждения!` 
+            };
+          }  catch (err) {
+            // Если БД упала — сбрасываем автомат состояний, чтобы не зациклиться!
+            session.pendingAction = null;
+            throw err;
+          }
       }
     }
 
@@ -988,34 +1022,43 @@ export class AiService {
         
         const qty = quantity || 1;
         const addedItemsSummary = [];
-        //const productInfo = await productService.findById(parseInt(firstProductId));
+        
+        const uniqueTargetIds = [...new Set(targetProductIds.map((id: any) => id.toString()))];
 
-        //if (productInfo === null) {
-        //  return { message: "К сожалению, этот товар сейчас недоступен для заказа." };
-        //}
+        for (const idStr of uniqueTargetIds) {
+          const cleanId = parseInt((idStr as any).replace(/\D/g, ''), 10);
+          if (isNaN(cleanId)) continue;
+          const productInfo = await productService.findById(cleanId);
 
-        for (const idStr of targetProductIds) {
-          const productInfo = await productService.findById(parseInt(idStr));
+            if (productInfo) {
+            const prodIdStr = productInfo.id;
 
-          if (productInfo) {
-            const cartItem = { 
-              type: 'ADD', 
-              product_id: idStr, 
-              name: productInfo.name_ru, 
-              price: productInfo.price, 
-              quantity: qty 
-            };
+            // Проверяем, есть ли уже такой товар в корзине сессии
+            const existingCartItem = session.cart.find(
+              (item: any) => item.product_id.toString() === prodIdStr
+            );
 
-            session.pendingAction = cartItem;
+            if (existingCartItem) {
+              // Если товар уже в корзине — просто увеличиваем количество!
+              existingCartItem.quantity = Number(existingCartItem.quantity) + qty;
+            } else {
+              // Если товара еще нет — добавляем новую позицию
+              session.cart.push({ 
+                type: 'ADD', 
+                product_id: prodIdStr, 
+                name: productInfo.name_ru, 
+                price: Number(productInfo.price), 
+                quantity: qty 
+              });
+            }
 
-          session.cart.push(cartItem);
-          addedItemsSummary.push(`${productInfo.name_ru} — ${qty} шт.`);
+            addedItemsSummary.push(`${productInfo.name_ru} — ${qty} шт.`);
           }
         }
         session.pendingAction = null;
         return { 
           message: text || `✅ Успешно добавил в корзину:\n${addedItemsSummary.join('\n')}`,
-          products: targetProductIds
+          products: uniqueTargetIds
         };
       case 'order':
         if(session.cart == null || session.cart.length==0){
